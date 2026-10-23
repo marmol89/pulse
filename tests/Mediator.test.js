@@ -37,6 +37,27 @@ describe('Mediator', () => {
     assert.deepEqual(order, ['a', 'b']);
   });
 
+  test('un handler lento no retrasa a los siguientes, pero notify() espera a todos', async () => {
+    const mediator = new TestMediator();
+    const order = [];
+    let release;
+    mediator.on('ping', async () => {
+      order.push('lento: empieza');
+      await new Promise((resolve) => {
+        release = resolve;
+      });
+      order.push('lento: termina');
+    });
+    mediator.on('ping', () => order.push('rápido'));
+
+    const pending = mediator.notify(null, 'ping');
+    assert.deepEqual(order, ['lento: empieza', 'rápido']);
+
+    release();
+    await pending;
+    assert.deepEqual(order, ['lento: empieza', 'rápido', 'lento: termina']);
+  });
+
   test('un evento sin handler solo avisa por consola', async (t) => {
     const warn = t.mock.method(console, 'warn', () => {});
     const mediator = new TestMediator();

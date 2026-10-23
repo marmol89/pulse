@@ -31,8 +31,9 @@ export class Mediator {
   }
 
   /**
-   * Ejecuta en orden los handlers del evento. Un handler que falla se registra
-   * en consola y no impide que se ejecuten los demás.
+   * Inicia en orden los handlers del evento y espera a que terminen todos.
+   * Uno lento (p. ej. un IPC) no retrasa a los siguientes, y uno que falla
+   * se registra en consola sin impedir que se ejecuten los demás.
    */
   async notify(sender, event, payload) {
     const handlers = this.#handlers.get(event);
@@ -40,12 +41,14 @@ export class Mediator {
       console.warn(`[${this.constructor.name}] evento sin handler: ${event}`, sender);
       return;
     }
-    for (const handler of handlers) {
-      try {
-        await handler(this.context, payload, sender);
-      } catch (error) {
-        console.error(`[${this.constructor.name}] error al manejar "${event}"`, error);
-      }
+    await Promise.all(handlers.map((handler) => this.#run(handler, event, payload, sender)));
+  }
+
+  async #run(handler, event, payload, sender) {
+    try {
+      await handler(this.context, payload, sender);
+    } catch (error) {
+      console.error(`[${this.constructor.name}] error al manejar "${event}"`, error);
     }
   }
 }
