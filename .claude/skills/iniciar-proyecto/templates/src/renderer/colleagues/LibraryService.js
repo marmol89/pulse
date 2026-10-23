@@ -1,8 +1,9 @@
 import { Colleague } from '../core/Colleague.js';
+import { EVENTS } from '../mediator/events.js';
 
 /**
  * Único colega que habla con el proceso main (window.api, expuesto por el preload).
- * Servicio sin estado: no emite eventos.
+ * Emite: tracks-updated (pistas completadas con datos de internet en segundo plano).
  */
 export class LibraryService extends Colleague {
   #api;
@@ -10,6 +11,7 @@ export class LibraryService extends Colleague {
   constructor(api) {
     super();
     this.#api = api;
+    api.onTracksUpdated?.((tracks) => this.notify(EVENTS.TRACKS_UPDATED, tracks));
   }
 
   /** Biblioteca guardada en disco. */
@@ -35,5 +37,18 @@ export class LibraryService extends Colleague {
   /** Rutas reales de archivos arrastrados a la ventana. */
   pathsForFiles(files) {
     return [...files].map((file) => this.#api.pathForFile(file)).filter(Boolean);
+  }
+
+  /**
+   * Busca en internet la carátula, los datos y la letra que falten (`force`: aunque ya se buscaran).
+   * @returns {Promise<{ track: object, changed: boolean } | null>} rechaza si no hay conexión
+   */
+  lookup(path, { force = false } = {}) {
+    return this.#api.lookupTrack(path, { force });
+  }
+
+  /** Activa o desactiva la búsqueda en segundo plano del proceso main. */
+  setOnlineLookup(enabled) {
+    return this.#api.setOnlineLookup(enabled);
   }
 }

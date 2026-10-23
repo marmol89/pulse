@@ -49,4 +49,9 @@ export const EVENTS = Object.freeze({
 
   // Favoritos
   TOGGLE_FAVORITE: 'toggle-favorite', // (path?) — sin path, la pista actual
+
+  // Datos de internet (carátula, álbum, año, género, letra)
+  SET_ONLINE_LOOKUP: 'set-online-lookup', // (activado)
+  LOOKUP_TRACK: 'lookup-track', // (path) — búsqueda pedida por el usuario
+  TRACKS_UPDATED: 'tracks-updated', // (Track[]) — completadas en segundo plano
 });

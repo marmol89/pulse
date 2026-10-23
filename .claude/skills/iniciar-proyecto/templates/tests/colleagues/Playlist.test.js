@@ -90,6 +90,18 @@ describe('Playlist', () => {
     assert.equal(visited.size, 3);
   });
 
+  test('replace() actualiza una pista de la cola sin cambiar el orden ni la actual', () => {
+    const playlist = new Playlist();
+    playlist.setQueue(tracks('a', 'b', 'c'), 'b');
+    const updated = { ...tracks('b')[0], album: 'VIDA' };
+
+    assert.equal(playlist.replace(updated), true);
+
+    assert.equal(playlist.current(), updated);
+    assert.deepEqual(paths(playlist.tracks()), ['a', 'b', 'c']);
+    assert.equal(playlist.replace(tracks('z')[0]), false);
+  });
+
   test('tracks() devuelve una copia en el orden original', () => {
     const playlist = new Playlist();
     playlist.setQueue(tracks('a', 'b'));

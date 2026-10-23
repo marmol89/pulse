@@ -9,6 +9,7 @@ import {
   readTrackRecord,
   readTrackRecords,
   readCover,
+  readRecordCover,
   toTrack,
 } from '../../src/main/library/tracks.js';
 import { createLibraryStore } from '../../src/main/library/store.js';
@@ -63,11 +64,13 @@ describe('library/tracks', () => {
       {
         path: file,
         title: 'Luces de Neón',
+        titleFromFile: false,
         artist: 'Aurora Vega',
         albumArtist: '',
         album: 'Neón',
         genre: 'Pop latino',
         trackNo: 2,
+        trackCount: 9,
         disc: 0,
         year: 2024,
         duration: 1,
@@ -87,6 +90,7 @@ describe('library/tracks', () => {
     const [a, b] = await readTrackRecords([untagged, broken]);
 
     assert.equal(a.title, 'sin etiquetas');
+    assert.equal(a.titleFromFile, true);
     assert.equal(a.artist, 'Artista desconocido');
     assert.equal(b.title, 'roto');
     assert.equal(await readCover(broken), null);
@@ -97,7 +101,30 @@ describe('library/tracks', () => {
     assert.equal(track.url, 'media://track/%2Fm%2Fa.mp3');
     assert.equal(track.cover, 'media://cover/%2Fm%2Fa.mp3');
     assert.equal('hasCover' in track, false);
+    assert.equal(track.online, null);
     assert.equal(toTrack({ path: '/m/b.mp3', hasCover: false }).cover, null);
+  });
+
+  test('toTrack() versiona la carátula descargada y oculta los campos internos', () => {
+    const track = toTrack({ path: '/m/a.mp3', hasCover: false, coverFile: '/c/x.jpg', titleFromFile: false, online: { checkedAt: 42, status: 'found' } });
+    assert.equal(track.cover, 'media://cover/%2Fm%2Fa.mp3?v=42');
+    assert.equal('coverFile' in track, false);
+    assert.equal('titleFromFile' in track, false);
+    assert.deepEqual(track.online, { checkedAt: 42, status: 'found' });
+  });
+
+  test('readRecordCover() sirve la carátula incrustada o, si no hay, la descargada', async () => {
+    const png = path.join(dir, 'descargada.png');
+    const jpg = path.join(dir, 'descargada.jpg');
+    await writeFile(png, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    await writeFile(jpg, Buffer.from([0xff, 0xd8, 0xff]));
+
+    assert.equal((await readRecordCover({ path: '/m/a.mp3', hasCover: false, coverFile: png })).format, 'image/png');
+    assert.equal((await readRecordCover({ path: '/m/a.mp3', hasCover: false, coverFile: jpg })).format, 'image/jpeg');
+    assert.equal(await readRecordCover({ path: '/m/a.mp3', hasCover: false, coverFile: path.join(dir, 'borrada.jpg') }), null);
+    assert.equal(await readRecordCover({ path: '/m/a.mp3', hasCover: false }), null);
+    assert.equal(await readRecordCover(null), null);
+    assert.equal((await readRecordCover({ path: path.join(dir, 'neon.wav'), hasCover: true, coverFile: jpg })).format, 'image/png');
   });
 });
 
@@ -113,6 +140,8 @@ describe('library/store', () => {
     await reopened.load();
 
     assert.equal(reopened.has('/m/a.mp3'), true);
+    assert.deepEqual(reopened.get('/m/a.mp3'), { path: '/m/a.mp3', title: 'A' });
+    assert.equal(reopened.get('/m/otra.mp3'), null);
     assert.deepEqual(reopened.all(), [{ path: '/m/a.mp3', title: 'A' }]);
     assert.equal(JSON.parse(await readFile(file, 'utf8')).version, 1);
   });

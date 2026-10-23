@@ -76,8 +76,10 @@ con `letter-spacing` 1.2–1.5 en mayúsculas ("PARA TI", "REPRODUCIENDO DESDE")
 | Chips Todo/Música/Podcasts/Radio | Se reinterpretan como **Todo · Álbumes · Artistas · Favoritos** (no hay podcasts ni radio en local) |
 | Corazón ♥                    | Favoritos (colega `Favorites`, persistido)                            |
 | "Altavoz de la sala"         | Selector de dispositivo de salida (`HTMLMediaElement.setSinkId`)      |
-| Tarjeta "Letra"              | Letra embebida en los metadatos si existe; si no, se oculta           |
-| Portadas de colores          | Si la pista no tiene carátula, se genera con uno de los 4 gradientes elegido por hash del álbum/título, con las formas decorativas del diseño (círculos/triángulo al 25 % de opacidad) |
+| Tarjeta "Letra"              | Letra embebida en los metadatos o, si falta, de LRCLIB; si no hay, se oculta |
+| Portadas de colores          | Carátula incrustada o, si falta, la de iTunes; si tampoco hay, se genera con uno de los 4 gradientes elegido por hash del álbum/título, con las formas decorativas del diseño (círculos/triángulo al 25 % de opacidad) |
+| (nuevo) Tarjeta "Información" | En Reproduciendo, con el estilo de la de Letra: álbum, artista del álbum, año, género, pista, duración y origen de los datos, más "Buscar en internet" |
+| (nuevo) "Datos de internet"  | Interruptor en la sidebar (sección "Tu música"), píldora con `--grad-accent` cuando está activo |
 | Compartir, ⋯, avatar/Perfil  | Fuera de alcance en v1: no se renderizan                              |
 
 ## 4. Iconos

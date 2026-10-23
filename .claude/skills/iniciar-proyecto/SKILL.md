@@ -10,8 +10,9 @@ importa y reproduce música local, se parece al diseño `app-musica-figma.svg` y
 **Windows (NSIS)** y **Linux (AppImage + deb)**, con toda la coordinación de la UI en un **Mediator**
 que nunca se convierte en un *God Object*.
 
-`templates/` contiene **todo lo que no depende del diseño visual**, ya probado (147 tests): proceso main,
-preload, núcleo del patrón, mediator y handlers, modelos y servicios, tokens, `index.html`, scripts y tests.
+`templates/` contiene **todo lo que no depende del diseño visual**, ya probado (207 tests): proceso main
+(incluidos los **datos de internet**: carátula, álbum, año, género, pista y letra), preload, núcleo del patrón,
+mediator y handlers, modelos y servicios, tokens, `index.html`, scripts y tests.
 Lo visual (vistas, `ui/`, `layout.css`, `components.css`) se **genera** a partir del diseño (Paso 4).
 
 ## Paso 0 — Comprobaciones
@@ -51,16 +52,21 @@ src/main/                          T  proceso main (no forma parte del mediator)
   protocol/media.js                   registro del esquema en Electron
   library/tracks.js                   escaneo de carpetas + metadatos (concurrencia 8) + carátulas con caché
   library/store.js · importer.js      library.json en userData (escritura atómica) e importación validada
+  online/matching.js                  ¿es la misma canción? (título, artista, duración, otras versiones)
+  online/itunes.js · lrclib.js        iTunes Search (datos + carátula) y LRCLIB (letra), sin clave
+  online/http.js                      net.fetch con User-Agent, tiempo máximo y TransientError
+  online/enricher.js · queue.js       completar sin pisar etiquetas + cola en segundo plano (~17/min)
   ipc/library.js                      library:load | choose-files | choose-folder | import
+  ipc/metadata.js                     metadata:lookup | set-enabled (+ aviso library:tracks-updated)
 src/preload/preload.cjs            T  window.api (contextBridge, sandbox, webUtils.getPathForFile)
 src/assets/icon.png                T* lo genera `npm run icons` (scripts/generate-icon.mjs)
 src/renderer/
   index.html · app.js              T  esqueleto con CSP · raíz de composición (colegas → mediator → app-ready)
   core/Mediator.js · Colleague.js  T
   mediator/                        T  PlayerMediator (solo compone), events.js, actions.js, handlers/
-    handlers/playback · output · navigation · modes · library · views · favorites · recents · errors
+    handlers/playback · output · navigation · modes · library · views · favorites · recents · online · errors
   colleagues/                         modelos y servicios (T) + vistas (G)
-    Catalog · Playlist · Favorites · Recents          T  modelos puros
+    Catalog · Playlist · Favorites · Recents · Settings T  modelos puros
     AudioEngine · LibraryService · MediaSessionBridge T  servicios
     KeyboardShortcuts                                 T
     Router · HomeView · PlaylistView · SearchView     G  vistas del diseño
@@ -84,7 +90,8 @@ tests/                             T  core, handlers, modelos, servicios, main, 
    a Playlist, cárgala en AudioEngine y actualiza las vistas" está en `handlers/navigation.js`).
 4. Eventos en `kebab-case`, solo los de `mediator/events.js` (cada uno con su payload documentado).
 5. Fuentes de verdad: `Catalog` (biblioteca), `Playlist` (cola, aleatorio, repetir), `AudioEngine`
-   (tiempo, volumen, salida). Las vistas solo guardan estado de UI (filtro de chips, letra desplegada…).
+   (tiempo, volumen, salida), `Settings` (preferencias). Las vistas solo guardan estado de UI (filtro de
+   chips, letra desplegada…).
 6. El proceso main **no** es un colega: solo `LibraryService` lo usa, vía `window.api`.
 7. Seguridad: `contextIsolation`, `sandbox`, sin `nodeIntegration`, la CSP de `index.html`
    (`default-src 'self'; img-src 'self' data: media:; media-src media:; connect-src media:; style-src 'self';
@@ -101,10 +108,12 @@ tests/                             T  core, handlers, modelos, servicios, main, 
 3. **Un módulo de handlers por caso de uso** (`{ [EVENTS.X](ctx, payload, sender) {…} }`), **≤ 80 líneas**,
    sin estado de módulo y sin importar colegas (solo `../events.js` y `../actions.js`).
 4. **Funcionalidad nueva = módulo nuevo** registrado con `.use()`. Varios módulos pueden escuchar el mismo
-   evento (p. ej. `app-ready` lo escuchan library, playback, output y modes).
+   evento (p. ej. `app-ready` lo escuchan library, playback, output, modes y online; `track-started`,
+   recents y online). Así se añadieron los datos de internet: `handlers/online.js` + una línea `.use(online)`.
 5. Los handlers solo coordinan **dos o más colegas**; lo de un único colega va dentro de él.
-6. Coordinación repetida → `mediator/actions.js` (`loadTrack`, `resolveCollection`, `playCollection`,
-   `openCollection`, `renderCollection`, `refreshHome`, `showModes`, `trackListState`, `eachTrackListView`).
+6. Coordinación repetida → `mediator/actions.js` (`loadTrack`, `showTrack`, `applyTrackUpdates`,
+   `resolveCollection`, `playCollection`, `openCollection`, `renderCollection`, `refreshHome`, `showModes`,
+   `trackListState`, `eachTrackListView`).
 7. **No es un event bus**: nadie se suscribe a nadie; solo `notify()` hacia el mediator.
 8. Cada módulo de handlers se testea con `fakeContext()` (modelos reales, servicios y vistas espía).
 
@@ -112,7 +121,7 @@ Eventos y dónde se manejan:
 
 | Emisor | Evento | Módulo | Reacción |
 |---|---|---|---|
-| `app.js` | `app-ready` | library · playback · output · modes | carga la biblioteca, muestra volumen, salida y modos |
+| `app.js` | `app-ready` | library · playback · output · modes · online | carga la biblioteca, muestra volumen, salida, modos y la preferencia de internet |
 | Controls · NowPlaying · MediaSession · teclado | `play-toggle` | playback | alterna; sin pista, la actual de la cola; sin cola, la biblioteca |
 | Controls · NowPlaying · teclado | `seek`, `seek-step`, `volume-change`, `volume-step`, `toggle-mute` | playback | delega en AudioEngine y refleja el volumen |
 | AudioEngine | `time-update`, `state-change` | playback | sincroniza player bar, Reproduciendo, listas y sistema |
@@ -130,7 +139,10 @@ Eventos y dónde se manejan:
 | Controls (portada) · NowPlaying (chevron) · teclado (Esc) | `open-now-playing`, `close-now-playing` | views | overlay Reproduciendo |
 | SearchView | `search` | views | resultados del Catalog |
 | corazones · teclado (L) | `toggle-favorite` `path?` | favorites | marca y actualiza todos los corazones |
-| AudioEngine | `track-started` | recents | añade a recientes y refresca Inicio |
+| AudioEngine | `track-started` | recents · online | añade a recientes y refresca Inicio · completa la pista con internet (letra incluida) |
+| Router (interruptor) | `set-online-lookup` `bool` | online | guarda la preferencia y activa/desactiva la cola del main |
+| NowPlaying ("Buscar en internet") | `lookup-track` `path` | online | búsqueda forzada con estado de carga y aviso |
+| LibraryService | `tracks-updated` `Track[]` | online | reparte el lote completado en segundo plano |
 | AudioEngine | `error` | errors | avisa y salta; se detiene si falla toda la cola |
 
 Colecciones (`source.kind`): `library`, `album`, `artist`, `genre`, `search` (las resuelve `Catalog`) y
@@ -141,18 +153,36 @@ Colecciones (`source.kind`): `library`, `album`, `artist`, `genre`, `search` (la
 Los modelos y servicios ya vienen en `templates/`. Las vistas que generes **deben** exponer:
 
 - **Router**: `show(view, nav = view)` (`'home'|'search'|'collection'`), `back()`, `openOverlay()`,
-  `closeOverlay()`. Emite `navigate`, `open-folder`, `open-files`, `files-dropped`.
+  `closeOverlay()`, `setOnlineLookup(bool)`. Emite `navigate`, `open-folder`, `open-files`, `files-dropped`,
+  `set-online-lookup` (interruptor "Datos de internet" en la sidebar).
 - **HomeView**: `render({ isEmpty, recents, genres, albums, artists, favoriteTracks, favorites, currentPath, playing })`,
-  `highlight(path)`, `setPlaying(bool)`, `setFavorite(path, bool)`.
-- **PlaylistView**: `render(collection, state)`, `source()`, `highlight`, `setPlaying`, `setFavorite`, `setModes({ shuffle })`.
-- **SearchView**: `focus()`, `showResults(query, tracks, state)`, `highlight`, `setPlaying`, `setFavorite`.
-- **NowPlayingView**: `show(track, isFavorite)`, `setContext(title)`, `setProgress(c, d)`, `setPlaying`,
-  `setModes({ shuffle, repeat })`, `setFavorite`, `showOutputDevices(devices, currentId)`, `setOutputDevice(device|null)`.
+  `highlight(path)`, `setPlaying(bool)`, `setFavorite(path, bool)`, `updateTrack(track, isFavorite)`.
+- **PlaylistView**: `render(collection, state)`, `source()`, `highlight`, `setPlaying`, `setFavorite`, `updateTrack`,
+  `setModes({ shuffle })`.
+- **SearchView**: `focus()`, `showResults(query, tracks, state)`, `highlight`, `setPlaying`, `setFavorite`, `updateTrack`.
+- **NowPlayingView**: `show(track, isFavorite)` (con la misma pista no pliega la letra), `setContext(title)`,
+  `setProgress(c, d)`, `setPlaying`, `setModes({ shuffle, repeat })`, `setFavorite`, `showOutputDevices(devices, currentId)`,
+  `setOutputDevice(device|null)`, `setLookupState('loading'|'idle')`. Tarjeta "Información" (filas de
+  `trackDetails()`) con "Buscar en internet", que emite `lookup-track`.
 - **ControlsView**: `show(track, isFavorite)`, `setPlaying`, `setProgress`, `setModes`, `setVolume(v, muted)`, `setFavorite`.
 - **ToastView**: `show(message, { tone: 'info'|'error', sticky })`.
 
 `state` = `{ favorites: Set, currentPath, playing }`. `Track = { path, url, cover, title, artist, albumArtist,
-album, genre, trackNo, disc, year, duration, lyrics }` (lo construye `src/main/library/tracks.js`).
+album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo construye `src/main/library/tracks.js`;
+`online = { status: 'found'|'not-found'|'error', source, checkedAt, lyricsSource, lyricsCheckedAt } | null`).
+
+### Datos de internet (ya en `templates/`)
+
+- iTunes Search API (catálogo `ES`, géneros en español, carátula 600×600) y LRCLIB (letra): gratuitas y sin clave,
+  siempre desde el proceso main con `net.fetch` (respeta el proxy del sistema). El renderer nunca sale a internet.
+- **Rellenar huecos, nunca pisar etiquetas.** Título y artista solo se toman de internet si el título venía del nombre
+  del archivo. `matching.js` exige título ≥ 0,8, artista ≥ 0,6 y ≤ 20 s de diferencia; sin artista, título casi
+  idéntico y ≤ 3 s; descarta otras versiones (remix, directo, idiomas…). Más vale no encontrar que equivocarse.
+- La pista que empieza a sonar se completa al momento (con letra); el resto en segundo plano, una cada 3,5 s,
+  empezando 10 s después de arrancar. Lo no encontrado se marca y no se repite; sin red, se reintenta al minuto.
+- Persistencia: `library.json` + carátulas en `userData/covers/` (una por álbum). Funciona sin conexión.
+- **Privacidad**: envía título y artista a esos servicios → interruptor "Datos de internet" (`Settings`,
+  activado por defecto) y botón "Buscar en internet" para forzar una pista.
 
 ## Paso 4 — UI según el diseño `app-musica-figma.svg`
 
@@ -165,9 +195,11 @@ album, genre, trackNo, disc, year, duration, lyrics }` (lo construye `src/main/l
    - `icons.js`: trazados copiados del SVG (viewBox centrado en 0,0) + los que falten con el mismo trazo.
    - `cover.js`: portada real o generada (4 gradientes × 4 formas del diseño, elegidas por hash del álbum);
      dentro de un `<button>` usa `tag: 'span'`.
-   - `format.js`: `formatTime`, `formatDuration`, `plural`, `collectionStats`, `greeting`, `formatDeviceLabel`.
+   - `format.js`: `formatTime`, `formatDuration`, `plural`, `collectionStats`, `greeting`, `formatDeviceLabel`,
+     `formatTrackNumber` ("9 de 15"), `formatDataSource` y `trackDetails` (filas de la tarjeta "Información").
    - `trackList.js`: filas de 60 px (doble clic/Enter/botón sobre la portada reproducen; ecualizador animado
-     en la activa). `transport.js`: transporte, barra de progreso que no salta al arrastrar, volumen.
+     en la activa; `updateTrack()` repinta solo una fila). `transport.js`: transporte, barra de progreso que no
+     salta al arrastrar, volumen.
 4. Pantallas: **Inicio**, **Reproduciendo** (overlay con `inert` detrás y foco devuelto al cerrar),
    **Playlist** (cualquier colección) y **Buscar**, con los estados del diseño: pista activa en
    `--color-accent` con ecualizador, corazón relleno, aleatorio/repetir en `--color-primary` con punto,
@@ -179,8 +211,9 @@ album, genre, trackNo, disc, year, duration, lyrics }` (lo construye `src/main/l
 1. `npm test` (los de `templates/` + `tests/ui/format.test.js` y `cover.test.js` de lo generado) hasta que pase.
 2. **e2e con la app real** (`npm run test:e2e`, `tests/e2e/smoke.mjs`):
    - genera WAV con etiquetas ID3, carátulas y letra con `tests/helpers/audio.js` (no versiones música);
-   - arranca Electron con `--user-data-dir` temporal y pon `localStorage['pulse.muted'] = 'true'` antes de
-     recargar (que no suene en los altavoces del usuario);
+   - arranca Electron con `--user-data-dir` temporal y, **antes de importar**, pon
+     `localStorage['pulse.muted'] = 'true'` (que no suene en los altavoces del usuario) y
+     `localStorage['pulse.onlineLookup'] = 'false'` (la prueba nunca llama a iTunes ni a LRCLIB) y recarga;
    - importa con `window.api.importPaths([...])` y recarga; recorre Inicio, Biblioteca, Reproduciendo,
      Buscar y Álbumes; comprueba que el tiempo avanza, que saltar funciona, favoritos, letra, salidas,
      Espacio con el foco en un botón y **cero errores de consola**;
@@ -206,4 +239,13 @@ album, genre, trackNo, disc, year, duration, lyrics }` (lo construye `src/main/l
   `formatDeviceLabel()` y filtrarla en `AudioEngine.outputDevices()`.
 - Con la ventana de prueba tapada, Windows no pinta frames y las transiciones quedan a medias en las
   capturas → `animations: 'disabled'`. `ERR_ABORTED` en `media://track` al saltar o cambiar de pista es normal.
-- Con el foco en un botón, Espacio debe pausar y no pulsar el botón: `KeyboardShortcuts` lo previene.
+- Con el foco en un botón, Espacio debe pausar y no pulsar el botón: `KeyboardShortcuts` lo previene
+  (pero en interruptores y casillas Espacio debe marcarlos).
+- iTunes devolvía "Despacito (Mandarin Version) [feat. JJ Lin]" empatada con la original porque `simplify()`
+  ignora los paréntesis → `isOtherVersion()` descarta marcas de otra versión ("Remastered" no cuenta).
+- LRCLIB con "Luis Fonsi & Daddy Yankee" devuelve letras con "^" en vez de saltos de línea → buscar con
+  `primaryArtist()` y convertir "^" en salto de línea.
+- Con la tarjeta Información, la portada de Reproduciendo (centrada en vertical) quedaba baja y cortada →
+  alineada arriba y `position: sticky` en dos columnas.
+- Prueba de los datos de internet en vivo: un script aparte (no en el repo) con WAV sin etiquetas llamados
+  "Artista - Título" y con la **duración real** de la canción (si no, la coincidencia los rechaza, como debe).

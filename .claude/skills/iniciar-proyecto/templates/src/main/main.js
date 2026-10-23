@@ -1,10 +1,14 @@
-import { app, BrowserWindow, Menu } from 'electron';
+import { app, BrowserWindow, Menu, net } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { registerMediaScheme, handleMediaProtocol } from './protocol/media.js';
 import { createLibraryStore } from './library/store.js';
-import { readCover } from './library/tracks.js';
+import { readRecordCover } from './library/tracks.js';
+import { createHttp } from './online/http.js';
+import { createEnricher } from './online/enricher.js';
+import { createEnrichmentQueue } from './online/queue.js';
 import { registerLibraryIpc } from './ipc/library.js';
+import { registerMetadataIpc } from './ipc/metadata.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BACKGROUND = '#0E0E12'; // --color-bg del diseño: sin destello blanco al abrir
@@ -21,10 +25,20 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 async function start() {
-  const store = createLibraryStore(path.join(app.getPath('userData'), 'library.json'));
+  const userData = app.getPath('userData');
+  const store = createLibraryStore(path.join(userData, 'library.json'));
   await store.load();
-  handleMediaProtocol({ isAllowed: (filePath) => store.has(filePath), readCover });
-  registerLibraryIpc(store);
+
+  // Datos de internet: net.fetch usa la red de Chromium (respeta el proxy del sistema).
+  const http = createHttp((url, init) => net.fetch(url, init), {
+    userAgent: `Pulse/${app.getVersion()} (reproductor de música de escritorio)`,
+  });
+  const enricher = createEnricher({ http, coversDir: path.join(userData, 'covers') });
+  const queue = createEnrichmentQueue({ store, enricher, onUpdated: (tracks) => broadcast('library:tracks-updated', tracks) });
+
+  handleMediaProtocol({ isAllowed: (filePath) => store.has(filePath), readCover: (filePath) => readRecordCover(store.get(filePath)) });
+  registerLibraryIpc(store, { onImported: () => queue.wake() });
+  registerMetadataIpc({ store, queue });
   if (app.isPackaged) Menu.setApplicationMenu(null);
 
   createWindow();
@@ -56,6 +70,10 @@ function createWindow() {
   win.webContents.on('will-navigate', (event) => event.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.loadFile(path.join(__dirname, '../renderer/index.html'));
+}
+
+function broadcast(channel, payload) {
+  for (const win of BrowserWindow.getAllWindows()) win.webContents.send(channel, payload);
 }
 
 function focusMainWindow() {

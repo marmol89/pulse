@@ -35,6 +35,13 @@ export class Playlist extends Colleague {
     return [...this.#tracks];
   }
 
+  /** Sustituye una pista de la cola por su versión actualizada (misma ruta), sin cambiar el orden. */
+  replace(track) {
+    const index = this.#tracks.findIndex((candidate) => candidate.path === track.path);
+    if (index >= 0) this.#tracks[index] = track;
+    return index >= 0;
+  }
+
   size() {
     return this.#tracks.length;
   }
