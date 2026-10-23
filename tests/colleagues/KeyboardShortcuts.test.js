@@ -70,6 +70,14 @@ describe('KeyboardShortcuts', () => {
     assert.deepEqual(events, [[EVENTS.PLAY_TOGGLE, undefined]]);
   });
 
+  test('en un interruptor Espacio lo marca en vez de pausar', () => {
+    const { target, events } = setup(element({ tagName: 'INPUT', type: 'checkbox' }));
+    const space = press(target, ' ');
+    press(target, 'm');
+    assert.equal(space.defaultPrevented, false);
+    assert.deepEqual(events, [[EVENTS.TOGGLE_MUTE, undefined]]);
+  });
+
   test('mantener pulsado repite solo los atajos repetibles', () => {
     const { target, events } = setup();
     press(target, ' ', { repeat: true });

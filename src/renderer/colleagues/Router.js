@@ -13,13 +13,14 @@ const OVERLAY_DURATION_MS = 260;
 /**
  * Esqueleto de la app: sidebar (la tab bar del diseño), qué vista se ve,
  * el overlay Reproduciendo y la zona de arrastrar y soltar.
- * Emite: navigate, open-folder, open-files, files-dropped.
+ * Emite: navigate, open-folder, open-files, files-dropped, set-online-lookup.
  */
 export class Router extends Colleague {
   #root;
   #views;
   #overlay;
   #navButtons = new Map();
+  #onlineSwitch;
   #current = 'home';
   #previous = 'home';
   #returnFocus = null;
@@ -75,6 +76,11 @@ export class Router extends Colleague {
     return this.#overlay.classList.contains('is-open');
   }
 
+  /** Refleja si se buscan carátulas e información en internet. */
+  setOnlineLookup(enabled) {
+    this.#onlineSwitch.checked = enabled;
+  }
+
   #renderSidebar(sidebar) {
     const nav = h('div', { class: 'nav' });
     for (const [view, label, iconName] of NAV_ITEMS) {
@@ -87,11 +93,19 @@ export class Router extends Colleague {
     const addFiles = h('button', { type: 'button', class: 'nav__item' }, icon('note'), 'Añadir archivos');
     addFolder.addEventListener('click', () => this.notify(EVENTS.OPEN_FOLDER));
     addFiles.addEventListener('click', () => this.notify(EVENTS.OPEN_FILES));
+    this.#onlineSwitch = h('input', { type: 'checkbox', role: 'switch', class: 'switch', checked: true });
+    this.#onlineSwitch.addEventListener('change', () => this.notify(EVENTS.SET_ONLINE_LOOKUP, this.#onlineSwitch.checked));
+    const onlineRow = h(
+      'label',
+      { class: 'switch-row', title: 'Envía el título y el artista de tus canciones a iTunes y LRCLIB' },
+      h('span', { class: 'switch-row__text' }, h('span', { class: 'switch-row__title' }, 'Datos de internet'), h('span', { class: 'switch-row__hint' }, 'Carátulas, álbum, año y letra')),
+      this.#onlineSwitch,
+    );
 
     sidebar.replaceChildren(
       h('div', { class: 'brand' }, h('span', { class: 'brand__logo' }, icon('pulse')), 'Pulse'),
       nav,
-      h('div', { class: 'sidebar__section' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), addFolder, addFiles),
+      h('div', { class: 'sidebar__section' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), addFolder, addFiles, onlineRow),
       h('p', { class: 'sidebar__hint' }, 'También puedes arrastrar canciones o carpetas a la ventana.'),
     );
     this.#setActiveNav('home');

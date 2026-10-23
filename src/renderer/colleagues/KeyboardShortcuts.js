@@ -38,6 +38,8 @@ export class KeyboardShortcuts extends Colleague {
     if (isTextField(event.target) && !shortcut.inText) return;
     // En un deslizador, las flechas mueven el propio deslizador.
     if (isRange(event.target) && key.startsWith('Arrow') && !ctrl) return;
+    // En un interruptor o casilla, Espacio la marca (Enter no lo hace).
+    if (key === ' ' && isToggle(event.target)) return;
     event.preventDefault();
     if (event.repeat && !shortcut.repeat) return;
     this.notify(shortcut.event, shortcut.payload);
@@ -52,4 +54,8 @@ function isTextField(target) {
 
 function isRange(target) {
   return target?.tagName === 'INPUT' && target.type === 'range';
+}
+
+function isToggle(target) {
+  return target?.tagName === 'INPUT' && (target.type === 'checkbox' || target.type === 'radio');
 }
