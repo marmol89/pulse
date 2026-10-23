@@ -1,36 +1,52 @@
+/**
+ * Catálogo único de eventos. Los colegas solo emiten estos nombres.
+ * Entre paréntesis, el payload de cada evento.
+ */
 export const EVENTS = Object.freeze({
+  // Ciclo de vida
+  APP_READY: 'app-ready', // ()
+
   // Reproducción
-  PLAY_TOGGLE: 'play-toggle',
-  SEEK: 'seek',
-  VOLUME_CHANGE: 'volume-change',
-  OUTPUT_DEVICE_CHANGE: 'output-device-change',
-  TIME_UPDATE: 'time-update',
-  STATE_CHANGE: 'state-change',
-  TRACK_STARTED: 'track-started',
-  ERROR: 'error',
+  PLAY_TOGGLE: 'play-toggle', // ()
+  SEEK: 'seek', // (segundos)
+  SEEK_STEP: 'seek-step', // (±segundos)
+  VOLUME_CHANGE: 'volume-change', // (0..1)
+  VOLUME_STEP: 'volume-step', // (±0..1)
+  TOGGLE_MUTE: 'toggle-mute', // ()
+  TIME_UPDATE: 'time-update', // ({ current, duration })
+  STATE_CHANGE: 'state-change', // ({ playing })
+  TRACK_STARTED: 'track-started', // ()
+  ERROR: 'error', // ({ message })
+
+  // Salida de audio ("Altavoz de la sala")
+  SHOW_OUTPUT_DEVICES: 'show-output-devices', // ()
+  OUTPUT_DEVICE_CHANGE: 'output-device-change', // (deviceId)
 
   // Navegación entre pistas
-  NEXT: 'next',
-  PREVIOUS: 'previous',
-  TRACK_SELECTED: 'track-selected',
-  ENDED: 'ended',
+  NEXT: 'next', // ()
+  PREVIOUS: 'previous', // ()
+  TRACK_SELECTED: 'track-selected', // ({ source, path })
+  PLAY_COLLECTION: 'play-collection', // (source)
+  ENDED: 'ended', // ()
 
   // Modos
-  TOGGLE_SHUFFLE: 'toggle-shuffle',
-  CYCLE_REPEAT: 'cycle-repeat',
-  PLAY_MIX: 'play-mix',
+  TOGGLE_SHUFFLE: 'toggle-shuffle', // ()
+  CYCLE_REPEAT: 'cycle-repeat', // ()
+  PLAY_MIX: 'play-mix', // ()
 
   // Biblioteca
-  OPEN_FILES: 'open-files',
-  OPEN_FOLDER: 'open-folder',
+  OPEN_FILES: 'open-files', // ()
+  OPEN_FOLDER: 'open-folder', // ()
+  FILES_DROPPED: 'files-dropped', // (File[])
 
   // Vistas
-  NAVIGATE: 'navigate',
-  OPEN_NOW_PLAYING: 'open-now-playing',
-  CLOSE_NOW_PLAYING: 'close-now-playing',
-  FILTER_CHANGE: 'filter-change',
-  SEARCH: 'search',
+  NAVIGATE: 'navigate', // ('home' | 'search' | 'library')
+  NAVIGATE_BACK: 'navigate-back', // ()
+  OPEN_COLLECTION: 'open-collection', // (source)
+  OPEN_NOW_PLAYING: 'open-now-playing', // ()
+  CLOSE_NOW_PLAYING: 'close-now-playing', // ()
+  SEARCH: 'search', // (texto)
 
   // Favoritos
-  TOGGLE_FAVORITE: 'toggle-favorite',
+  TOGGLE_FAVORITE: 'toggle-favorite', // (path?) — sin path, la pista actual
 });

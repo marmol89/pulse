@@ -1,5 +1,6 @@
 import { Mediator } from '../core/Mediator.js';
 import playback from './handlers/playback.js';
+import output from './handlers/output.js';
 import navigation from './handlers/navigation.js';
 import modes from './handlers/modes.js';
 import library from './handlers/library.js';
@@ -17,16 +18,17 @@ export class PlayerMediator extends Mediator {
 
   /**
    * @param {{
-   *   audio, playlist, library, favorites, recents,
-   *   controls, playlistView, nowPlaying, home, search, router, keyboard?
+   *   audio, playlist, catalog, favorites, recents, library, mediaSession,
+   *   router, home, search, playlistView, nowPlaying, controls, toast, keyboard?
    * }} colleagues
    */
   constructor(colleagues) {
     super();
     this.#context = Object.freeze({ ...colleagues });
-    for (const colleague of Object.values(colleagues)) colleague?.setMediator(this);
+    for (const colleague of Object.values(colleagues)) colleague.setMediator(this);
 
     this.use(playback)
+      .use(output)
       .use(navigation)
       .use(modes)
       .use(library)

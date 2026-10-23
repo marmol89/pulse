@@ -1,19 +1,26 @@
 import { EVENTS } from '../events.js';
-import { loadTrack } from '../actions.js';
+import { playCollection, showModes } from '../actions.js';
 
-/** Modos de reproducción. Los algoritmos de shuffle/repeat viven en Playlist. */
+/** Modos de reproducción. Los algoritmos de aleatorio/repetir viven en Playlist. */
 export default {
+  [EVENTS.APP_READY](ctx) {
+    showModes(ctx);
+  },
+
   [EVENTS.TOGGLE_SHUFFLE](ctx) {
-    ctx.controls.setShuffle(ctx.playlist.toggleShuffle());
+    ctx.playlist.toggleShuffle();
+    showModes(ctx);
   },
 
   [EVENTS.CYCLE_REPEAT](ctx) {
-    ctx.controls.setRepeat(ctx.playlist.cycleRepeat());
+    ctx.playlist.cycleRepeat();
+    showModes(ctx);
   },
 
   // Tarjeta "Mix diario" del diseño: toda la biblioteca en aleatorio.
   [EVENTS.PLAY_MIX](ctx) {
-    ctx.controls.setShuffle(ctx.playlist.shuffleAll());
-    loadTrack(ctx, ctx.playlist.current());
+    ctx.playlist.setShuffle(true);
+    showModes(ctx);
+    playCollection(ctx, { kind: 'mix' });
   },
 };

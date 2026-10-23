@@ -11,6 +11,6 @@ export class Colleague {
 
   notify(event, payload) {
     if (!this.#mediator) throw new Error(`${this.constructor.name} no tiene mediator`);
-    this.#mediator.notify(this, event, payload);
+    return this.#mediator.notify(this, event, payload);
   }
 }

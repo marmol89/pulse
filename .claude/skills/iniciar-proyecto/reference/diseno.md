@@ -4,7 +4,11 @@ Fuente de verdad visual: `app-musica-figma.svg` en la raíz del proyecto (export
 Léelo antes de generar la UI. Está pensado para móvil (390 × 844, tema oscuro); aquí se define cómo
 se traduce a escritorio **sin perder la identidad visual**.
 
-## 1. Tokens (copiar a `src/renderer/styles/tokens.css`, ya está en `templates/`)
+## 1. Tokens (`templates/src/renderer/styles/tokens.css` es la lista completa y manda)
+
+Además de los de esta tabla, `tokens.css` define las transparencias del diseño (hover 4 %, fila activa 6 %,
+círculos decorativos 8 %, progreso 20 %), las de las formas de las portadas generadas, espaciado, medidas,
+sombras y duraciones.
 
 | Token                | Valor                                 | Uso en el diseño                         |
 |----------------------|---------------------------------------|------------------------------------------|
@@ -22,7 +26,7 @@ se traduce a escritorio **sin perder la identidad visual**.
 | `--grad-cool`        | `#2EC5FF → #7C5CFF`                   | portadas generadas                       |
 | `--grad-green`       | `#3DDC97 → #2EC5FF`                   | portadas generadas                       |
 | `--grad-now-playing` | `#3B2A7A → #0E0E12` (vertical, 60 %)  | fondo de la vista Reproduciendo          |
-| `--grad-playlist`    | `#7A2A55 → #0E0E12` (vertical, 50 %)  | fondo de la vista Playlist               |
+| `--grad-playlist`    | `#7A2A55 → #0E0E12` (vertical) sobre 440 px de alto (≈ 50 % de la pantalla móvil) | fondo de la vista Playlist |
 
 Radios: chips `17px` (píldora), tarjetas `24px`, portadas grandes `28px`, portadas medianas `16–20px`,
 miniaturas `8–10px`, filas/mini-player `12–16px`.
@@ -39,7 +43,9 @@ con `letter-spacing` 1.2–1.5 en mayúsculas ("PARA TI", "REPRODUCIENDO DESDE")
 │  ● Inicio    │   Inicio | Playlist | Buscar | Biblioteca     │
 │  ○ Buscar    │                                               │
 │  ○ Biblioteca│                                               │
-│  ── Listas ──│                                               │
+│ ─ Tu música ─│                                               │
+│  + carpeta   │                                               │
+│  + archivos  │                                               │
 ├──────────────┴───────────────────────────────────────────────┤
 │ Player bar  (mini-player ampliado a todo el ancho)           │
 │ [portada] Título/Artista ♥ │ ⤨ ⏮ ⏯ ⏭ ↻  ──●──── 1:24/3:32 │ 🔊 ▭ │

@@ -13,6 +13,12 @@ export class Mediator {
   }
 
   on(event, handler) {
+    if (typeof event !== 'string' || event === '' || event === 'undefined') {
+      throw new TypeError(`Evento no válido: ${String(event)}`);
+    }
+    if (typeof handler !== 'function') {
+      throw new TypeError(`El handler de "${event}" debe ser una función`);
+    }
     if (!this.#handlers.has(event)) this.#handlers.set(event, []);
     this.#handlers.get(event).push(handler);
     return this;
@@ -24,12 +30,25 @@ export class Mediator {
     return this;
   }
 
+  /**
+   * Inicia en orden los handlers del evento y espera a que terminen todos.
+   * Uno lento (p. ej. un IPC) no retrasa a los siguientes, y uno que falla
+   * se registra en consola sin impedir que se ejecuten los demás.
+   */
   async notify(sender, event, payload) {
     const handlers = this.#handlers.get(event);
     if (!handlers) {
       console.warn(`[${this.constructor.name}] evento sin handler: ${event}`, sender);
       return;
     }
-    for (const handler of handlers) await handler(this.context, payload, sender);
+    await Promise.all(handlers.map((handler) => this.#run(handler, event, payload, sender)));
+  }
+
+  async #run(handler, event, payload, sender) {
+    try {
+      await handler(this.context, payload, sender);
+    } catch (error) {
+      console.error(`[${this.constructor.name}] error al manejar "${event}"`, error);
+    }
   }
 }

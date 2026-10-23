@@ -1,21 +1,29 @@
 {
   "name": "reproductor-mediator",
+  "productName": "Pulse",
   "version": "0.1.0",
+  "private": true,
   "description": "Reproductor de música de escritorio (Windows/Linux) con Electron y patrón Mediator",
   "main": "src/main/main.js",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "electron .",
-    "test": "node --test tests/",
+    "test": "node --test \"tests/**/*.test.js\"",
+    "test:e2e": "node tests/e2e/smoke.mjs",
+    "icons": "node scripts/generate-icon.mjs",
     "dist": "electron-builder",
     "dist:win": "electron-builder --win",
     "dist:linux": "electron-builder --linux"
   },
   "build": {
     "appId": "com.example.reproductormediator",
-    "productName": "Reproductor Mediator",
+    "productName": "Pulse",
+    "icon": "src/assets/icon.png",
     "files": ["src/**/*", "package.json"],
     "win": { "target": ["nsis"] },
-    "linux": { "target": ["AppImage", "deb"], "category": "Audio" }
+    "linux": { "target": ["AppImage", "deb"], "category": "Audio", "executableName": "pulse" }
   }
 }

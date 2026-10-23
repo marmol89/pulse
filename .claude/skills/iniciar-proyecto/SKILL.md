@@ -1,230 +1,209 @@
 ---
 name: iniciar-proyecto
-description: Inicializa (scaffold) el reproductor de música de escritorio nativo para Windows y Linux hecho con JavaScript (Electron) y estructurado con el patrón de diseño Mediator. Úsala cuando el usuario pida iniciar, crear, arrancar o montar el proyecto del reproductor, generar su estructura base, o rehacer el esqueleto desde cero.
+description: Inicializa (scaffold) "Pulse", el reproductor de música de escritorio nativo para Windows y Linux hecho con JavaScript (Electron) y estructurado con el patrón de diseño Mediator, siguiendo el diseño app-musica-figma.svg. Úsala cuando el usuario pida iniciar, crear, arrancar o montar el proyecto del reproductor, generar su estructura base, o rehacer el esqueleto desde cero.
 ---
 
 # Iniciar proyecto: reproductor de música con patrón Mediator
 
 Objetivo: dejar en la carpeta actual un proyecto **Electron + JavaScript puro** que arranca con `npm start`,
-reproduce archivos de audio locales y empaqueta para **Windows (NSIS)** y **Linux (AppImage + deb)**,
-con toda la lógica de UI coordinada por un **Mediator**.
+importa y reproduce música local, se parece al diseño `app-musica-figma.svg` y empaqueta para
+**Windows (NSIS)** y **Linux (AppImage + deb)**, con toda la coordinación de la UI en un **Mediator**
+que nunca se convierte en un *God Object*.
+
+`templates/` contiene **todo lo que no depende del diseño visual**, ya probado (147 tests): proceso main,
+preload, núcleo del patrón, mediator y handlers, modelos y servicios, tokens, `index.html`, scripts y tests.
+Lo visual (vistas, `ui/`, `layout.css`, `components.css`) se **genera** a partir del diseño (Paso 4).
 
 ## Paso 0 — Comprobaciones
 
-1. Verifica `node -v` (>= 20) y `npm -v`.
-2. Lista la carpeta. Si ya existe `package.json` o `src/`, **no sobrescribas**: pregunta al usuario si quiere
-   rehacer el esqueleto o solo completar lo que falte.
-3. Si no es repositorio git, ejecuta `git init` y crea `.gitignore` (`node_modules/`, `dist/`, `out/`, `*.log`).
+1. `node -v` (**>= 22**: los tests usan globs de `node --test`) y `npm -v`.
+2. Lista la carpeta. Si ya existe `package.json` o `src/`, **no sobrescribas**: pregunta si rehacer el
+   esqueleto o solo completar lo que falte.
+3. Si no es repositorio git: `git init -b main`, `.gitignore` (`node_modules/`, `dist/`, `out/`, `*.log`,
+   `.claude/settings.local.json`, `tests/e2e/output/`) y `.gitattributes` (`* text=auto eol=lf` y
+   `*.png`/`*.ico`/`*.wav binary`). Si git no tiene identidad, configúrala **solo en el repo**.
+4. **Commits pequeños**: uno por pieza verificada (núcleo, cada modelo, cada grupo de handlers, cada vista…),
+   en español y estilo Conventional Commits (`feat(core): …`, `fix(ui): …`).
 
 ## Paso 1 — package.json y dependencias
 
-Copia `templates/package.json` a la raíz (ajusta `name`/`author` si el usuario lo indica) y ejecuta:
+Copia `templates/package.json`, añade `"author": "Nombre <email>"` (electron-builder lo exige para el `.deb`) y:
 
 ```bash
-npm install --save-dev electron electron-builder
+npm install --save-dev electron electron-builder playwright-core
 npm install music-metadata @fontsource/inter
 ```
 
-- `music-metadata` (ESM) se usa **solo en el proceso main** para leer título/artista/álbum/género/
-  letra/duración/carátula.
-- `@fontsource/inter` empaqueta la tipografía del diseño en local (la app funciona sin conexión).
-- No añadas frameworks de UI (React, Vue…) salvo que el usuario lo pida: la UI es HTML + ES modules.
+- Electron ≥ 45 ya no tiene `postinstall`: descarga el binario en el primer uso. Fuérzalo ya con
+  `node node_modules/electron/install.js` para no llevarte sorpresas.
+- `music-metadata` (ESM) solo en el proceso main. `@fontsource/inter`: tipografía del diseño sin conexión.
+- `playwright-core` solo para el e2e (maneja Electron sin descargar navegadores).
+- Nada de frameworks de UI salvo que el usuario lo pida: HTML + ES modules.
 
-## Paso 2 — Estructura de carpetas
+## Paso 2 — Estructura
+
+`T` = copiar de `templates/` tal cual · `G` = generar en el Paso 4.
 
 ```
-src/
-  main/
-    main.js                 # ventana, ciclo de vida de la app
-    ipc/library.js          # diálogos de archivos/carpetas + lectura de metadatos
-  preload/
-    preload.cjs             # contextBridge -> window.api (debe ser .cjs)
-  renderer/
-    index.html              # sidebar + <main> de vistas + overlay Reproduciendo + player bar
-    app.js                  # composición: crea mediator + colleagues y los conecta
-    styles/
-      tokens.css            # tokens del diseño (plantilla)
-      layout.css            # sidebar, main, player bar, overlay
-      components.css        # chips, tarjetas, filas, botones, barras de progreso
-    ui/
-      icons.js              # iconos SVG inline extraídos de app-musica-figma.svg
-      cover.js              # portada real o generada con gradiente (función pura)
-      format.js             # mm:ss, "24 canciones · 1 h 32 min", saludo según la hora
-    core/
-      Mediator.js           # clase base abstracta
-      Colleague.js          # clase base de los colegas
-    mediator/
-      PlayerMediator.js     # solo compone: colegas + .use(handlers). SIN lógica
-      events.js             # constante EVENTS (catálogo único de eventos)
-      actions.js            # acciones compartidas entre handlers (p. ej. loadTrack)
-      handlers/             # un módulo por caso de uso, pequeño y cohesivo
-        playback.js         # play/pausa, seek, volumen, dispositivo de salida, sync UI
-        navigation.js       # siguiente, anterior, selección, fin de pista
-        modes.js            # shuffle, repeat, "Mix diario"
-        library.js          # abrir archivos / carpetas
-        views.js            # navegación de vistas, overlay, filtros, búsqueda
-        favorites.js        # corazón ♥
-        recents.js          # "Escuchado recientemente"
-        errors.js           # errores de reproducción
-    colleagues/
-      # modelos y servicios (sin DOM)
-      AudioEngine.js        # envuelve HTMLAudioElement
-      Playlist.js           # pistas, índice, shuffle, repeat, búsqueda, géneros
-      Favorites.js          # Set de rutas, persistido en localStorage
-      Recents.js            # últimas 12 pistas, persistido en localStorage
-      LibraryService.js     # habla con window.api (IPC)
-      # vistas (diseño app-musica-figma.svg)
-      Router.js             # sidebar + cambio de vista + overlay
-      HomeView.js           # pantalla 01 · Inicio
-      NowPlayingView.js     # pantalla 02 · Reproduciendo (overlay)
-      PlaylistView.js       # pantalla 03 · Playlist
-      SearchView.js         # Buscar
-      ControlsView.js       # player bar (mini-player de escritorio)
-      KeyboardShortcuts.js  # espacio, flechas, Esc, media keys
-tests/
-  Mediator.test.js
-  handlers/*.test.js        # uno por módulo de handlers, con ctx falso
+src/main/                          T  proceso main (no forma parte del mediator)
+  main.js                             ventana 1280×800 (mín. 960×600), instancia única, sin navegación, --lang=es
+  protocol/urls.js · responses.js     media://track|cover/<ruta>: rangos HTTP (206/416), 403 fuera de la biblioteca
+  protocol/media.js                   registro del esquema en Electron
+  library/tracks.js                   escaneo de carpetas + metadatos (concurrencia 8) + carátulas con caché
+  library/store.js · importer.js      library.json en userData (escritura atómica) e importación validada
+  ipc/library.js                      library:load | choose-files | choose-folder | import
+src/preload/preload.cjs            T  window.api (contextBridge, sandbox, webUtils.getPathForFile)
+src/assets/icon.png                T* lo genera `npm run icons` (scripts/generate-icon.mjs)
+src/renderer/
+  index.html · app.js              T  esqueleto con CSP · raíz de composición (colegas → mediator → app-ready)
+  core/Mediator.js · Colleague.js  T
+  mediator/                        T  PlayerMediator (solo compone), events.js, actions.js, handlers/
+    handlers/playback · output · navigation · modes · library · views · favorites · recents · errors
+  colleagues/                         modelos y servicios (T) + vistas (G)
+    Catalog · Playlist · Favorites · Recents          T  modelos puros
+    AudioEngine · LibraryService · MediaSessionBridge T  servicios
+    KeyboardShortcuts                                 T
+    Router · HomeView · PlaylistView · SearchView     G  vistas del diseño
+    NowPlayingView · ControlsView · ToastView         G
+  lib/storage.js · text.js         T  localStorage seguro · normalizar/ordenar texto en español
+  ui/                              G  dom · icons · cover · format · trackList · transport
+  styles/tokens.css                T  único sitio con valores del diseño
+  styles/layout.css · components.css G
+scripts/                           T  generate-icon.mjs + lib/png.js (codificador PNG sin dependencias)
+tests/                             T  core, handlers, modelos, servicios, main, reglas + helpers/
+  ui/format.test.js · cover.test.js G  tests de lo generado en ui/
+  e2e/smoke.mjs                    G  prueba de la app real (Paso 5)
 ```
-
-Copia tal cual los archivos de `templates/` (core, mediator, main, preload, styles/tokens.css). El
-resto genéralo siguiendo las reglas de abajo y `reference/diseno.md`.
 
 ## Paso 3 — Reglas del patrón Mediator (obligatorias)
 
-1. **Los colegas nunca se conocen entre sí.** Ningún archivo de `colleagues/` importa otro colega.
-   Solo reciben el mediator en el constructor (a través de `Colleague`).
-2. **Los colegas solo hacen dos cosas**: exponer métodos propios (`play()`, `render(tracks)`, `setIndex(i)`…)
-   y avisar al mediator con `this.notify('evento', payload)`.
-3. **Toda decisión de coordinación vive en la capa `mediator/`**, repartida en módulos de
-   `handlers/` (p. ej. "cuando la pista termina, pide la siguiente a Playlist; si hay, cárgala en
-   AudioEngine y actualiza NowPlayingView y PlaylistView" está en `handlers/navigation.js`).
-4. Nombres de eventos en `kebab-case` y declarados en la constante `EVENTS` de `mediator/events.js`.
-   No uses strings sueltos fuera de esa constante.
-5. Las vistas no guardan estado de negocio; `Playlist` es la fuente de verdad del orden/índice
-   y `AudioEngine` del tiempo/volumen.
-6. El proceso main **no** forma parte del mediator: es un servicio remoto al que solo accede
-   `LibraryService` mediante `window.api`.
-7. Seguridad Electron: `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`,
-   CSP en `index.html`. Los archivos locales se sirven con un protocolo propio `media://`
-   registrado en main (ver `templates/src/main/main.js`), nunca con `file://` desde el renderer.
+1. **Los colegas nunca se conocen entre sí.** Solo importan `core/Colleague.js`, `mediator/events.js`,
+   `ui/` y `lib/`. Reciben el mediator con `setMediator()` (lo llama `PlayerMediator`).
+2. **Un colega solo hace dos cosas**: exponer métodos propios y avisar con `this.notify(EVENTS.X, payload)`.
+3. **Toda coordinación vive en `mediator/handlers/`** (p. ej. "cuando termina la pista, pide la siguiente
+   a Playlist, cárgala en AudioEngine y actualiza las vistas" está en `handlers/navigation.js`).
+4. Eventos en `kebab-case`, solo los de `mediator/events.js` (cada uno con su payload documentado).
+5. Fuentes de verdad: `Catalog` (biblioteca), `Playlist` (cola, aleatorio, repetir), `AudioEngine`
+   (tiempo, volumen, salida). Las vistas solo guardan estado de UI (filtro de chips, letra desplegada…).
+6. El proceso main **no** es un colega: solo `LibraryService` lo usa, vía `window.api`.
+7. Seguridad: `contextIsolation`, `sandbox`, sin `nodeIntegration`, la CSP de `index.html`
+   (`default-src 'self'; img-src 'self' data: media:; media-src media:; connect-src media:; style-src 'self';
+   font-src 'self'; script-src 'self'`), y nunca `innerHTML` con datos de archivos (usar `h()` de `ui/dom.js`).
+
+`tests/mediator/rules.test.js` comprueba automáticamente las reglas 1, 4 y las del Paso 3b.
 
 ## Paso 3b — Evitar que el mediator sea un "God Object" (obligatorio)
 
-El riesgo clásico del patrón es que el mediator acumule toda la lógica y se vuelva enorme. Para evitarlo:
+1. **`Mediator` (core) solo enruta**: mapa `evento → handlers[]` con `on()`, `use(módulo)` y `notify()`.
+   `notify()` **inicia los handlers en orden, no espera a uno para empezar el siguiente** (uno lento, como un
+   IPC, no bloquea a los demás), espera a que terminen todos y aísla sus errores (`console.error`).
+2. **`PlayerMediator` solo compone**: colegas + contexto congelado + `.use(módulo)`. Ni `if` ni `switch`.
+3. **Un módulo de handlers por caso de uso** (`{ [EVENTS.X](ctx, payload, sender) {…} }`), **≤ 80 líneas**,
+   sin estado de módulo y sin importar colegas (solo `../events.js` y `../actions.js`).
+4. **Funcionalidad nueva = módulo nuevo** registrado con `.use()`. Varios módulos pueden escuchar el mismo
+   evento (p. ej. `app-ready` lo escuchan library, playback, output y modes).
+5. Los handlers solo coordinan **dos o más colegas**; lo de un único colega va dentro de él.
+6. Coordinación repetida → `mediator/actions.js` (`loadTrack`, `resolveCollection`, `playCollection`,
+   `openCollection`, `renderCollection`, `refreshHome`, `showModes`, `trackListState`, `eachTrackListView`).
+7. **No es un event bus**: nadie se suscribe a nadie; solo `notify()` hacia el mediator.
+8. Cada módulo de handlers se testea con `fakeContext()` (modelos reales, servicios y vistas espía).
 
-1. **`Mediator` (core) solo enruta**: mapa `evento → handlers[]`, con `on()`, `use(módulo)` y `notify()`.
-   Nunca contiene reglas del reproductor.
-2. **`PlayerMediator` solo compone**: recibe colegas, crea el `context` congelado y hace
-   `.use(playback).use(navigation)…`. Si alguien quiere añadir un `if` o un `switch` aquí, está mal:
-   va a un módulo de `handlers/`.
-3. **Un módulo de handlers por caso de uso**, exportando `{ [EVENTS.X](ctx, payload, sender) {…} }`.
-   Límite orientativo: **~80 líneas por módulo**; si se supera o mezcla dos temas, se divide.
-4. **Una funcionalidad nueva = un módulo nuevo** (p. ej. `handlers/equalizer.js`, `handlers/scrobbling.js`)
-   registrado con `.use()`. No se engordan módulos existentes con temas ajenos. Varios módulos pueden
-   escuchar el mismo evento (`on` admite varios handlers).
-5. **Los handlers no guardan estado** y solo coordinan **dos o más colegas**. La lógica que afecta a un
-   único colega va dentro de ese colega (el algoritmo de shuffle/repeat en `Playlist`, el formato de
-   tiempo en la vista, etc.).
-6. Coordinación repetida entre handlers (cargar pista + actualizar vistas) → función en `actions.js`,
-   nunca copiada.
-7. **No es un event bus**: los colegas no se suscriben a eventos ni se escuchan entre sí; solo
-   `notify()` hacia el mediator.
-8. Cada módulo de handlers se testea por separado con un `ctx` falso, sin instanciar el mediator.
+Eventos y dónde se manejan:
 
-Eventos mínimos y dónde se manejan:
+| Emisor | Evento | Módulo | Reacción |
+|---|---|---|---|
+| `app.js` | `app-ready` | library · playback · output · modes | carga la biblioteca, muestra volumen, salida y modos |
+| Controls · NowPlaying · MediaSession · teclado | `play-toggle` | playback | alterna; sin pista, la actual de la cola; sin cola, la biblioteca |
+| Controls · NowPlaying · teclado | `seek`, `seek-step`, `volume-change`, `volume-step`, `toggle-mute` | playback | delega en AudioEngine y refleja el volumen |
+| AudioEngine | `time-update`, `state-change` | playback | sincroniza player bar, Reproduciendo, listas y sistema |
+| NowPlaying | `show-output-devices`, `output-device-change` | output | lista y elige salida ("Altavoz de la sala") |
+| Controls · NowPlaying · teclado | `next`, `previous` | navigation | mueve la cola; anterior reinicia si van > 3 s |
+| listas (Playlist, Buscar, Inicio) | `track-selected` `{source, path}` | navigation | la colección pasa a ser la cola y suena esa pista |
+| PlaylistView | `play-collection` `source` | navigation | reproduce la colección desde el principio |
+| AudioEngine | `ended` | navigation | `playlist.nextOnEnded()` |
+| Controls · NowPlaying · Playlist · teclado | `toggle-shuffle`, `cycle-repeat` | modes | cambia el modo y lo refleja |
+| HomeView (Mix diario) | `play-mix` | modes | biblioteca entera en aleatorio |
+| Router · HomeView | `open-files`, `open-folder`, `files-dropped` | library | importa, avisa y repinta |
+| Router · teclado | `navigate` | views | inicio/buscar/biblioteca (biblioteca = colección) |
+| PlaylistView | `navigate-back` | views | vuelve a la vista anterior |
+| HomeView · NowPlaying (cola) | `open-collection` `source` | views | pinta y muestra la colección |
+| Controls (portada) · NowPlaying (chevron) · teclado (Esc) | `open-now-playing`, `close-now-playing` | views | overlay Reproduciendo |
+| SearchView | `search` | views | resultados del Catalog |
+| corazones · teclado (L) | `toggle-favorite` `path?` | favorites | marca y actualiza todos los corazones |
+| AudioEngine | `track-started` | recents | añade a recientes y refresca Inicio |
+| AudioEngine | `error` | errors | avisa y salta; se detiene si falla toda la cola |
 
-| Emisor                          | Evento                        | Módulo       | Reacción                                                  |
-|---------------------------------|-------------------------------|--------------|-----------------------------------------------------------|
-| Controls / NowPlaying           | `play-toggle`                 | `playback`   | si no hay pista cargada, carga la actual; si no, alterna  |
-| Controls / NowPlaying           | `seek`, `volume-change`       | `playback`   | `audio.seek()` / `audio.setVolume()`                      |
-| NowPlaying                      | `output-device-change`        | `playback`   | `audio.setOutputDevice()` ("Altavoz de la sala")          |
-| AudioEngine                     | `time-update`, `state-change` | `playback`   | sincroniza player bar, Reproduciendo y fila activa        |
-| Controls / NowPlaying           | `next` / `previous`           | `navigation` | mueve índice en Playlist y carga la pista                 |
-| PlaylistView / Home / Search    | `track-selected`              | `navigation` | `playlist.setIndex(i)` y carga/reproduce                  |
-| AudioEngine                     | `ended`                       | `navigation` | `playlist.nextOnEnded()` o parar                          |
-| Controls / NowPlaying           | `toggle-shuffle`, `cycle-repeat` | `modes`   | cambia modo en Playlist y refleja el icono                |
-| HomeView (tarjeta Mix)          | `play-mix`                    | `modes`      | shuffle de toda la biblioteca y reproduce                 |
-| Router / PlaylistView           | `open-files` / `open-folder`  | `library`    | `library.pick…()` → `playlist.add()` → render + Inicio    |
-| Router (sidebar)                | `navigate`                    | `views`      | `router.show(view)`                                       |
-| Controls (portada) / NowPlaying (chevron, Esc) | `open-now-playing` / `close-now-playing` | `views` | abre/cierra el overlay      |
-| HomeView (chips)                | `filter-change`               | `views`      | filtra Todo/Álbumes/Artistas/Favoritos                    |
-| SearchView                      | `search`                      | `views`      | `search.showResults(playlist.search(q))`                  |
-| Controls / NowPlaying / Playlist| `toggle-favorite`             | `favorites`  | `favorites.toggle()` y actualiza los corazones            |
-| AudioEngine                     | `track-started`               | `recents`    | `recents.add()` y refresca Inicio                         |
-| AudioEngine                     | `error`                       | `errors`     | muestra aviso y salta a la siguiente                      |
-| KeyboardShortcuts               | mismos que Controls + Esc     | —            | emite los mismos eventos; no hay lógica duplicada         |
+Colecciones (`source.kind`): `library`, `album`, `artist`, `genre`, `search` (las resuelve `Catalog`) y
+`queue`, `favorites`, `recents`, `mix` (las resuelve `actions.resolveCollection` combinando modelos).
 
-### Contrato de métodos que usan los handlers de `templates/.../mediator/`
+### Contrato de las vistas generadas (lo que llaman los handlers)
 
-Los colegas generados **deben** exponer exactamente estos métodos:
+Los modelos y servicios ya vienen en `templates/`. Las vistas que generes **deben** exponer:
 
-Modelos y servicios:
+- **Router**: `show(view, nav = view)` (`'home'|'search'|'collection'`), `back()`, `openOverlay()`,
+  `closeOverlay()`. Emite `navigate`, `open-folder`, `open-files`, `files-dropped`.
+- **HomeView**: `render({ isEmpty, recents, genres, albums, artists, favoriteTracks, favorites, currentPath, playing })`,
+  `highlight(path)`, `setPlaying(bool)`, `setFavorite(path, bool)`.
+- **PlaylistView**: `render(collection, state)`, `source()`, `highlight`, `setPlaying`, `setFavorite`, `setModes({ shuffle })`.
+- **SearchView**: `focus()`, `showResults(query, tracks, state)`, `highlight`, `setPlaying`, `setFavorite`.
+- **NowPlayingView**: `show(track, isFavorite)`, `setContext(title)`, `setProgress(c, d)`, `setPlaying`,
+  `setModes({ shuffle, repeat })`, `setFavorite`, `showOutputDevices(devices, currentId)`, `setOutputDevice(device|null)`.
+- **ControlsView**: `show(track, isFavorite)`, `setPlaying`, `setProgress`, `setModes`, `setVolume(v, muted)`, `setFavorite`.
+- **ToastView**: `show(message, { tone: 'info'|'error', sticky })`.
 
-- **AudioEngine**: `load(url, autoplay)`, `toggle()`, `hasTrack()`, `currentTime()`, `seek(s)`,
-  `setVolume(0..1)`, `setOutputDevice(id)`. Emite `time-update {current, duration}`, `ended`,
-  `state-change {playing}`, `track-started` (primer `playing` tras un `load`), `error {message}`.
-- **Playlist**: `add(tracks)`, `tracks()`, `index()`, `current()`, `next()`, `previous()`, `setIndex(i)`,
-  `nextOnEnded()`, `toggleShuffle()` → bool, `cycleRepeat()` → `'off'|'all'|'one'`, `shuffleAll()` → bool,
-  `search(q)`, `topGenres(n)`. Los que mueven el índice devuelven la pista o `null`. No emite eventos.
-- **Favorites**: `has(path)`, `toggle(path)` → bool, `list()`. No emite eventos.
-- **Recents**: `add(track)`, `list()`. No emite eventos.
-- **LibraryService**: `pickFiles()`, `pickFolder()` → `Promise<Track[]>` (llama a `window.api`).
-
-Vistas:
-
-- **Router**: `show(view)` (`'home'|'search'|'library'|'playlist'`), `openOverlay(name)`, `closeOverlay()`.
-  Emite `navigate`, `open-files`, `open-folder`.
-- **HomeView**: `render({ recents, genres })`, `setFilter(filter, tracks)`.
-- **NowPlayingView**: `show(track, isFavorite)`, `setTime(c, d)`, `setPlaying(bool)`, `setFavorite(path, bool)`,
-  `setOutputDevice(id)`, `showError(msg)`.
-- **PlaylistView**: `render(tracks, index)`, `highlight(index)`, `setPlaying(bool)`, `setFavorite(path, bool)`.
-- **SearchView**: `showResults(tracks)`.
-- **ControlsView** (player bar): `setPlaying(bool)`, `setProgress(c, d)`, `setShuffle(bool)`,
-  `setRepeat(mode)`, `setFavorite(path, bool)`.
-
-`Track = { path, url, title, artist, album, genre, lyrics, duration, cover }`
-(lo construye `src/main/ipc/library.js`).
-
-CSP recomendada en `index.html`:
-`default-src 'self'; img-src 'self' data:; media-src media:; style-src 'self'; font-src 'self'; script-src 'self'`.
+`state` = `{ favorites: Set, currentPath, playing }`. `Track = { path, url, cover, title, artist, albumArtist,
+album, genre, trackNo, disc, year, duration, lyrics }` (lo construye `src/main/library/tracks.js`).
 
 ## Paso 4 — UI según el diseño `app-musica-figma.svg`
 
-1. **Lee `app-musica-figma.svg` (raíz del proyecto) y `reference/diseno.md`** antes de escribir la UI.
-   El diseño es para móvil; `reference/diseno.md` define cómo adaptarlo a escritorio (sidebar en lugar
-   de tab bar, player bar en lugar de mini-player, Reproduciendo como overlay).
-2. Usa **solo los tokens** de `styles/tokens.css`: ningún color, radio ni tamaño de fuente escrito a mano
-   en `layout.css`/`components.css`.
-3. Copia los iconos del SVG a `ui/icons.js` (no uses librerías de iconos).
-4. Implementa las tres pantallas: **Inicio**, **Reproduciendo** y **Playlist**, más **Buscar**, con los
-   estados del diseño: pista activa en `--color-accent` con ecualizador animado, corazón relleno en
-   favoritos, repetir activo en `--color-primary`, chip activo con `--grad-accent`.
-5. Elementos del diseño sin equivalente local (Podcasts, Radio, Perfil, Compartir) **no se
-   renderizan**; consulta la tabla de reinterpretaciones de `reference/diseno.md`.
-6. Las vistas solo pintan y emiten eventos: nada de lógica de negocio dentro de ellas (Paso 3).
+1. **Lee `app-musica-figma.svg` y `reference/diseno.md`** antes de escribir la UI: el diseño es móvil y
+   `diseno.md` define la adaptación a escritorio y qué significa cada elemento en un reproductor local.
+2. **Solo tokens** de `styles/tokens.css` para colores, radios y tamaños de fuente (lo comprueba
+   `tests/ui/styles.test.js`). Si falta un valor del diseño, añádelo como token.
+3. `ui/` (componentes sin estado de negocio, no son colegas):
+   - `dom.js`: `h(tag, props, ...hijos)` sin `innerHTML`, `iconButton`, `setIcon`, `favoriteButton`.
+   - `icons.js`: trazados copiados del SVG (viewBox centrado en 0,0) + los que falten con el mismo trazo.
+   - `cover.js`: portada real o generada (4 gradientes × 4 formas del diseño, elegidas por hash del álbum);
+     dentro de un `<button>` usa `tag: 'span'`.
+   - `format.js`: `formatTime`, `formatDuration`, `plural`, `collectionStats`, `greeting`, `formatDeviceLabel`.
+   - `trackList.js`: filas de 60 px (doble clic/Enter/botón sobre la portada reproducen; ecualizador animado
+     en la activa). `transport.js`: transporte, barra de progreso que no salta al arrastrar, volumen.
+4. Pantallas: **Inicio**, **Reproduciendo** (overlay con `inert` detrás y foco devuelto al cerrar),
+   **Playlist** (cualquier colección) y **Buscar**, con los estados del diseño: pista activa en
+   `--color-accent` con ecualizador, corazón relleno, aleatorio/repetir en `--color-primary` con punto,
+   chip activo con `--grad-accent`, salida no predeterminada en `--color-success`.
+5. Lo que no existe en local (Podcasts, Radio, Perfil, Compartir) **no se renderiza**.
 
 ## Paso 5 — Tests y verificación
 
-1. Crea tests con `node:test` + `node:assert` usando colegas falsos (objetos con métodos espía):
-   - `tests/handlers/<módulo>.test.js` por cada módulo de handlers, llamando al handler con un `ctx`
-     falso. Mínimo: `ended` avanza a la siguiente, `track-selected` carga la pista correcta,
-     `play-toggle` sin pista cargada carga la actual.
-   - `tests/Mediator.test.js`: `use()` registra, `notify()` ejecuta varios handlers del mismo evento
-     en orden, y un evento sin handler solo avisa.
-2. Ejecuta `npm test` y corrige hasta que pase.
-3. Ejecuta `npm start` en segundo plano unos segundos para confirmar que la ventana arranca sin errores
-   en consola; ciérralo después. Si es posible, haz una captura y compárala con `app-musica-figma.svg`
-   (colores, tipografía, radios, estados).
-4. **No** ejecutes `npm run dist` salvo que el usuario lo pida (es lento). Explica que
-   `npm run dist:win` y `npm run dist:linux` generan los instaladores en `dist/`
-   (para el `.deb`/AppImage desde Windows se recomienda compilar en Linux o WSL/CI).
+1. `npm test` (los de `templates/` + `tests/ui/format.test.js` y `cover.test.js` de lo generado) hasta que pase.
+2. **e2e con la app real** (`npm run test:e2e`, `tests/e2e/smoke.mjs`):
+   - genera WAV con etiquetas ID3, carátulas y letra con `tests/helpers/audio.js` (no versiones música);
+   - arranca Electron con `--user-data-dir` temporal y pon `localStorage['pulse.muted'] = 'true'` antes de
+     recargar (que no suene en los altavoces del usuario);
+   - importa con `window.api.importPaths([...])` y recarga; recorre Inicio, Biblioteca, Reproduciendo,
+     Buscar y Álbumes; comprueba que el tiempo avanza, que saltar funciona, favoritos, letra, salidas,
+     Espacio con el foco en un botón y **cero errores de consola**;
+   - capturas con `animations: 'disabled'` en `tests/e2e/output/` y **compáralas con el diseño**.
+3. **No** ejecutes `npm run dist` salvo que lo pidan (lento). `dist:win` → NSIS; `dist:linux` → AppImage + deb
+   (mejor desde Linux, WSL o CI).
 
 ## Paso 6 — Cierre
 
-- Crea `CLAUDE.md` breve con: comandos (`start`, `test`, `dist:*`), la estructura y las reglas de los
-  Pasos 3 y 3b, para que futuras sesiones respeten el patrón y no engorden el mediator.
-- Resume al usuario qué se creó y cómo añadir una funcionalidad:
-  1) si hace falta, un colega en `colleagues/` que extienda `Colleague` y se registre en `app.js`;
-  2) sus eventos en `mediator/events.js`;
-  3) un **módulo nuevo** en `mediator/handlers/` registrado con `.use()` en `PlayerMediator`,
-     con su test. `PlayerMediator` solo gana una línea `.use(...)`.
+- `CLAUDE.md` breve: comandos, estructura, reglas de los Pasos 3 y 3b, cómo añadir una funcionalidad y
+  convenciones (español, commits pequeños, tokens), para que futuras sesiones no engorden el mediator.
+- Resume al usuario qué se creó y cómo añadir una funcionalidad: 1) colega nuevo si hace falta (en `app.js`);
+  2) sus eventos en `events.js`; 3) un **módulo nuevo** en `handlers/` con su test y una línea `.use(...)`.
+
+## Problemas reales ya resueltos (no los repitas)
+
+- `node --test tests/` con un directorio falla en Node 24 → usar el glob `"tests/**/*.test.js"`.
+- `net.fetch(file://)` no garantiza peticiones de rango → `responses.js` sirve el archivo con 206/416 propios.
+- Un `notify()` que esperaba a cada handler bloqueaba `app-ready` si listar dispositivos tardaba → concurrente.
+- La Media Session API rechaza carátulas `media://` → `MediaSessionBridge` las convierte en `blob:`
+  (y la CSP necesita `connect-src media:`).
+- Chromium deja "Default - …" en inglés y añade ids USB; existe una salida virtual "communications" →
+  `formatDeviceLabel()` y filtrarla en `AudioEngine.outputDevices()`.
+- Con la ventana de prueba tapada, Windows no pinta frames y las transiciones quedan a medias en las
+  capturas → `animations: 'disabled'`. `ERR_ABORTED` en `media://track` al saltar o cambiar de pista es normal.
+- Con el foco en un botón, Espacio debe pausar y no pulsar el botón: `KeyboardShortcuts` lo previene.

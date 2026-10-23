@@ -1,4 +1,4 @@
-/* Tokens del diseño "Pulse" (app-musica-figma.svg) */
+/* Tokens del diseño "Pulse" (app-musica-figma.svg). Ningún otro CSS escribe valores a mano. */
 @import '../../../node_modules/@fontsource/inter/400.css';
 @import '../../../node_modules/@fontsource/inter/600.css';
 @import '../../../node_modules/@fontsource/inter/700.css';
@@ -7,42 +7,98 @@
 :root {
   color-scheme: dark;
 
+  /* Colores de la guía de estilo */
   --color-bg: #0e0e12;
   --color-surface: #24242e;
   --color-track: #3a3a48;
   --color-primary: #7c5cff;
   --color-accent: #ff5ca8;
   --color-success: #3ddc97;
+  --color-info: #2ec5ff;
   --color-text: #ffffff;
   --color-text-2: #9a9aab;
   --color-text-3: #b8b8c8;
-  --color-row-active: rgb(255 255 255 / 0.06);
+  --color-on-light: #14141a;
 
+  /* Transparencias usadas en el diseño */
+  --color-hover: rgb(255 255 255 / 0.04);
+  --color-row-active: rgb(255 255 255 / 0.06);
+  --color-decor: rgb(255 255 255 / 0.08);
+  --color-overlay-light: rgb(255 255 255 / 0.1);
+  --color-progress-track: rgb(255 255 255 / 0.2);
+  --color-scrim: rgb(14 14 18 / 0.85);
+  --color-scrim-soft: rgb(14 14 18 / 0.55);
+
+  /* Formas decorativas de las portadas generadas */
+  --cover-shape-soft: rgb(255 255 255 / 0.15);
+  --cover-shape-line: rgb(255 255 255 / 0.2);
+  --cover-shape: rgb(255 255 255 / 0.25);
+  --cover-shape-strong: rgb(255 255 255 / 0.35);
+  --cover-hole: rgb(14 14 18 / 0.6);
+
+  /* Gradientes */
   --grad-accent: linear-gradient(135deg, #7c5cff, #ff5ca8);
   --grad-warm: linear-gradient(135deg, #ffb25c, #ff5ca8);
   --grad-cool: linear-gradient(135deg, #2ec5ff, #7c5cff);
   --grad-green: linear-gradient(135deg, #3ddc97, #2ec5ff);
   --grad-now-playing: linear-gradient(180deg, #3b2a7a 0%, #0e0e12 60%);
-  --grad-playlist: linear-gradient(180deg, #7a2a55 0%, #0e0e12 50%);
+  --grad-playlist: linear-gradient(180deg, #7a2a55 0%, #0e0e12 100%);
 
+  /* Radios */
   --radius-pill: 17px;
   --radius-card: 24px;
-  --radius-cover-lg: 28px;
+  --radius-cover-xl: 28px;
+  --radius-cover-lg: 20px;
   --radius-cover-md: 16px;
+  --radius-cover-thumb: 10px;
   --radius-cover-sm: 8px;
+  --radius-genre: 14px;
   --radius-row: 12px;
   --radius-bar: 16px;
+  --radius-lyrics: 20px;
+  --radius-round: 50%;
 
+  /* Tipografía · Inter */
   --font: 'Inter', system-ui, sans-serif;
-  --fs-title: 30px;   /* 800 */
+  --fs-title: 30px; /* 800 — "Mix diario" */
+  --fs-greeting: 28px; /* 700 — "Buenas noches" */
+  --fs-hero: 24px; /* 800 — título en Reproduciendo */
   --fs-section: 20px; /* 700 */
-  --fs-song: 15px;    /* 600 */
-  --fs-body: 13px;    /* 400 */
-  --fs-label: 11px;   /* 600, mayúsculas, letter-spacing 1.2px */
+  --fs-artist: 16px; /* artista en Reproduciendo, tarjetas de género */
+  --fs-song: 15px; /* 600 */
+  --fs-chip: 14px; /* 600 */
+  --fs-body: 13px; /* 400 */
+  --fs-small: 12px; /* tiempos, subtítulos de tarjeta */
+  --fs-label: 11px; /* 600, mayúsculas */
+  --ls-label: 1.2px;
+  --ls-eyebrow: 1.5px;
 
-  --sidebar-width: 220px;
-  --player-bar-height: 80px;
+  /* Espaciado */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Medidas */
+  --sidebar-width: 232px;
+  --player-bar-height: 84px;
   --row-height: 60px;
+  --chip-height: 34px;
+  --genre-height: 68px;
+  --feature-height: 180px;
+
+  /* Efectos */
+  --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-primary);
+  --shadow-cover: 0 16px 48px rgb(0 0 0 / 0.45);
+  --shadow-overlay: 0 24px 64px rgb(0 0 0 / 0.5);
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration: 240ms;
+  --duration-fast: 120ms;
 }
 
 body {

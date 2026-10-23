@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data: media:; media-src media:; connect-src media:; style-src 'self'; font-src 'self'; script-src 'self'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pulse</title>
+    <link rel="stylesheet" href="styles/tokens.css" />
+    <link rel="stylesheet" href="styles/layout.css" />
+    <link rel="stylesheet" href="styles/components.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <div class="app" id="app">
+      <nav class="sidebar" data-sidebar aria-label="Navegación principal"></nav>
+      <main class="main">
+        <section class="view view--home" id="view-home" data-view="home" aria-label="Inicio"></section>
+        <section class="view view--search" id="view-search" data-view="search" aria-label="Buscar" hidden></section>
+        <section class="view view--collection" id="view-collection" data-view="collection" aria-label="Colección" hidden></section>
+      </main>
+      <footer class="player-bar" id="player-bar" aria-label="Reproductor"></footer>
+      <section class="now-playing" id="now-playing" data-overlay aria-label="Reproduciendo" hidden></section>
+      <div class="toast" id="toast"></div>
+    </div>
+  </body>
+</html>
