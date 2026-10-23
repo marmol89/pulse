@@ -1,12 +1,50 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { LibraryService } from '../../src/renderer/colleagues/LibraryService.js';
+import { Settings } from '../../src/renderer/colleagues/Settings.js';
+import { createStorage, createMemoryBackend } from '../../src/renderer/lib/storage.js';
 import { MediaSessionBridge } from '../../src/renderer/colleagues/MediaSessionBridge.js';
 import { EVENTS } from '../../src/renderer/mediator/events.js';
 import { recordingMediator } from '../helpers/FakeAudio.js';
 import { track } from '../helpers/tracks.js';
 
+describe('Settings', () => {
+  test('la búsqueda en internet está activada por defecto y se recuerda', () => {
+    const storage = createStorage(createMemoryBackend());
+    const settings = new Settings(storage);
+    assert.equal(settings.onlineLookup(), true);
+    assert.equal(settings.setOnlineLookup(false), false);
+    assert.equal(new Settings(storage).onlineLookup(), false);
+  });
+});
+
 describe('LibraryService', () => {
+  test('busca en internet y activa la búsqueda en segundo plano a través de window.api', async () => {
+    const calls = [];
+    const api = {
+      lookupTrack: async (path, options) => calls.push(['lookup', path, options]) && { track: { path }, changed: true },
+      setOnlineLookup: async (enabled) => calls.push(['enabled', enabled]),
+    };
+    const library = new LibraryService(api);
+
+    assert.deepEqual(await library.lookup('/a.mp3'), { track: { path: '/a.mp3' }, changed: true });
+    await library.lookup('/a.mp3', { force: true });
+    await library.setOnlineLookup(false);
+
+    assert.deepEqual(calls, [['lookup', '/a.mp3', { force: false }], ['lookup', '/a.mp3', { force: true }], ['enabled', false]]);
+  });
+
+  test('las pistas completadas en segundo plano llegan al mediator como tracks-updated', () => {
+    let push;
+    const library = new LibraryService({ onTracksUpdated: (callback) => (push = callback) });
+    const mediator = recordingMediator();
+    library.setMediator(mediator);
+
+    push([{ path: '/a.mp3' }]);
+
+    assert.deepEqual(mediator.events, [[EVENTS.TRACKS_UPDATED, [{ path: '/a.mp3' }]]]);
+  });
+
   test('delega en window.api', async () => {
     const calls = [];
     const api = {
