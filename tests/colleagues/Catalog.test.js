@@ -1,0 +1,82 @@
+import { test, describe } from 'node:test';
+import assert from 'node:assert/strict';
+import { Catalog, albumKey } from '../../src/renderer/colleagues/Catalog.js';
+import { track } from '../helpers/tracks.js';
+
+function catalogWith(...list) {
+  const catalog = new Catalog();
+  catalog.add(list);
+  return catalog;
+}
+
+const neon = track('/m/neon.mp3', { title: 'Luces de Neón', artist: 'Aurora Vega', album: 'Neón', genre: 'Pop latino', trackNo: 2 });
+const intro = track('/m/intro.mp3', { title: 'Intro', artist: 'Aurora Vega', album: 'Neón', genre: 'Pop latino', trackNo: 1 });
+const ola = track('/m/ola.mp3', { title: 'Ola Azul', artist: 'Marea Sur', album: 'Mareas', genre: 'Lo-fi chill', cover: 'media://cover/ola' });
+const selva = track('/m/selva.mp3', { title: 'Selva', artist: 'Kora', genre: 'Lo-fi chill' });
+const atardecer = track('/m/atardecer.mp3', { title: 'Atardecer', artist: 'Los Prismas', genre: 'Pop latino' });
+
+describe('Catalog', () => {
+  test('add() cuenta solo las pistas nuevas y actualiza las existentes', () => {
+    const catalog = new Catalog();
+    assert.equal(catalog.add([neon, ola]), 2);
+    assert.equal(catalog.add([{ ...neon, title: 'Editada' }, selva, null]), 1);
+    assert.equal(catalog.size(), 3);
+    assert.equal(catalog.get(neon.path).title, 'Editada');
+  });
+
+  test('byPaths() respeta el orden e ignora rutas desconocidas', () => {
+    const catalog = catalogWith(neon, ola, selva);
+    assert.deepEqual(
+      catalog.byPaths([selva.path, '/no/existe.mp3', neon.path]).map((t) => t.path),
+      [selva.path, neon.path],
+    );
+  });
+
+  test('search() ignora tildes y mayúsculas y prioriza coincidencias en el título', () => {
+    const catalog = catalogWith(neon, ola, selva, atardecer);
+    assert.deepEqual(catalog.search('NEON').map((t) => t.title), ['Luces de Neón']);
+    assert.deepEqual(catalog.search('aurora luces').map((t) => t.title), ['Luces de Neón']);
+    assert.deepEqual(catalog.search('a').slice(0, 2).map((t) => t.title), ['Atardecer', 'Ola Azul']);
+    assert.deepEqual(catalog.search('   '), []);
+  });
+
+  test('topGenres() devuelve los géneros más frecuentes', () => {
+    const catalog = catalogWith(neon, intro, ola, selva, atardecer, track('/m/x.mp3'));
+    assert.deepEqual(catalog.topGenres(1), [{ name: 'Pop latino', count: 3 }]);
+    assert.deepEqual(catalog.topGenres(5).map((g) => g.name), ['Pop latino', 'Lo-fi chill']);
+  });
+
+  test('albums() agrupa por artista del álbum y usa una muestra con portada', () => {
+    const catalog = catalogWith(neon, intro, ola, selva);
+    const albums = catalog.albums();
+    assert.deepEqual(albums.map((a) => [a.title, a.artist, a.count]), [
+      ['Mareas', 'Marea Sur', 1],
+      ['Neón', 'Aurora Vega', 2],
+    ]);
+    assert.equal(albums[0].sample, ola);
+  });
+
+  test('artists() cuenta las pistas de cada artista', () => {
+    const catalog = catalogWith(neon, intro, ola);
+    assert.deepEqual(catalog.artists().map((a) => [a.name, a.count]), [
+      ['Aurora Vega', 2],
+      ['Marea Sur', 1],
+    ]);
+  });
+
+  test('collection() resuelve biblioteca, álbum (por número de pista), artista, género y búsqueda', () => {
+    const catalog = catalogWith(neon, intro, ola, selva, atardecer);
+
+    assert.equal(catalog.collection({ kind: 'library' }).tracks.length, 5);
+
+    const album = catalog.collection({ kind: 'album', key: albumKey(neon) });
+    assert.equal(album.title, 'Neón');
+    assert.equal(album.byline, 'Aurora Vega');
+    assert.deepEqual(album.tracks.map((t) => t.title), ['Intro', 'Luces de Neón']);
+
+    assert.deepEqual(catalog.collection({ kind: 'artist', key: 'Kora' }).tracks, [selva]);
+    assert.equal(catalog.collection({ kind: 'genre', key: 'Lo-fi chill' }).tracks.length, 2);
+    assert.deepEqual(catalog.collection({ kind: 'search', key: 'selva' }).tracks, [selva]);
+    assert.deepEqual(catalog.collection({ kind: 'desconocido' }).tracks, []);
+  });
+});
