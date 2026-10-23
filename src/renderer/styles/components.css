@@ -273,6 +273,7 @@
 
 .cover {
   position: relative;
+  display: block;
   flex: none;
   aspect-ratio: 1;
   overflow: hidden;

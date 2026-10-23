@@ -28,10 +28,11 @@ export function trackSeed(track) {
 /**
  * Portada: la carátula real si existe y carga; si no, la generada (queda debajo
  * de la imagen, así que un error de carga deja ver la generada).
+ * Usa `tag: 'span'` dentro de botones (un <div> no es válido ahí).
  */
-export function createCover({ src = null, seed = '', className = '' } = {}) {
+export function createCover({ src = null, seed = '', className = '', tag = 'div' } = {}) {
   const { gradient, shape } = coverStyle(seed);
-  const cover = h('div', { class: `cover cover--${gradient} cover--${shape} ${className}`.trim() });
+  const cover = h(tag, { class: `cover cover--${gradient} cover--${shape} ${className}`.trim() });
   if (src) {
     const image = h('img', { class: 'cover__image', src, alt: '', loading: 'lazy', decoding: 'async', draggable: 'false' });
     image.addEventListener('error', () => image.remove(), { once: true });
