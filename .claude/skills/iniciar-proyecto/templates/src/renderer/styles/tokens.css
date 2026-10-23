@@ -1,0 +1,54 @@
+/* Tokens del diseño "Pulse" (app-musica-figma.svg) */
+@import '../../../node_modules/@fontsource/inter/400.css';
+@import '../../../node_modules/@fontsource/inter/600.css';
+@import '../../../node_modules/@fontsource/inter/700.css';
+@import '../../../node_modules/@fontsource/inter/800.css';
+
+:root {
+  color-scheme: dark;
+
+  --color-bg: #0e0e12;
+  --color-surface: #24242e;
+  --color-track: #3a3a48;
+  --color-primary: #7c5cff;
+  --color-accent: #ff5ca8;
+  --color-success: #3ddc97;
+  --color-text: #ffffff;
+  --color-text-2: #9a9aab;
+  --color-text-3: #b8b8c8;
+  --color-row-active: rgb(255 255 255 / 0.06);
+
+  --grad-accent: linear-gradient(135deg, #7c5cff, #ff5ca8);
+  --grad-warm: linear-gradient(135deg, #ffb25c, #ff5ca8);
+  --grad-cool: linear-gradient(135deg, #2ec5ff, #7c5cff);
+  --grad-green: linear-gradient(135deg, #3ddc97, #2ec5ff);
+  --grad-now-playing: linear-gradient(180deg, #3b2a7a 0%, #0e0e12 60%);
+  --grad-playlist: linear-gradient(180deg, #7a2a55 0%, #0e0e12 50%);
+
+  --radius-pill: 17px;
+  --radius-card: 24px;
+  --radius-cover-lg: 28px;
+  --radius-cover-md: 16px;
+  --radius-cover-sm: 8px;
+  --radius-row: 12px;
+  --radius-bar: 16px;
+
+  --font: 'Inter', system-ui, sans-serif;
+  --fs-title: 30px;   /* 800 */
+  --fs-section: 20px; /* 700 */
+  --fs-song: 15px;    /* 600 */
+  --fs-body: 13px;    /* 400 */
+  --fs-label: 11px;   /* 600, mayúsculas, letter-spacing 1.2px */
+
+  --sidebar-width: 220px;
+  --player-bar-height: 80px;
+  --row-height: 60px;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font);
+  font-size: var(--fs-body);
+}

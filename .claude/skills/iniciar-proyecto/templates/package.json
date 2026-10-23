@@ -1,0 +1,21 @@
+{
+  "name": "reproductor-mediator",
+  "version": "0.1.0",
+  "description": "Reproductor de música de escritorio (Windows/Linux) con Electron y patrón Mediator",
+  "main": "src/main/main.js",
+  "type": "module",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.example.reproductormediator",
+    "productName": "Reproductor Mediator",
+    "files": ["src/**/*", "package.json"],
+    "win": { "target": ["nsis"] },
+    "linux": { "target": ["AppImage", "deb"], "category": "Audio" }
+  }
+}
