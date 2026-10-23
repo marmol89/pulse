@@ -32,6 +32,10 @@ export function createLibraryStore(file) {
       return records.has(filePath);
     },
 
+    get(filePath) {
+      return records.get(filePath) ?? null;
+    },
+
     all() {
       return [...records.values()];
     },

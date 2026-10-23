@@ -140,6 +140,8 @@ describe('library/store', () => {
     await reopened.load();
 
     assert.equal(reopened.has('/m/a.mp3'), true);
+    assert.deepEqual(reopened.get('/m/a.mp3'), { path: '/m/a.mp3', title: 'A' });
+    assert.equal(reopened.get('/m/otra.mp3'), null);
     assert.deepEqual(reopened.all(), [{ path: '/m/a.mp3', title: 'A' }]);
     assert.equal(JSON.parse(await readFile(file, 'utf8')).version, 1);
   });

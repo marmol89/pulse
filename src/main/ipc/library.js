@@ -2,8 +2,11 @@ import { ipcMain, dialog, BrowserWindow } from 'electron';
 import { AUDIO_EXTENSIONS, toTrack } from '../library/tracks.js';
 import { importPaths } from '../library/importer.js';
 
-/** Canales IPC de la biblioteca. El renderer solo llega a ellos a través de window.api (preload). */
-export function registerLibraryIpc(store) {
+/**
+ * Canales IPC de la biblioteca. El renderer solo llega a ellos a través de window.api (preload).
+ * `onImported` avisa de que hay pistas nuevas (p. ej. para completarlas con datos de internet).
+ */
+export function registerLibraryIpc(store, { onImported = () => {} } = {}) {
   ipcMain.handle('library:load', () => store.all().map(toTrack));
 
   ipcMain.handle('library:choose-files', async (event) => {
@@ -23,5 +26,9 @@ export function registerLibraryIpc(store) {
     return canceled ? null : (filePaths[0] ?? null);
   });
 
-  ipcMain.handle('library:import', (_event, paths) => importPaths(store, paths));
+  ipcMain.handle('library:import', async (_event, paths) => {
+    const tracks = await importPaths(store, paths);
+    if (tracks.length > 0) onImported();
+    return tracks;
+  });
 }
