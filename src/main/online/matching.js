@@ -72,12 +72,23 @@ export function similarity(a, b) {
 
 const ARTIST_SEPARATORS = /\s*(?:,|&|\+|\/|\bx\b|\by\b|\band\b|\bfeat\.?|\bft\.?|\bcon\b|\bwith\b)\s*/i;
 
+function artistParts(text) {
+  return String(text ?? '')
+    .split(ARTIST_SEPARATORS)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 /** Como similarity(), pero "Luis Fonsi" encaja con "Luis Fonsi & Daddy Yankee". */
 export function artistSimilarity(local, remote) {
-  const parts = (text) => String(text ?? '').split(ARTIST_SEPARATORS).filter(Boolean);
   let best = similarity(local, remote);
-  for (const a of parts(local)) for (const b of parts(remote)) best = Math.max(best, similarity(a, b));
+  for (const a of artistParts(local)) for (const b of artistParts(remote)) best = Math.max(best, similarity(a, b));
   return best;
+}
+
+/** "Luis Fonsi & Daddy Yankee" → "Luis Fonsi". */
+export function primaryArtist(artist) {
+  return artistParts(artist)[0] ?? '';
 }
 
 /** "01. Luis Fonsi - Despacito" → { artist: 'Luis Fonsi', title: 'Despacito' }. */

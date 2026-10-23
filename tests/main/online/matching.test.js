@@ -4,6 +4,7 @@ import {
   simplify,
   similarity,
   artistSimilarity,
+  primaryArtist,
   parseFileName,
   isTitleFromFile,
   queryFromRecord,
@@ -30,6 +31,13 @@ describe('online/matching', () => {
     assert.equal(artistSimilarity('Luis Fonsi', 'Luis Fonsi & Daddy Yankee'), 1);
     assert.equal(artistSimilarity('Bad Bunny', 'Bad Bunny x Jhay Cortez'), 1);
     assert.ok(artistSimilarity('Shakira', 'Rosalía') < 0.4);
+  });
+
+  test('primaryArtist() se queda con el primer artista de una colaboración', () => {
+    assert.equal(primaryArtist('Luis Fonsi & Daddy Yankee'), 'Luis Fonsi');
+    assert.equal(primaryArtist('Bad Bunny x Jhay Cortez'), 'Bad Bunny');
+    assert.equal(primaryArtist('Queen'), 'Queen');
+    assert.equal(primaryArtist(''), '');
   });
 
   test('parseFileName() separa artista y título y quita el número de pista', () => {

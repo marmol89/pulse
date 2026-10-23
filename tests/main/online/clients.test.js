@@ -102,6 +102,18 @@ describe('online/lrclib', () => {
     assert.equal(url.searchParams.get('artist_name'), 'Luis Fonsi');
   });
 
+  // Caso real: con "Luis Fonsi & Daddy Yankee" LRCLIB devolvía entradas con "^" en vez de saltos de línea.
+  test('busca con el artista principal y convierte "^" en saltos de línea', async () => {
+    const { fetch, http } = httpWith({
+      'https://lrclib.net/api/search': [lrclibResult({ artistName: 'Luis Fonsi, Daddy Yankee', plainLyrics: 'Ay (Fonsi, DY)^Ay (Fonsi, DY) \n(Oh, oh) ^ oh, no' })],
+    });
+
+    const lyrics = await findLyrics(http, { title: 'Despacito', artist: 'Luis Fonsi & Daddy Yankee', duration: 229 });
+
+    assert.equal(new URL(fetch.requests[0].url).searchParams.get('artist_name'), 'Luis Fonsi');
+    assert.equal(lyrics, 'Ay (Fonsi, DY)\nAy (Fonsi, DY) \n(Oh, oh)\noh, no');
+  });
+
   test('sin artista no busca y sin coincidencias devuelve null', async () => {
     const { fetch, http } = httpWith({ 'https://lrclib.net/api/search': [lrclibResult({ artistName: 'Otro grupo' })] });
     assert.equal(await findLyrics(http, { title: 'Despacito', artist: '' }), null);
