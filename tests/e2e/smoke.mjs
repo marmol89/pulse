@@ -71,13 +71,20 @@ try {
     if (response.url().startsWith('media:') && response.status() >= 400) logs.push(`[media ${response.status()}] ${response.url()}`);
   });
 
+  // Antes de importar: audio silenciado y sin datos de internet (la prueba no envía nada a iTunes).
+  await page.waitForSelector('.welcome-card');
+  await page.evaluate(() => {
+    localStorage.setItem('pulse.muted', 'true');
+    localStorage.setItem('pulse.onlineLookup', 'false');
+  });
+  await page.reload();
   await page.waitForSelector('.welcome-card');
   check(true, 'biblioteca vacía: se muestra la bienvenida');
+  check((await page.isChecked('.switch')) === false, 'el interruptor "Datos de internet" refleja la preferencia guardada');
   await shot('01-bienvenida');
 
   const imported = await page.evaluate((dir) => window.api.importPaths([dir]), music);
   check(imported.length === FIXTURES.length, `importa ${imported.length}/${FIXTURES.length} pistas`);
-  await page.evaluate(() => localStorage.setItem('pulse.muted', 'true'));
   await page.reload();
 
   await page.waitForSelector('.feature-card');
@@ -122,6 +129,13 @@ try {
   await page.click('.player__cover');
   await page.waitForSelector('.now-playing.is-open');
   check(await page.isVisible('.lyrics'), 'Reproduciendo muestra la tarjeta de letra si la pista tiene letra');
+  const info = Object.fromEntries(
+    await page.$$eval('.info-card__row', (rows) => rows.map((row) => [row.querySelector('dt').textContent, row.querySelector('dd').textContent])),
+  );
+  check(
+    info['Álbum'] === 'Neón' && info['Género'] === 'Pop latino' && info['Pista'] === '2' && info['Datos'] === 'Del archivo',
+    `la tarjeta Información muestra los datos: ${JSON.stringify(info)}`,
+  );
   await page.click('.lyrics .link-button');
   await shot('05-reproduciendo');
   await page.click('.device__button');
