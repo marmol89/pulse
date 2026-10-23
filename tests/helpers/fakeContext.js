@@ -3,6 +3,7 @@ import { Playlist } from '../../src/renderer/colleagues/Playlist.js';
 import { Catalog } from '../../src/renderer/colleagues/Catalog.js';
 import { Favorites } from '../../src/renderer/colleagues/Favorites.js';
 import { Recents } from '../../src/renderer/colleagues/Recents.js';
+import { Settings } from '../../src/renderer/colleagues/Settings.js';
 import { createStorage, createMemoryBackend } from '../../src/renderer/lib/storage.js';
 
 /**
@@ -50,7 +51,8 @@ export function fakeContext(overrides = {}) {
     catalog: new Catalog(),
     favorites: new Favorites(storage),
     recents: new Recents(storage),
-    library: spy({ load: [], chooseFiles: [], chooseFolder: null, import: [], pathsForFiles: [] }),
+    settings: new Settings(storage),
+    library: spy({ load: [], chooseFiles: [], chooseFolder: null, import: [], pathsForFiles: [], lookup: null }),
     mediaSession: spy(),
     router: spy(),
     home: spy(),

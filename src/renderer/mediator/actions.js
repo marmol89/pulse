@@ -21,13 +21,31 @@ export function trackListState(ctx) {
 
 export function loadTrack(ctx, track, autoplay = true) {
   if (!track) return false;
-  const isFavorite = ctx.favorites.has(track.path);
   ctx.audio.load(track.url, autoplay);
+  showTrack(ctx, track);
+  eachTrackListView(ctx, (view) => view.highlight(track.path));
+  return true;
+}
+
+/** La pista actual en la player bar, Reproduciendo y los controles del sistema. */
+export function showTrack(ctx, track) {
+  const isFavorite = ctx.favorites.has(track.path);
   ctx.controls.show(track, isFavorite);
   ctx.nowPlaying.show(track, isFavorite);
   ctx.mediaSession.show(track);
-  eachTrackListView(ctx, (view) => view.highlight(track.path));
-  return true;
+}
+
+/** Pistas completadas con datos de internet: modelos y vistas pasan a mostrarlas. */
+export function applyTrackUpdates(ctx, tracks) {
+  if (tracks.length === 0) return;
+  ctx.catalog.add(tracks);
+  const currentPath = ctx.playlist.current()?.path;
+  for (const track of tracks) {
+    ctx.playlist.replace(track);
+    eachTrackListView(ctx, (view) => view.updateTrack(track, ctx.favorites.has(track.path)));
+    if (track.path === currentPath) showTrack(ctx, track);
+  }
+  refreshHome(ctx);
 }
 
 /** Colecciones que combinan varios modelos; el resto las resuelve Catalog. */
