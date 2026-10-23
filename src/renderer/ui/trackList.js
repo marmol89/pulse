@@ -72,6 +72,21 @@ export class TrackList {
     if (button) setFavoriteButton(button, isFavorite);
   }
 
+  /** Repinta solo la fila de una pista actualizada (p. ej. con su carátula de internet). */
+  updateTrack(track, isFavorite) {
+    const row = this.#rows.get(track.path);
+    if (!row) return;
+    const focused = row.contains(document.activeElement);
+    const next = this.#createRow(track, isFavorite);
+    if (track.path === this.#currentPath) {
+      next.classList.add('is-active');
+      next.setAttribute('aria-current', 'true');
+    }
+    row.replaceWith(next);
+    this.#rows.set(track.path, next);
+    if (focused) next.focus();
+  }
+
   #createRow(track, isFavorite) {
     const cover = createCover({ src: track.cover, seed: trackSeed(track), className: 'cover--row' });
     cover.append(

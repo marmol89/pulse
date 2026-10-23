@@ -118,6 +118,10 @@ export class PlaylistView extends Colleague {
     this.#list.setFavorite(path, isFavorite);
   }
 
+  updateTrack(track, isFavorite) {
+    this.#list.updateTrack(track, isFavorite);
+  }
+
   setModes({ shuffle }) {
     this.#shuffle.classList.toggle('is-active', shuffle);
     this.#shuffle.setAttribute('aria-pressed', String(shuffle));

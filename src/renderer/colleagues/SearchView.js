@@ -76,4 +76,8 @@ export class SearchView extends Colleague {
   setFavorite(path, isFavorite) {
     this.#list.setFavorite(path, isFavorite);
   }
+
+  updateTrack(track, isFavorite) {
+    this.#list.updateTrack(track, isFavorite);
+  }
 }

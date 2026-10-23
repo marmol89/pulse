@@ -65,6 +65,10 @@ export class HomeView extends Colleague {
     this.#favorites.setFavorite(path, isFavorite);
   }
 
+  updateTrack(track, isFavorite) {
+    this.#favorites.updateTrack(track, isFavorite);
+  }
+
   #setFilter(filter) {
     this.#filter = filter;
     for (const [name, chip] of this.#chips) chip.setAttribute('aria-pressed', String(name === filter));
