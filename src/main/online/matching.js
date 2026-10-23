@@ -11,6 +11,32 @@ const MIN_ARTIST = 0.6;
 const MAX_DURATION_GAP = 20; // s: más diferencia suele ser otra versión (directo, remix…)
 const STRICT_DURATION_GAP = 3; // s: sin artista, la duración tiene que coincidir
 
+/** Marcas de otra versión de la canción ("(Remix)", "[Live]", "- Acoustic"…). "Remastered" no cuenta. */
+const VERSION_WORDS =
+  /\b(remix|mix|live|en vivo|en directo|directo|version|acoustic|acustic[oa]|instrumental|karaoke|cover|edit|sped up|slowed|demo|a ?cappella|acapella|mandarin|english|spanish|portuguese|japanese|korean)\b/;
+/** Recopilatorios y bandas sonoras: si hay alternativa, mejor el álbum original. */
+const COMPILATION_WORDS =
+  /\b(soundtrack|banda sonora|greatest hits|grandes exitos|best of|lo mejor|collection|coleccion|essentials|anthology|antologia|tribute|tributo|karaoke)\b/;
+
+/** Minúsculas y sin tildes, sin quitar nada más. */
+function plain(text) {
+  return String(text ?? '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+}
+
+/** Texto de los calificativos de un título: lo que va entre paréntesis, corchetes o tras " - ". */
+function qualifiers(title) {
+  return [...plain(title).matchAll(/\((.*?)\)|\[(.*?)\]|\s-\s(.*)$/g)].map((match) => match[1] ?? match[2] ?? match[3]).join(' ');
+}
+
+/** El candidato es otra versión (remix, directo, en otro idioma…) que la canción local no dice ser. */
+export function isOtherVersion(localTitle, candidateTitle) {
+  const marker = qualifiers(candidateTitle).match(VERSION_WORDS)?.[0];
+  return Boolean(marker) && !plain(localTitle).includes(marker);
+}
+
 /** Minúsculas, sin tildes ni signos, sin "(Remastered)", "[Live]" ni "feat. …". */
 export function simplify(text) {
   return String(text ?? '')
@@ -83,20 +109,23 @@ export function scoreCandidate(query, candidate) {
   return {
     title: similarity(query.title, candidate.title),
     artist: query.artist ? artistSimilarity(query.artist, candidate.artist) : null,
+    album: query.album && candidate.album ? similarity(query.album, candidate.album) : null,
     durationGap: query.duration > 0 && candidate.duration > 0 ? Math.abs(query.duration - candidate.duration) : null,
+    otherVersion: isOtherVersion(query.title, candidate.title),
+    compilation: COMPILATION_WORDS.test(plain(candidate.album)),
   };
 }
 
-export function isMatch({ title, artist, durationGap }) {
-  if (title < MIN_TITLE) return false;
+export function isMatch({ title, artist, durationGap, otherVersion }) {
+  if (title < MIN_TITLE || otherVersion) return false;
   if (durationGap !== null && durationGap > MAX_DURATION_GAP) return false;
   if (artist !== null) return artist >= MIN_ARTIST;
   // Sin artista, un título suelto ("Intro") encaja con miles de canciones: exigir también la duración.
   return title >= 0.95 && durationGap !== null && durationGap <= STRICT_DURATION_GAP;
 }
 
-function rank({ title, artist, durationGap }) {
-  return title * 0.6 + (artist ?? 0) * 0.4 - (durationGap ?? MAX_DURATION_GAP) / 100;
+function rank({ title, artist, album, durationGap, compilation }) {
+  return title * 0.6 + (artist ?? 0) * 0.4 + (album ?? 0) * 0.2 - (compilation ? 0.05 : 0) - (durationGap ?? MAX_DURATION_GAP) / 100;
 }
 
 /** El candidato que mejor encaja, o null si ninguno es fiable. */

@@ -81,5 +81,28 @@ describe('online/matching', () => {
     test('sin candidatos devuelve null', () => {
       assert.equal(pickBest({ title: 'Despacito', artist: 'Luis Fonsi', duration: 229 }, []), null);
     });
+
+    // Caso real de iTunes: la versión en mandarín empataba con la original.
+    test('descarta otras versiones aunque título, artista y duración encajen', () => {
+      const mandarin = candidate({ title: 'Despacito (Mandarin Version) [feat. JJ Lin]', artist: 'Luis Fonsi', duration: 229 });
+      const query = { title: 'Despacito', artist: 'Luis Fonsi', duration: 229 };
+      assert.equal(pickBest(query, [mandarin]), null);
+      assert.equal(pickBest(query, [mandarin, despacito]), despacito);
+    });
+
+    test('acepta "Remastered" y la versión que la canción local dice ser', () => {
+      const remastered = candidate({ title: 'Bohemian Rhapsody (Remastered 2011)', artist: 'Queen', duration: 355 });
+      assert.equal(pickBest({ title: 'Bohemian Rhapsody', artist: 'Queen', duration: 354 }, [remastered]), remastered);
+      const live = candidate({ title: 'Despacito (Live)', artist: 'Luis Fonsi', duration: 240 });
+      assert.equal(pickBest({ title: 'Despacito (Live)', artist: 'Luis Fonsi', duration: 241 }, [live]), live);
+    });
+
+    test('prefiere el álbum local y, si no se sabe, el original frente a un recopilatorio', () => {
+      const original = candidate({ title: 'Bohemian Rhapsody', artist: 'Queen', album: 'A Night at the Opera', duration: 355 });
+      const soundtrack = candidate({ title: 'Bohemian Rhapsody', artist: 'Queen', album: 'Bohemian Rhapsody (The Original Soundtrack)', duration: 355 });
+      const hits = candidate({ title: 'Bohemian Rhapsody', artist: 'Queen', album: 'Greatest Hits', duration: 355 });
+      assert.equal(pickBest({ title: 'Bohemian Rhapsody', artist: 'Queen', duration: 355 }, [soundtrack, original]), original);
+      assert.equal(pickBest({ title: 'Bohemian Rhapsody', artist: 'Queen', album: 'Greatest Hits', duration: 355 }, [original, hits]), hits);
+    });
   });
 });
