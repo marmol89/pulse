@@ -23,13 +23,14 @@ src/main/        proceso main (NO forma parte del mediator)
   main.js        ventana, instancia única, sin navegación, --lang=es
   protocol/      media://track|cover/<ruta>: rangos HTTP, solo rutas de la biblioteca (403 si no)
   library/       tracks.js (escaneo + metadatos), store.js (library.json en userData), importer.js
-  ipc/library.js canales library:* (los usa el preload)
+  online/        datos de internet: matching, itunes, lrclib, http, enricher, queue (ver abajo)
+  ipc/           library.js (library:*) y metadata.js (metadata:*); los usa el preload
 src/preload/preload.cjs   window.api (contextBridge, sandbox)
 src/renderer/
   app.js         raíz de composición: crea colegas → PlayerMediator → app-ready
   core/          Mediator (solo enruta) y Colleague
   mediator/      PlayerMediator (solo compone), events.js, actions.js, handlers/ (uno por caso de uso)
-  colleagues/    modelos (Catalog, Playlist, Favorites, Recents), servicios (AudioEngine,
+  colleagues/    modelos (Catalog, Playlist, Favorites, Recents, Settings), servicios (AudioEngine,
                  LibraryService, MediaSessionBridge) y vistas (Router, HomeView, PlaylistView,
                  SearchView, NowPlayingView, ControlsView, ToastView, KeyboardShortcuts)
   ui/            piezas de UI sin estado de negocio (dom, icons, cover, format, trackList, transport)
@@ -48,6 +49,20 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, WAV con ID3, Fak
 6. La lógica de un solo colega va dentro de él (aleatorio/repetir en `Playlist`, búsqueda y agrupación en `Catalog`, volumen en `AudioEngine`). Las vistas pintan y emiten; su único estado es de UI (filtro de chips, letra desplegada…).
 7. `Mediator.notify()` inicia los handlers en orden, no deja que uno lento bloquee a otro y aísla sus errores.
 8. Seguridad: `contextIsolation`, `sandbox`, sin `nodeIntegration`, CSP de `index.html`. Nada de `innerHTML` con datos de archivos: usa `h()` de `ui/dom.js`.
+
+## Datos de internet (carátula, álbum, año, género, pista y letra)
+
+- Fuentes gratuitas y sin clave: **iTunes Search API** (datos y carátula 600×600, catálogo `ES`) y **LRCLIB**
+  (letra). Todo en el proceso main (`src/main/online/`) con `net.fetch`; el renderer no sale a internet.
+- **Rellena huecos, nunca pisa etiquetas**: título y artista solo se toman de internet si el título venía del
+  nombre del archivo ("01. Artista - Título"). `matching.js` rechaza otras versiones (remix, directo, idiomas…),
+  otros artistas y duraciones que no encajan: mejor no encontrar nada que poner datos equivocados.
+- La pista que empieza a sonar se completa al momento (letra incluida); el resto, en segundo plano
+  (`queue.js`: una pista cada 3,5 s, ~17/min, por debajo del límite de iTunes). Lo no encontrado se marca y no se repite.
+- Se guarda en `library.json` y las carátulas en `userData/covers/` (compartidas por álbum): funciona sin conexión.
+- **Privacidad**: envía título y artista a esos servicios. Interruptor "Datos de internet" en la sidebar
+  (`Settings`, activado por defecto). "Buscar en internet" en Reproduciendo fuerza la búsqueda de una pista.
+- El e2e la desactiva antes de importar: los tests nunca llaman a servicios reales (los unitarios usan `fakeFetch`).
 
 ## Añadir una funcionalidad
 
