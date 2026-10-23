@@ -88,6 +88,17 @@ try {
   await page.waitForFunction(() => document.querySelector('.player .seek-bar__time')?.textContent !== '0:00', null, { timeout: 15000 });
   check(true, 'Mix diario: la pista suena y el tiempo avanza (media:// funciona)');
 
+  await page.click('.player .favorite-button');
+  check((await page.getAttribute('.player .favorite-button', 'aria-pressed')) === 'true', 'el corazón marca la pista como favorita');
+
+  const title = await page.textContent('.player__title');
+  await page.focus('.player button[aria-label="Siguiente"]');
+  await page.keyboard.press(' ');
+  await page.waitForSelector('.player .play-button[aria-label="Reproducir"]');
+  check((await page.textContent('.player__title')) === title, 'Espacio con el foco en un botón pausa en vez de pulsar el botón');
+  await page.keyboard.press(' ');
+  await page.waitForSelector('.player .play-button[aria-label="Pausar"]');
+
   await page.evaluate(() => {
     const range = document.querySelector('.player .seek-bar__range');
     range.value = '9';
@@ -96,9 +107,6 @@ try {
   });
   await page.waitForFunction(() => document.querySelector('.player .seek-bar__time')?.textContent >= '0:09', null, { timeout: 5000 });
   check(true, 'saltar a 0:09 funciona (rangos HTTP)');
-
-  await page.click('.player .favorite-button');
-  check((await page.getAttribute('.player .favorite-button', 'aria-pressed')) === 'true', 'el corazón marca la pista como favorita');
   await page.waitForSelector('.card-grid .media-card');
   await shot('03-inicio-con-recientes');
 
