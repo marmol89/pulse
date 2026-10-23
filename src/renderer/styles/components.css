@@ -1106,6 +1106,11 @@
   color: var(--color-text-2);
 }
 
+/* El anillo de foco lo dibuja la caja (.search-box:focus-within), no el campo */
+.search-box__input:focus-visible {
+  box-shadow: none;
+}
+
 .search-box__input::-webkit-search-cancel-button {
   display: none;
 }

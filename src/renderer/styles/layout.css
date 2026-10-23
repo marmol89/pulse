@@ -165,6 +165,11 @@ svg {
   margin-bottom: var(--space-4);
 }
 
+/* Buscar */
+.view--search .track-list {
+  margin-top: var(--space-6);
+}
+
 /* Colección (pantalla Playlist) */
 .collection-header {
   display: flex;
