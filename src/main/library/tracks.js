@@ -5,7 +5,7 @@ import { mediaUrl } from '../protocol/urls.js';
 
 export const AUDIO_EXTENSIONS = ['mp3', 'flac', 'ogg', 'oga', 'opus', 'wav', 'm4a', 'aac', 'webm'];
 const AUDIO_EXTENSION_SET = new Set(AUDIO_EXTENSIONS.map((extension) => `.${extension}`));
-const UNKNOWN_ARTIST = 'Artista desconocido';
+export const UNKNOWN_ARTIST = 'Artista desconocido';
 const PARSE_CONCURRENCY = 8;
 const COVER_CACHE_SIZE = 64;
 
