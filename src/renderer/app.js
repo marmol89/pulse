@@ -6,6 +6,7 @@ import { Playlist } from './colleagues/Playlist.js';
 import { Catalog } from './colleagues/Catalog.js';
 import { Favorites } from './colleagues/Favorites.js';
 import { Recents } from './colleagues/Recents.js';
+import { Settings } from './colleagues/Settings.js';
 import { LibraryService } from './colleagues/LibraryService.js';
 import { MediaSessionBridge } from './colleagues/MediaSessionBridge.js';
 import { Router } from './colleagues/Router.js';
@@ -28,6 +29,7 @@ const mediator = new PlayerMediator({
   catalog: new Catalog(),
   favorites: new Favorites(storage),
   recents: new Recents(storage),
+  settings: new Settings(storage),
   library: new LibraryService(window.api),
   mediaSession: new MediaSessionBridge(),
   // Vistas
