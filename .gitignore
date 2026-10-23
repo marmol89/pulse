@@ -1,0 +1,10 @@
+node_modules/
+dist/
+out/
+*.log
+
+# Ajustes locales de Claude Code (los de proyecto y las skills sí se versionan)
+.claude/settings.local.json
+
+# Artefactos de los tests e2e
+tests/e2e/output/
