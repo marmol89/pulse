@@ -10,6 +10,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BACKGROUND = '#0E0E12'; // --color-bg del diseño: sin destello blanco al abrir
 
 registerMediaScheme();
+// La interfaz está en español: también los textos de Chromium (p. ej. "Predeterminado" en las salidas de audio).
+app.commandLine.appendSwitch('lang', 'es');
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();

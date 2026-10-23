@@ -4,6 +4,7 @@ import { h, iconButton, favoriteButton, setFavoriteButton } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { createCover, trackSeed } from '../ui/cover.js';
 import { createSeekBar, createTransport } from '../ui/transport.js';
+import { formatDeviceLabel } from '../ui/format.js';
 
 const DEFAULT_DEVICE_LABEL = 'Este equipo';
 
@@ -108,14 +109,14 @@ export class NowPlayingView extends Colleague {
   /** Abre el menú con las salidas de audio, marcando la actual. */
   showOutputDevices(devices, currentId) {
     const current = currentId || 'default';
-    const options = devices.map((device) =>
+    const options = devices.map((device, index) =>
       h(
         'li',
         { role: 'none' },
         h(
           'button',
           { type: 'button', class: 'device__option ellipsis', role: 'menuitemradio', 'aria-checked': String(device.id === current), 'data-device': device.id },
-          device.label,
+          formatDeviceLabel(device, index),
         ),
       ),
     );
@@ -127,7 +128,7 @@ export class NowPlayingView extends Colleague {
 
   /** @param {{ id: string, label: string } | null} device */
   setOutputDevice(device) {
-    this.#deviceLabel.textContent = device?.label ?? DEFAULT_DEVICE_LABEL;
+    this.#deviceLabel.textContent = device ? formatDeviceLabel(device) : DEFAULT_DEVICE_LABEL;
     this.#device.classList.toggle('is-external', Boolean(device) && device.id !== 'default');
   }
 

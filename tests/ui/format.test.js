@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatTime, formatDuration, plural, collectionStats, greeting } from '../../src/renderer/ui/format.js';
+import { formatTime, formatDuration, plural, collectionStats, greeting, formatDeviceLabel } from '../../src/renderer/ui/format.js';
 
 describe('ui/format', () => {
   test('formatTime() como en el diseño (1:24, 3:32) y con horas si hace falta', () => {
@@ -28,6 +28,16 @@ describe('ui/format', () => {
     const tracks = Array.from({ length: 24 }, () => ({ duration: 230 }));
     assert.equal(collectionStats(tracks), '24 canciones · 1 h 32 min');
     assert.equal(collectionStats([{ duration: 0 }]), '1 canción');
+  });
+
+  test('formatDeviceLabel() quita ids USB y traduce el dispositivo predeterminado', () => {
+    assert.equal(
+      formatDeviceLabel({ id: 'default', label: 'Default - Altavoces (PRO X Wireless Gaming Headset) (046d:0aba)' }),
+      'Predeterminado · Altavoces (PRO X Wireless Gaming Headset)',
+    );
+    assert.equal(formatDeviceLabel({ id: 'default', label: 'Default' }), 'Predeterminado del sistema');
+    assert.equal(formatDeviceLabel({ id: 'x', label: 'MSI MP275 (NVIDIA High Definition Audio)' }), 'MSI MP275 (NVIDIA High Definition Audio)');
+    assert.equal(formatDeviceLabel({ id: 'y', label: '' }, 2), 'Salida de audio 3');
   });
 
   test('greeting() según la hora del día', () => {

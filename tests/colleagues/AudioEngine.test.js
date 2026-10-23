@@ -119,11 +119,12 @@ describe('AudioEngine', () => {
     assert.equal(engine.isMuted(), true);
   });
 
-  test('outputDevices() lista solo salidas de audio y setOutputDevice() la persiste', async () => {
+  test('outputDevices() lista solo salidas de audio (sin "comunicaciones") y setOutputDevice() la persiste', async () => {
     const devices = {
       enumerateDevices: async () => [
         { kind: 'audioinput', deviceId: 'mic', label: 'Micro' },
         { kind: 'audiooutput', deviceId: 'default', label: 'Predeterminado' },
+        { kind: 'audiooutput', deviceId: 'communications', label: 'Comunicaciones' },
         { kind: 'audiooutput', deviceId: 'usb', label: '' },
       ],
     };
@@ -131,7 +132,7 @@ describe('AudioEngine', () => {
 
     assert.deepEqual(await engine.outputDevices(), [
       { id: 'default', label: 'Predeterminado' },
-      { id: 'usb', label: 'Salida de audio 2' },
+      { id: 'usb', label: '' },
     ]);
     await engine.setOutputDevice('usb');
     assert.equal(engine.outputDevice(), 'usb');

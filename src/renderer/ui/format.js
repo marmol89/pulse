@@ -27,6 +27,19 @@ export function collectionStats(tracks) {
   return total > 0 ? `${count} · ${formatDuration(total)}` : count;
 }
 
+/**
+ * Etiqueta legible de una salida de audio: sin ids USB ("(046d:0aba)") y con el
+ * prefijo "Default - " de Chromium (siempre en inglés) traducido.
+ */
+export function formatDeviceLabel(device, index = 0) {
+  const name = (device?.label ?? '').replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)$/i, '').trim();
+  if (device?.id === 'default') {
+    const target = name.replace(/^default\b\s*-?\s*/i, '');
+    return target ? `Predeterminado · ${target}` : 'Predeterminado del sistema';
+  }
+  return name || `Salida de audio ${index + 1}`;
+}
+
 /** Saludo de la pantalla de Inicio según la hora. */
 export function greeting(date = new Date()) {
   const hour = date.getHours();

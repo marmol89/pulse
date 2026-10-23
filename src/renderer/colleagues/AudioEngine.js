@@ -142,11 +142,12 @@ export class AudioEngine extends Colleague {
     return this.#consecutiveErrors;
   }
 
+  /** Salidas de audio, sin la virtual de "comunicaciones" de Windows (pensada para llamadas). */
   async outputDevices() {
     const devices = (await this.#devices?.enumerateDevices?.()) ?? [];
     return devices
-      .filter((device) => device.kind === 'audiooutput')
-      .map((device, index) => ({ id: device.deviceId, label: device.label || `Salida de audio ${index + 1}` }));
+      .filter((device) => device.kind === 'audiooutput' && device.deviceId !== 'communications')
+      .map((device) => ({ id: device.deviceId, label: device.label }));
   }
 
   /** Id del dispositivo actual ('' = predeterminado del sistema). */
