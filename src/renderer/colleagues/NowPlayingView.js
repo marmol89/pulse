@@ -4,15 +4,15 @@ import { h, iconButton, favoriteButton, setFavoriteButton } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { createCover, trackSeed } from '../ui/cover.js';
 import { createSeekBar, createTransport } from '../ui/transport.js';
-import { formatDeviceLabel } from '../ui/format.js';
+import { formatDeviceLabel, trackDetails } from '../ui/format.js';
 
 const DEFAULT_DEVICE_LABEL = 'Este equipo';
 
 /**
  * Pantalla 02 · Reproduciendo (overlay): portada grande, título, artista,
- * progreso, controles, salida de audio ("Altavoz de la sala"), cola y letra.
+ * progreso, controles, salida de audio ("Altavoz de la sala"), cola, información y letra.
  * Emite: close-now-playing, toggle-favorite, seek, controles de transporte,
- * show-output-devices, output-device-change, open-collection (cola).
+ * show-output-devices, output-device-change, open-collection (cola), lookup-track.
  */
 export class NowPlayingView extends Colleague {
   #art;
@@ -28,6 +28,8 @@ export class NowPlayingView extends Colleague {
   #lyrics;
   #lyricsText;
   #lyricsToggle;
+  #infoList;
+  #lookupButton;
   #currentPath = null;
 
   constructor(root) {
@@ -67,6 +69,7 @@ export class NowPlayingView extends Colleague {
             this.#seek.element,
             this.#transport.element,
             h('div', { class: 'now-playing__actions' }, this.#createDevicePicker(), queue),
+            this.#createInfo(),
             this.#createLyrics(),
           ),
         ),
@@ -74,15 +77,27 @@ export class NowPlayingView extends Colleague {
     );
   }
 
+  /** También se llama con la misma pista cuando llegan sus datos de internet: no pliega la letra. */
   show(track, isFavorite) {
+    const samePath = track.path === this.#currentPath;
     this.#currentPath = track.path;
     this.#art.replaceChildren(createCover({ src: track.cover, seed: trackSeed(track), className: 'cover--hero' }));
     this.#title.textContent = track.title;
     this.#artist.textContent = track.artist;
     setFavoriteButton(this.#favorite, isFavorite);
+    this.#infoList.replaceChildren(
+      ...trackDetails(track).map(([label, value]) => h('div', { class: 'info-card__row' }, h('dt', {}, label), h('dd', {}, value))),
+    );
     this.#lyrics.hidden = !track.lyrics;
     this.#lyricsText.textContent = track.lyrics ?? '';
-    this.#setLyricsOpen(false);
+    if (!samePath) this.#setLyricsOpen(false);
+  }
+
+  /** "Buscar en internet": 'loading' mientras busca, 'idle' al terminar. */
+  setLookupState(state) {
+    const loading = state === 'loading';
+    this.#lookupButton.disabled = loading;
+    this.#lookupButton.textContent = loading ? 'Buscando…' : 'Buscar en internet';
   }
 
   /** Nombre de la colección que suena ("Reproduciendo desde …"). */
@@ -166,6 +181,24 @@ export class NowPlayingView extends Colleague {
   #closeDeviceMenu() {
     this.#deviceMenu.hidden = true;
     this.#device.setAttribute('aria-expanded', 'false');
+  }
+
+  #createInfo() {
+    this.#infoList = h('dl', { class: 'info-card__list' });
+    this.#lookupButton = h(
+      'button',
+      { type: 'button', class: 'link-button', title: 'Buscar carátula, álbum, año, género y letra en internet' },
+      'Buscar en internet',
+    );
+    this.#lookupButton.addEventListener('click', () => {
+      if (this.#currentPath) this.notify(EVENTS.LOOKUP_TRACK, this.#currentPath);
+    });
+    return h(
+      'section',
+      { class: 'info-card', 'aria-label': 'Información de la canción' },
+      h('header', { class: 'info-card__header' }, h('h3', { class: 'info-card__title' }, 'Información'), this.#lookupButton),
+      this.#infoList,
+    );
   }
 
   #createLyrics() {

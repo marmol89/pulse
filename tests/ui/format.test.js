@@ -1,6 +1,16 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatTime, formatDuration, plural, collectionStats, greeting, formatDeviceLabel } from '../../src/renderer/ui/format.js';
+import {
+  formatTime,
+  formatDuration,
+  plural,
+  collectionStats,
+  greeting,
+  formatDeviceLabel,
+  formatTrackNumber,
+  formatDataSource,
+  trackDetails,
+} from '../../src/renderer/ui/format.js';
 
 describe('ui/format', () => {
   test('formatTime() como en el diseño (1:24, 3:32) y con horas si hace falta', () => {
@@ -38,6 +48,39 @@ describe('ui/format', () => {
     assert.equal(formatDeviceLabel({ id: 'default', label: 'Default' }), 'Predeterminado del sistema');
     assert.equal(formatDeviceLabel({ id: 'x', label: 'MSI MP275 (NVIDIA High Definition Audio)' }), 'MSI MP275 (NVIDIA High Definition Audio)');
     assert.equal(formatDeviceLabel({ id: 'y', label: '' }, 2), 'Salida de audio 3');
+  });
+
+  test('formatTrackNumber() y formatDataSource()', () => {
+    assert.equal(formatTrackNumber(9, 15), '9 de 15');
+    assert.equal(formatTrackNumber(9, 0), '9');
+    assert.equal(formatTrackNumber(0, 15), '');
+    assert.equal(formatDataSource(null), 'Del archivo');
+    assert.equal(formatDataSource({ status: 'not-found' }), 'Del archivo');
+    assert.equal(formatDataSource({ status: 'found', source: 'iTunes', lyricsSource: 'LRCLIB' }), 'Del archivo y de iTunes · letra de LRCLIB');
+  });
+
+  test('trackDetails() da las filas de "Información" con valor, en orden', () => {
+    const despacito = {
+      artist: 'Luis Fonsi & Daddy Yankee',
+      albumArtist: 'Luis Fonsi',
+      album: 'VIDA',
+      year: 2017,
+      genre: 'Pop en español',
+      trackNo: 9,
+      trackCount: 15,
+      duration: 229.4,
+      online: { status: 'found', source: 'iTunes' },
+    };
+    assert.deepEqual(trackDetails(despacito), [
+      ['Álbum', 'VIDA'],
+      ['Artista del álbum', 'Luis Fonsi'],
+      ['Año', '2017'],
+      ['Género', 'Pop en español'],
+      ['Pista', '9 de 15'],
+      ['Duración', '3:49'],
+      ['Datos', 'Del archivo y de iTunes'],
+    ]);
+    assert.deepEqual(trackDetails({ artist: 'Kora', albumArtist: 'Kora', album: '', year: 0, genre: '', trackNo: 0, duration: 0 }), [['Datos', 'Del archivo']]);
   });
 
   test('greeting() según la hora del día', () => {

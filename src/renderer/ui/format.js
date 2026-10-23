@@ -40,6 +40,33 @@ export function formatDeviceLabel(device, index = 0) {
   return name || `Salida de audio ${index + 1}`;
 }
 
+/** 9 y 15 → "9 de 15"; sin total → "9"; sin número → "". */
+export function formatTrackNumber(number, count) {
+  if (!number) return '';
+  return count ? `${number} de ${count}` : String(number);
+}
+
+/** De dónde salen los datos: "Del archivo y de iTunes · letra de LRCLIB". */
+export function formatDataSource(online) {
+  const parts = [online?.status === 'found' ? `Del archivo y de ${online.source}` : 'Del archivo'];
+  if (online?.lyricsSource) parts.push(`letra de ${online.lyricsSource}`);
+  return parts.join(' · ');
+}
+
+/** Filas [etiqueta, valor] de la tarjeta "Información" de Reproduciendo, solo con valor. */
+export function trackDetails(track) {
+  const rows = [
+    ['Álbum', track.album],
+    ['Artista del álbum', track.albumArtist && track.albumArtist !== track.artist ? track.albumArtist : ''],
+    ['Año', track.year ? String(track.year) : ''],
+    ['Género', track.genre],
+    ['Pista', formatTrackNumber(track.trackNo, track.trackCount)],
+    ['Duración', track.duration ? formatTime(track.duration) : ''],
+    ['Datos', formatDataSource(track.online)],
+  ];
+  return rows.filter(([, value]) => value);
+}
+
 /** Saludo de la pantalla de Inicio según la hora. */
 export function greeting(date = new Date()) {
   const hour = date.getHours();
