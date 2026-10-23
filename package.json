@@ -13,6 +13,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test \"tests/**/*.test.js\"",
+    "test:e2e": "node tests/e2e/smoke.mjs",
     "dist": "electron-builder",
     "dist:win": "electron-builder --win",
     "dist:linux": "electron-builder --linux"
@@ -40,7 +41,8 @@
   },
   "devDependencies": {
     "electron": "^45.0.0",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "^26.15.3",
+    "playwright-core": "^1.64.1"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
