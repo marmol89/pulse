@@ -1,4 +1,4 @@
-import { readdir, stat } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { parseFile, selectCover } from 'music-metadata';
 import { mediaUrl } from '../protocol/urls.js';
@@ -55,11 +55,13 @@ export async function readTrackRecord(filePath) {
   const record = {
     path: filePath,
     title: path.basename(filePath, path.extname(filePath)),
+    titleFromFile: true,
     artist: UNKNOWN_ARTIST,
     albumArtist: '',
     album: '',
     genre: '',
     trackNo: 0,
+    trackCount: 0,
     disc: 0,
     year: 0,
     duration: 0,
@@ -71,11 +73,13 @@ export async function readTrackRecord(filePath) {
     return {
       ...record,
       title: clean(common.title) || record.title,
+      titleFromFile: !clean(common.title),
       artist: clean(common.artist) || clean(common.albumartist) || UNKNOWN_ARTIST,
       albumArtist: clean(common.albumartist),
       album: clean(common.album),
       genre: clean(common.genre?.[0]),
       trackNo: common.track?.no ?? 0,
+      trackCount: common.track?.of ?? 0,
       disc: common.disk?.no ?? 0,
       year: common.year ?? 0,
       duration: format.duration ?? 0,
@@ -103,8 +107,37 @@ export async function readTrackRecords(filePaths, concurrency = PARSE_CONCURRENC
 }
 
 /** Registro persistido → pista para el renderer (con URLs media://). */
-export function toTrack({ hasCover, ...record }) {
-  return { ...record, url: mediaUrl('track', record.path), cover: hasCover ? mediaUrl('cover', record.path) : null };
+export function toTrack({ hasCover, coverFile, titleFromFile, ...record }) {
+  return {
+    ...record,
+    trackCount: record.trackCount ?? 0,
+    online: record.online ?? null,
+    url: mediaUrl('track', record.path),
+    cover: coverUrl(record, hasCover, coverFile),
+  };
+}
+
+function coverUrl(record, hasCover, coverFile) {
+  if (hasCover) return mediaUrl('cover', record.path);
+  // La de internet lleva versión: si se vuelve a buscar, la vista no usa la de la caché.
+  if (coverFile) return `${mediaUrl('cover', record.path)}?v=${record.online?.checkedAt ?? 0}`;
+  return null;
+}
+
+/** Carátula de un registro: la incrustada en el archivo o, si no tiene, la descargada de internet. */
+export async function readRecordCover(record) {
+  if (!record) return null;
+  if (record.hasCover) {
+    const embedded = await readCover(record.path);
+    if (embedded) return embedded;
+  }
+  if (!record.coverFile) return null;
+  try {
+    const data = await readFile(record.coverFile);
+    return { format: data[0] === 0x89 && data[1] === 0x50 ? 'image/png' : 'image/jpeg', data };
+  } catch {
+    return null; // se borró la caché: se usará la portada generada
+  }
 }
 
 const coverCache = new Map();
