@@ -1,0 +1,388 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1490" height="1140" viewBox="0 0 1490 1140" font-family="Inter, 'SF Pro Display', Arial, sans-serif">
+  <defs>
+    <linearGradient id="gAccent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7C5CFF"/>
+      <stop offset="1" stop-color="#FF5CA8"/>
+    </linearGradient>
+    <linearGradient id="gWarm" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFB25C"/>
+      <stop offset="1" stop-color="#FF5CA8"/>
+    </linearGradient>
+    <linearGradient id="gCool" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2EC5FF"/>
+      <stop offset="1" stop-color="#7C5CFF"/>
+    </linearGradient>
+    <linearGradient id="gGreen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3DDC97"/>
+      <stop offset="1" stop-color="#2EC5FF"/>
+    </linearGradient>
+    <linearGradient id="gNowPlaying" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3B2A7A"/>
+      <stop offset="0.6" stop-color="#0E0E12"/>
+    </linearGradient>
+    <linearGradient id="gPlaylist" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7A2A55"/>
+      <stop offset="0.5" stop-color="#0E0E12"/>
+    </linearGradient>
+    <linearGradient id="gFade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0E0E12" stop-opacity="0"/>
+      <stop offset="1" stop-color="#0E0E12"/>
+    </linearGradient>
+    <clipPath id="clipScreen"><rect width="390" height="844" rx="44"/></clipPath>
+  </defs>
+
+  <!-- Lienzo -->
+  <rect id="Canvas" width="1490" height="1140" fill="#F2F2F5"/>
+  <text x="80" y="56" font-size="26" font-weight="700" fill="#14141A">Pulse — App de música</text>
+  <text x="400" y="56" font-size="15" fill="#6B6B7A">iPhone 14/15 · 390 × 844 · Tema oscuro</text>
+
+  <text x="80" y="88" font-size="14" font-weight="600" fill="#6B6B7A">01 · Inicio</text>
+  <text x="550" y="88" font-size="14" font-weight="600" fill="#6B6B7A">02 · Reproduciendo</text>
+  <text x="1020" y="88" font-size="14" font-weight="600" fill="#6B6B7A">03 · Playlist</text>
+
+  <!-- ===================== PANTALLA 1 · INICIO ===================== -->
+  <g id="01-Inicio" transform="translate(80,100)">
+    <g clip-path="url(#clipScreen)">
+      <rect id="Fondo" width="390" height="844" fill="#0E0E12"/>
+
+      <g id="Status-bar" fill="#FFFFFF">
+        <text x="40" y="34" font-size="16" font-weight="600">9:41</text>
+        <rect x="306" y="23" width="18" height="11" rx="2" opacity="0.9"/>
+        <rect x="330" y="22" width="26" height="13" rx="4" fill="none" stroke="#FFFFFF" stroke-opacity="0.5"/>
+        <rect x="332" y="24" width="19" height="9" rx="2"/>
+      </g>
+
+      <g id="Header">
+        <text x="20" y="96" font-size="28" font-weight="700" fill="#FFFFFF">Buenas noches</text>
+        <circle cx="350" cy="86" r="20" fill="url(#gWarm)"/>
+        <text x="350" y="92" font-size="16" font-weight="700" fill="#FFFFFF" text-anchor="middle">M</text>
+      </g>
+
+      <g id="Chips" font-size="14" font-weight="600">
+        <rect x="20" y="116" width="58" height="34" rx="17" fill="url(#gAccent)"/>
+        <text x="49" y="138" fill="#FFFFFF" text-anchor="middle">Todo</text>
+        <rect x="86" y="116" width="72" height="34" rx="17" fill="#24242E"/>
+        <text x="122" y="138" fill="#FFFFFF" text-anchor="middle">Música</text>
+        <rect x="166" y="116" width="88" height="34" rx="17" fill="#24242E"/>
+        <text x="210" y="138" fill="#FFFFFF" text-anchor="middle">Podcasts</text>
+        <rect x="262" y="116" width="84" height="34" rx="17" fill="#24242E"/>
+        <text x="304" y="138" fill="#FFFFFF" text-anchor="middle">Radio</text>
+      </g>
+
+      <g id="Card-destacada">
+        <rect x="20" y="168" width="350" height="180" rx="24" fill="url(#gAccent)"/>
+        <circle cx="330" cy="190" r="90" fill="#FFFFFF" opacity="0.08"/>
+        <circle cx="300" cy="320" r="60" fill="#FFFFFF" opacity="0.08"/>
+        <text x="40" y="204" font-size="12" font-weight="700" fill="#FFFFFF" opacity="0.8" letter-spacing="1.5">PARA TI</text>
+        <text x="40" y="240" font-size="30" font-weight="800" fill="#FFFFFF">Mix diario</text>
+        <text x="40" y="266" font-size="14" fill="#FFFFFF" opacity="0.85">Tus favoritos y nuevos</text>
+        <text x="40" y="284" font-size="14" fill="#FFFFFF" opacity="0.85">descubrimientos</text>
+        <circle cx="326" cy="304" r="26" fill="#FFFFFF"/>
+        <path d="M319 293 L335 304 L319 315 Z" fill="#14141A"/>
+      </g>
+
+      <g id="Recientes">
+        <text x="20" y="390" font-size="20" font-weight="700" fill="#FFFFFF">Escuchado recientemente</text>
+        <text x="370" y="390" font-size="13" font-weight="600" fill="#9A9AAB" text-anchor="end">Ver todo</text>
+
+        <rect x="20" y="406" width="120" height="120" rx="16" fill="url(#gCool)"/>
+        <circle cx="80" cy="466" r="34" fill="none" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="10"/>
+        <text x="20" y="546" font-size="14" font-weight="600" fill="#FFFFFF">Ola Azul</text>
+        <text x="20" y="564" font-size="12" fill="#9A9AAB">Marea Sur</text>
+
+        <rect x="152" y="406" width="120" height="120" rx="16" fill="url(#gWarm)"/>
+        <rect x="182" y="436" width="60" height="60" rx="30" fill="#FFFFFF" opacity="0.25"/>
+        <text x="152" y="546" font-size="14" font-weight="600" fill="#FFFFFF">Atardecer</text>
+        <text x="152" y="564" font-size="12" fill="#9A9AAB">Los Prismas</text>
+
+        <rect x="284" y="406" width="120" height="120" rx="16" fill="url(#gGreen)"/>
+        <path d="M284 496 L344 436 L404 496 Z" fill="#FFFFFF" opacity="0.25"/>
+        <text x="284" y="546" font-size="14" font-weight="600" fill="#FFFFFF">Selva</text>
+        <text x="284" y="564" font-size="12" fill="#9A9AAB">Kora</text>
+      </g>
+
+      <g id="Generos">
+        <rect x="20" y="588" width="169" height="68" rx="14" fill="#24242E"/>
+        <rect x="20" y="588" width="6" height="68" rx="3" fill="#FF5CA8"/>
+        <text x="40" y="628" font-size="16" font-weight="700" fill="#FFFFFF">Pop latino</text>
+        <rect x="201" y="588" width="169" height="68" rx="14" fill="#24242E"/>
+        <rect x="201" y="588" width="6" height="68" rx="3" fill="#2EC5FF"/>
+        <text x="221" y="628" font-size="16" font-weight="700" fill="#FFFFFF">Lo-fi chill</text>
+      </g>
+
+      <g id="Mini-player">
+        <rect x="12" y="676" width="366" height="64" rx="16" fill="#24242E"/>
+        <rect x="22" y="686" width="44" height="44" rx="10" fill="url(#gAccent)"/>
+        <text x="78" y="704" font-size="15" font-weight="600" fill="#FFFFFF">Luces de Neón</text>
+        <text x="78" y="723" font-size="13" fill="#9A9AAB">Aurora Vega</text>
+        <path transform="translate(306,708)" d="M0 7 C-8 1 -10 -3 -10 -5 C-10 -9 -6 -11 -3 -9 C-1 -8 0 -6 0 -6 C0 -6 1 -8 3 -9 C6 -11 10 -9 10 -5 C10 -3 8 1 0 7 Z" fill="#FF5CA8"/>
+        <rect x="337" y="698" width="5" height="20" rx="1.5" fill="#FFFFFF"/>
+        <rect x="348" y="698" width="5" height="20" rx="1.5" fill="#FFFFFF"/>
+        <rect x="24" y="737" width="342" height="2" rx="1" fill="#3A3A48"/>
+        <rect x="24" y="737" width="140" height="2" rx="1" fill="url(#gAccent)"/>
+      </g>
+
+      <g id="Tab-bar">
+        <rect x="0" y="756" width="390" height="88" fill="#0E0E12"/>
+        <rect x="0" y="756" width="390" height="1" fill="#24242E"/>
+        <g transform="translate(58,784)" fill="#FFFFFF">
+          <path d="M-10 10V-2L0-10L10-2V10H3V3H-3V10Z"/>
+          <text y="28" font-size="11" font-weight="600" text-anchor="middle">Inicio</text>
+        </g>
+        <g transform="translate(148,784)" fill="#9A9AAB">
+          <circle cx="-2" cy="-2" r="7" fill="none" stroke="#9A9AAB" stroke-width="2.2"/>
+          <path d="M3 3L9 9" stroke="#9A9AAB" stroke-width="2.2" stroke-linecap="round"/>
+          <text y="28" font-size="11" text-anchor="middle">Buscar</text>
+        </g>
+        <g transform="translate(242,784)" fill="#9A9AAB">
+          <rect x="-10" y="-10" width="4" height="20" rx="1"/>
+          <rect x="-3" y="-10" width="4" height="20" rx="1"/>
+          <rect x="4" y="-9" width="4" height="19" rx="1" transform="rotate(-18 6 0)"/>
+          <text y="28" font-size="11" text-anchor="middle">Biblioteca</text>
+        </g>
+        <g transform="translate(332,784)" fill="#9A9AAB">
+          <circle cy="-4" r="5" fill="none" stroke="#9A9AAB" stroke-width="2.2"/>
+          <path d="M-9 10 C-9 3 9 3 9 10" fill="none" stroke="#9A9AAB" stroke-width="2.2" stroke-linecap="round"/>
+          <text y="28" font-size="11" text-anchor="middle">Perfil</text>
+        </g>
+        <rect x="128" y="830" width="134" height="5" rx="2.5" fill="#FFFFFF"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- ===================== PANTALLA 2 · REPRODUCIENDO ===================== -->
+  <g id="02-Reproduciendo" transform="translate(550,100)">
+    <g clip-path="url(#clipScreen)">
+      <rect id="Fondo" width="390" height="844" fill="url(#gNowPlaying)"/>
+
+      <g id="Status-bar" fill="#FFFFFF">
+        <text x="40" y="34" font-size="16" font-weight="600">9:41</text>
+        <rect x="306" y="23" width="18" height="11" rx="2" opacity="0.9"/>
+        <rect x="330" y="22" width="26" height="13" rx="4" fill="none" stroke="#FFFFFF" stroke-opacity="0.5"/>
+        <rect x="332" y="24" width="19" height="9" rx="2"/>
+      </g>
+
+      <g id="Top-bar">
+        <path d="M24 70 L34 80 L44 70" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="195" y="70" font-size="11" font-weight="600" fill="#FFFFFF" opacity="0.7" text-anchor="middle" letter-spacing="1.2">REPRODUCIENDO DESDE</text>
+        <text x="195" y="88" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">Mix diario</text>
+        <circle cx="348" cy="76" r="2.5" fill="#FFFFFF"/>
+        <circle cx="356" cy="76" r="2.5" fill="#FFFFFF"/>
+        <circle cx="364" cy="76" r="2.5" fill="#FFFFFF"/>
+      </g>
+
+      <g id="Portada">
+        <rect x="32" y="120" width="326" height="326" rx="28" fill="url(#gAccent)"/>
+        <circle cx="195" cy="283" r="120" fill="none" stroke="#FFFFFF" stroke-opacity="0.15" stroke-width="2"/>
+        <circle cx="195" cy="283" r="90" fill="none" stroke="#FFFFFF" stroke-opacity="0.2" stroke-width="2"/>
+        <circle cx="195" cy="283" r="60" fill="#FFFFFF" opacity="0.15"/>
+        <circle cx="195" cy="283" r="14" fill="#0E0E12" opacity="0.6"/>
+        <text x="56" y="420" font-size="13" font-weight="800" fill="#FFFFFF" opacity="0.9" letter-spacing="3">NEÓN</text>
+      </g>
+
+      <g id="Info-cancion">
+        <text x="32" y="500" font-size="24" font-weight="800" fill="#FFFFFF">Luces de Neón</text>
+        <text x="32" y="526" font-size="16" fill="#B8B8C8">Aurora Vega</text>
+        <path transform="translate(346,506)" d="M0 8 C-10 1 -12 -4 -12 -6 C-12 -11 -7 -13 -4 -11 C-1 -10 0 -7 0 -7 C0 -7 1 -10 4 -11 C7 -13 12 -11 12 -6 C12 -4 10 1 0 8 Z" fill="#FF5CA8"/>
+      </g>
+
+      <g id="Progreso">
+        <rect x="32" y="562" width="326" height="4" rx="2" fill="#FFFFFF" opacity="0.2"/>
+        <rect x="32" y="562" width="130" height="4" rx="2" fill="url(#gAccent)"/>
+        <circle cx="162" cy="564" r="7" fill="#FFFFFF"/>
+        <text x="32" y="590" font-size="12" fill="#9A9AAB">1:24</text>
+        <text x="358" y="590" font-size="12" fill="#9A9AAB" text-anchor="end">3:32</text>
+      </g>
+
+      <g id="Controles">
+        <g transform="translate(52,656)" stroke="#FFFFFF" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.8">
+          <path d="M-10 -6 H-4 L4 6 H10"/>
+          <path d="M-10 6 H-4 L4 -6 H10"/>
+          <path d="M7 -9 L10 -6 L7 -3"/>
+          <path d="M7 3 L10 6 L7 9"/>
+        </g>
+        <g transform="translate(120,656)" fill="#FFFFFF">
+          <path d="M10 -12 L-6 0 L10 12 Z"/>
+          <rect x="-12" y="-12" width="4" height="24" rx="1.5"/>
+        </g>
+        <circle cx="195" cy="656" r="38" fill="#FFFFFF"/>
+        <rect x="183" y="641" width="8" height="30" rx="2.5" fill="#14141A"/>
+        <rect x="199" y="641" width="8" height="30" rx="2.5" fill="#14141A"/>
+        <g transform="translate(270,656)" fill="#FFFFFF">
+          <path d="M-10 -12 L6 0 L-10 12 Z"/>
+          <rect x="8" y="-12" width="4" height="24" rx="1.5"/>
+        </g>
+        <g transform="translate(338,656)" stroke="#7C5CFF" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M-8 2 V-2 A5 5 0 0 1 -3 -7 H9"/>
+          <path d="M6 -10 L9 -7 L6 -4"/>
+          <path d="M8 -2 V2 A5 5 0 0 1 3 7 H-9"/>
+          <path d="M-6 10 L-9 7 L-6 4"/>
+          <circle cx="0" cy="16" r="2" fill="#7C5CFF" stroke="none"/>
+        </g>
+      </g>
+
+      <g id="Acciones-inferiores" fill="none" stroke="#B8B8C8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <g transform="translate(40,750)">
+          <rect x="-9" y="-10" width="18" height="20" rx="3"/>
+          <circle cx="0" cy="3" r="3"/>
+        </g>
+        <text x="62" y="755" font-size="12" font-weight="600" fill="#3DDC97" stroke="none">Altavoz de la sala</text>
+        <g transform="translate(306,750)">
+          <path d="M0 -10 V4"/>
+          <path d="M-5 -5 L0 -10 L5 -5"/>
+          <path d="M-8 0 V9 H8 V0"/>
+        </g>
+        <g transform="translate(350,750)">
+          <path d="M-9 -7 H9"/>
+          <path d="M-9 0 H9"/>
+          <path d="M-9 7 H3"/>
+        </g>
+      </g>
+
+      <g id="Letra-preview">
+        <rect x="20" y="784" width="350" height="80" rx="20" fill="#24242E"/>
+        <text x="40" y="812" font-size="13" font-weight="700" fill="#FFFFFF">Letra</text>
+        <text x="350" y="812" font-size="12" font-weight="600" fill="#9A9AAB" text-anchor="end">Mostrar</text>
+      </g>
+      <rect x="128" y="830" width="134" height="5" rx="2.5" fill="#FFFFFF"/>
+    </g>
+  </g>
+
+  <!-- ===================== PANTALLA 3 · PLAYLIST ===================== -->
+  <g id="03-Playlist" transform="translate(1020,100)">
+    <g clip-path="url(#clipScreen)">
+      <rect id="Fondo" width="390" height="844" fill="url(#gPlaylist)"/>
+
+      <g id="Status-bar" fill="#FFFFFF">
+        <text x="40" y="34" font-size="16" font-weight="600">9:41</text>
+        <rect x="306" y="23" width="18" height="11" rx="2" opacity="0.9"/>
+        <rect x="330" y="22" width="26" height="13" rx="4" fill="none" stroke="#FFFFFF" stroke-opacity="0.5"/>
+        <rect x="332" y="24" width="19" height="9" rx="2"/>
+      </g>
+
+      <path id="Atras" d="M36 64 L26 74 L36 84" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <g id="Portada-playlist">
+        <rect x="105" y="74" width="180" height="180" rx="20" fill="url(#gWarm)"/>
+        <circle cx="195" cy="164" r="56" fill="#FFFFFF" opacity="0.18"/>
+        <path d="M150 230 Q195 180 240 230" fill="none" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="4" stroke-linecap="round"/>
+      </g>
+
+      <g id="Info-playlist">
+        <text x="20" y="296" font-size="26" font-weight="800" fill="#FFFFFF">Noches de Verano</text>
+        <circle cx="30" cy="318" r="10" fill="url(#gWarm)"/>
+        <text x="48" y="323" font-size="13" font-weight="600" fill="#FFFFFF">Creado por ti</text>
+        <text x="20" y="346" font-size="13" fill="#9A9AAB">24 canciones · 1 h 32 min</text>
+      </g>
+
+      <g id="Acciones">
+        <path transform="translate(32,384)" d="M0 8 C-10 1 -12 -4 -12 -6 C-12 -11 -7 -13 -4 -11 C-1 -10 0 -7 0 -7 C0 -7 1 -10 4 -11 C7 -13 12 -11 12 -6 C12 -4 10 1 0 8 Z" fill="#FF5CA8"/>
+        <g transform="translate(76,384)" fill="none" stroke="#B8B8C8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle r="11"/>
+          <path d="M0 -5 V5"/>
+          <path d="M-4 1 L0 5 L4 1"/>
+        </g>
+        <circle cx="114" cy="384" r="2.5" fill="#B8B8C8"/>
+        <circle cx="122" cy="384" r="2.5" fill="#B8B8C8"/>
+        <circle cx="130" cy="384" r="2.5" fill="#B8B8C8"/>
+        <g transform="translate(276,384)" fill="none" stroke="#B8B8C8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M-10 -6 H-4 L4 6 H10"/>
+          <path d="M-10 6 H-4 L4 -6 H10"/>
+        </g>
+        <circle cx="338" cy="384" r="30" fill="url(#gAccent)"/>
+        <path d="M331 372 L349 384 L331 396 Z" fill="#FFFFFF"/>
+      </g>
+
+      <g id="Lista-canciones">
+        <!-- Fila activa -->
+        <g id="Cancion-1">
+          <rect x="12" y="428" width="366" height="60" rx="12" fill="#FFFFFF" opacity="0.06"/>
+          <rect x="20" y="434" width="48" height="48" rx="8" fill="url(#gAccent)"/>
+          <text x="80" y="454" font-size="15" font-weight="600" fill="#FF5CA8">Luces de Neón</text>
+          <text x="80" y="474" font-size="13" fill="#9A9AAB">Aurora Vega</text>
+          <rect x="324" y="452" width="3" height="14" rx="1.5" fill="#FF5CA8"/>
+          <rect x="330" y="446" width="3" height="20" rx="1.5" fill="#FF5CA8"/>
+          <rect x="336" y="456" width="3" height="10" rx="1.5" fill="#FF5CA8"/>
+          <circle cx="362" cy="458" r="2" fill="#9A9AAB"/><circle cx="362" cy="451" r="2" fill="#9A9AAB"/><circle cx="362" cy="465" r="2" fill="#9A9AAB"/>
+        </g>
+        <g id="Cancion-2">
+          <rect x="20" y="494" width="48" height="48" rx="8" fill="url(#gCool)"/>
+          <text x="80" y="514" font-size="15" font-weight="600" fill="#FFFFFF">Ola Azul</text>
+          <text x="80" y="534" font-size="13" fill="#9A9AAB">Marea Sur</text>
+          <text x="340" y="524" font-size="13" fill="#9A9AAB" text-anchor="end">3:08</text>
+          <circle cx="362" cy="518" r="2" fill="#9A9AAB"/><circle cx="362" cy="511" r="2" fill="#9A9AAB"/><circle cx="362" cy="525" r="2" fill="#9A9AAB"/>
+        </g>
+        <g id="Cancion-3">
+          <rect x="20" y="554" width="48" height="48" rx="8" fill="url(#gGreen)"/>
+          <text x="80" y="574" font-size="15" font-weight="600" fill="#FFFFFF">Selva</text>
+          <text x="80" y="594" font-size="13" fill="#9A9AAB">Kora</text>
+          <text x="340" y="584" font-size="13" fill="#9A9AAB" text-anchor="end">4:12</text>
+          <circle cx="362" cy="578" r="2" fill="#9A9AAB"/><circle cx="362" cy="571" r="2" fill="#9A9AAB"/><circle cx="362" cy="585" r="2" fill="#9A9AAB"/>
+        </g>
+        <g id="Cancion-4">
+          <rect x="20" y="614" width="48" height="48" rx="8" fill="url(#gWarm)"/>
+          <text x="80" y="634" font-size="15" font-weight="600" fill="#FFFFFF">Atardecer</text>
+          <text x="80" y="654" font-size="13" fill="#9A9AAB">Los Prismas</text>
+          <text x="340" y="644" font-size="13" fill="#9A9AAB" text-anchor="end">2:57</text>
+          <circle cx="362" cy="638" r="2" fill="#9A9AAB"/><circle cx="362" cy="631" r="2" fill="#9A9AAB"/><circle cx="362" cy="645" r="2" fill="#9A9AAB"/>
+        </g>
+      </g>
+
+      <g id="Mini-player">
+        <rect x="12" y="676" width="366" height="64" rx="16" fill="#24242E"/>
+        <rect x="22" y="686" width="44" height="44" rx="10" fill="url(#gAccent)"/>
+        <text x="78" y="704" font-size="15" font-weight="600" fill="#FFFFFF">Luces de Neón</text>
+        <text x="78" y="723" font-size="13" fill="#9A9AAB">Aurora Vega</text>
+        <path transform="translate(306,708)" d="M0 7 C-8 1 -10 -3 -10 -5 C-10 -9 -6 -11 -3 -9 C-1 -8 0 -6 0 -6 C0 -6 1 -8 3 -9 C6 -11 10 -9 10 -5 C10 -3 8 1 0 7 Z" fill="#FF5CA8"/>
+        <rect x="337" y="698" width="5" height="20" rx="1.5" fill="#FFFFFF"/>
+        <rect x="348" y="698" width="5" height="20" rx="1.5" fill="#FFFFFF"/>
+        <rect x="24" y="737" width="342" height="2" rx="1" fill="#3A3A48"/>
+        <rect x="24" y="737" width="140" height="2" rx="1" fill="url(#gAccent)"/>
+      </g>
+
+      <g id="Tab-bar">
+        <rect x="0" y="756" width="390" height="88" fill="#0E0E12"/>
+        <rect x="0" y="756" width="390" height="1" fill="#24242E"/>
+        <g transform="translate(58,784)" fill="#9A9AAB">
+          <path d="M-10 10V-2L0-10L10-2V10H3V3H-3V10Z"/>
+          <text y="28" font-size="11" text-anchor="middle">Inicio</text>
+        </g>
+        <g transform="translate(148,784)" fill="#9A9AAB">
+          <circle cx="-2" cy="-2" r="7" fill="none" stroke="#9A9AAB" stroke-width="2.2"/>
+          <path d="M3 3L9 9" stroke="#9A9AAB" stroke-width="2.2" stroke-linecap="round"/>
+          <text y="28" font-size="11" text-anchor="middle">Buscar</text>
+        </g>
+        <g transform="translate(242,784)" fill="#FFFFFF">
+          <rect x="-10" y="-10" width="4" height="20" rx="1"/>
+          <rect x="-3" y="-10" width="4" height="20" rx="1"/>
+          <rect x="4" y="-9" width="4" height="19" rx="1" transform="rotate(-18 6 0)"/>
+          <text y="28" font-size="11" font-weight="600" text-anchor="middle">Biblioteca</text>
+        </g>
+        <g transform="translate(332,784)" fill="#9A9AAB">
+          <circle cy="-4" r="5" fill="none" stroke="#9A9AAB" stroke-width="2.2"/>
+          <path d="M-9 10 C-9 3 9 3 9 10" fill="none" stroke="#9A9AAB" stroke-width="2.2" stroke-linecap="round"/>
+          <text y="28" font-size="11" text-anchor="middle">Perfil</text>
+        </g>
+        <rect x="128" y="830" width="134" height="5" rx="2.5" fill="#FFFFFF"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- ===================== GUÍA DE ESTILO ===================== -->
+  <g id="Guia-de-estilo" transform="translate(80,980)">
+    <text y="0" font-size="14" font-weight="600" fill="#6B6B7A">Colores</text>
+    <g font-size="12" fill="#14141A">
+      <rect y="16" width="56" height="56" rx="12" fill="#0E0E12"/><text y="92">Fondo</text><text y="108" fill="#6B6B7A">#0E0E12</text>
+      <rect x="90" y="16" width="56" height="56" rx="12" fill="#24242E"/><text x="90" y="92">Superficie</text><text x="90" y="108" fill="#6B6B7A">#24242E</text>
+      <rect x="180" y="16" width="56" height="56" rx="12" fill="#7C5CFF"/><text x="180" y="92">Primario</text><text x="180" y="108" fill="#6B6B7A">#7C5CFF</text>
+      <rect x="270" y="16" width="56" height="56" rx="12" fill="#FF5CA8"/><text x="270" y="92">Acento</text><text x="270" y="108" fill="#6B6B7A">#FF5CA8</text>
+      <rect x="360" y="16" width="56" height="56" rx="12" fill="url(#gAccent)"/><text x="360" y="92">Gradiente</text><text x="360" y="108" fill="#6B6B7A">Primario→Acento</text>
+      <rect x="470" y="16" width="56" height="56" rx="12" fill="#9A9AAB"/><text x="470" y="92">Texto 2º</text><text x="470" y="108" fill="#6B6B7A">#9A9AAB</text>
+    </g>
+    <text x="640" y="0" font-size="14" font-weight="600" fill="#6B6B7A">Tipografía · Inter</text>
+    <text x="640" y="46" font-size="30" font-weight="800" fill="#14141A">Título 30 / ExtraBold</text>
+    <text x="640" y="76" font-size="20" font-weight="700" fill="#14141A">Sección 20 / Bold</text>
+    <text x="640" y="100" font-size="15" font-weight="600" fill="#14141A">Canción 15 / SemiBold</text>
+    <text x="1000" y="100" font-size="13" fill="#6B6B7A">Secundario 13 / Regular</text>
+  </g>
+</svg>
