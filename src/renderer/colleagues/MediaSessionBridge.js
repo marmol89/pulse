@@ -11,13 +11,17 @@ const POSITION_INTERVAL_MS = 1000;
 export class MediaSessionBridge extends Colleague {
   #session;
   #Metadata;
+  #fetch;
   #playing = false;
   #lastPositionAt = Number.NEGATIVE_INFINITY;
+  #showCount = 0;
+  #artworkUrl = null;
 
-  constructor(session = globalThis.navigator?.mediaSession, Metadata = globalThis.MediaMetadata) {
+  constructor(session = globalThis.navigator?.mediaSession, Metadata = globalThis.MediaMetadata, fetchFn = globalThis.fetch) {
     super();
     this.#session = session ?? null;
     this.#Metadata = Metadata ?? null;
+    this.#fetch = fetchFn;
     if (!this.#session) return;
 
     const actions = {
@@ -40,19 +44,35 @@ export class MediaSessionBridge extends Colleague {
     }
   }
 
-  show(track) {
+  /** Publica la pista al momento y añade la carátula cuando se ha descargado. */
+  async show(track) {
     if (!this.#session || !this.#Metadata) return;
-    this.#session.metadata = new this.#Metadata({
-      title: track.title,
-      artist: track.artist,
-      album: track.album,
-      artwork: track.cover ? [{ src: track.cover }] : [],
-    });
+    const showId = ++this.#showCount;
+    const metadata = { title: track.title, artist: track.artist, album: track.album };
+    this.#session.metadata = new this.#Metadata({ ...metadata, artwork: [] });
+    if (!track.cover) return;
+    const artwork = await this.#toBlobUrl(track.cover);
+    // Si mientras tanto empezó otra pista, esta carátula ya no vale.
+    if (artwork && showId === this.#showCount) this.#session.metadata = new this.#Metadata({ ...metadata, artwork: [{ src: artwork }] });
   }
 
   setPlaying(playing) {
     this.#playing = playing;
     if (this.#session) this.#session.playbackState = playing ? 'playing' : 'paused';
+  }
+
+  /** El sistema solo acepta carátulas http(s), data o blob: se convierte la URL media://. */
+  async #toBlobUrl(src) {
+    try {
+      const response = await this.#fetch(src);
+      if (!response.ok) return null;
+      const url = URL.createObjectURL(await response.blob());
+      if (this.#artworkUrl) URL.revokeObjectURL(this.#artworkUrl);
+      this.#artworkUrl = url;
+      return url;
+    } catch {
+      return null;
+    }
   }
 
   /** Posición para la barra de tiempo del sistema, como mucho una vez por segundo. */

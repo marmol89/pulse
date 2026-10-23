@@ -49,9 +49,17 @@ class FakeMetadata {
   }
 }
 
-function setup() {
+/** fetch falso: cada URL media:// responde con una imagen distinta, tras `delay` ms. */
+function fakeFetch({ delay = 0, ok = true } = {}) {
+  return async (url) => {
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    return new Response(new Blob([url], { type: 'image/png' }), { status: ok ? 200 : 404 });
+  };
+}
+
+function setup(fetchFn = fakeFetch()) {
   const session = fakeSession();
-  const bridge = new MediaSessionBridge(session, FakeMetadata);
+  const bridge = new MediaSessionBridge(session, FakeMetadata, fetchFn);
   const mediator = recordingMediator();
   bridge.setMediator(mediator);
   return { session, bridge, events: mediator.events };
@@ -77,10 +85,30 @@ describe('MediaSessionBridge', () => {
     assert.deepEqual(events, [[EVENTS.NEXT, undefined], [EVENTS.PREVIOUS, undefined], [EVENTS.SEEK, 42]]);
   });
 
-  test('show() publica título, artista, álbum y carátula', () => {
+  test('show() publica la pista al momento y la carátula como blob: (el sistema no acepta media://)', async () => {
     const { session, bridge } = setup();
-    bridge.show(track('/a.mp3', { title: 'Selva', artist: 'Kora', album: 'Verde', cover: 'media://cover/a' }));
-    assert.deepEqual({ ...session.metadata }, { title: 'Selva', artist: 'Kora', album: 'Verde', artwork: [{ src: 'media://cover/a' }] });
+    const shown = bridge.show(track('/a.mp3', { title: 'Selva', artist: 'Kora', album: 'Verde', cover: 'media://cover/a' }));
+    assert.deepEqual({ ...session.metadata }, { title: 'Selva', artist: 'Kora', album: 'Verde', artwork: [] });
+
+    await shown;
+
+    assert.match(session.metadata.artwork[0].src, /^blob:/);
+    assert.equal(session.metadata.title, 'Selva');
+  });
+
+  test('show() descarta la carátula de una pista que ya no suena', async () => {
+    const { session, bridge } = setup(fakeFetch({ delay: 20 }));
+    const first = bridge.show(track('/a.mp3', { title: 'A', cover: 'media://cover/a' }));
+    const second = bridge.show(track('/b.mp3', { title: 'B' }));
+    await Promise.all([first, second]);
+    assert.equal(session.metadata.title, 'B');
+    assert.deepEqual(session.metadata.artwork, []);
+  });
+
+  test('show() sin carátula disponible deja la pista sin imagen', async () => {
+    const { session, bridge } = setup(fakeFetch({ ok: false }));
+    await bridge.show(track('/a.mp3', { title: 'A', cover: 'media://cover/a' }));
+    assert.deepEqual(session.metadata.artwork, []);
   });
 
   test('setPosition() se limita a una vez por segundo y a la duración', () => {
