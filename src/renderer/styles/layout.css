@@ -286,11 +286,15 @@ svg {
 @media (min-width: 1100px) {
   .now-playing__body {
     flex-direction: row;
+    align-items: flex-start;
     gap: var(--space-12);
     max-width: none;
   }
 
+  /* La portada se queda a la vista mientras se recorre la información y la letra. */
   .now-playing__art {
+    position: sticky;
+    top: var(--space-6);
     display: flex;
     flex: 1;
     justify-content: flex-end;
