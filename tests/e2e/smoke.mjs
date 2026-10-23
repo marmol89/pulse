@@ -115,11 +115,12 @@ try {
   await page.waitForSelector('.now-playing.is-open');
   check(await page.isVisible('.lyrics'), 'Reproduciendo muestra la tarjeta de letra si la pista tiene letra');
   await page.click('.lyrics .link-button');
+  await shot('05-reproduciendo');
   await page.click('.device__button');
   await page.waitForSelector('.device__menu:not([hidden]) .device__option');
   const devices = await page.locator('.device__option').allTextContents();
   check(devices.every((label) => !/^Default\b|\(\w{4}:\w{4}\)$/.test(label)), `salidas de audio legibles: ${devices.join(' | ')}`);
-  await shot('05-reproduciendo');
+  await shot('06-salidas-de-audio');
 
   await page.keyboard.press('Escape');
   check(await page.isHidden('.device__menu'), 'Esc cierra primero el menú de salidas');
@@ -131,12 +132,12 @@ try {
   await page.fill('.search-box__input', 'selva');
   await page.waitForSelector('.view--search .track-row');
   check((await page.locator('.view--search .track-row').count()) === 1, 'Buscar "selva" encuentra 1 pista');
-  await shot('06-buscar');
+  await shot('07-buscar');
 
   await page.click('.nav__item:has-text("Inicio")');
   await page.click('.chip:has-text("Álbumes")');
   check((await page.locator('.card-grid .media-card').count()) === 4, 'Álbumes agrupa 4 álbumes');
-  await shot('07-albumes');
+  await shot('08-albumes');
 
   check(logs.length === 0, `sin errores de consola${logs.length ? `:\n  ${logs.join('\n  ')}` : ''}`);
 } finally {
