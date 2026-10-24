@@ -66,11 +66,21 @@ describe('s3/storage', () => {
     storage.destroy();
   });
 
-  test('stat() da el tamaño o null', async () => {
+  test('stat() da el tamaño o null, sin HEAD (pide el primer byte)', async () => {
     const storage = createS3Storage(s3.config);
-    assert.deepEqual(await storage.stat('rock/Kora - Selva.ogg'), { size: 2 });
-    assert.equal(await storage.stat('rock/no-esta.ogg'), null);
-    storage.destroy();
+    s3.put('musica', 'vacio.ogg', '');
+    try {
+      assert.deepEqual(await storage.stat('rock/Kora - Selva.ogg'), { size: 2 });
+      assert.equal(await storage.stat('rock/no-esta.ogg'), null);
+      assert.deepEqual(await storage.stat('vacio.ogg'), { size: 0 });
+      assert.equal(
+        s3.requests.some((request) => request.method === 'HEAD'),
+        false,
+      );
+    } finally {
+      s3.remove('musica', 'vacio.ogg');
+      storage.destroy();
+    }
   });
 
   test('upload() sube un Buffer o un stream (sin cuerpo aws-chunked)', async () => {

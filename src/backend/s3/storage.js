@@ -1,4 +1,4 @@
-import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { isAudioFile } from '../library/tracks.js';
 
 // Los errores ya llegan a quien llama, y una subida fallida (un stream no se reintenta) se cuenta en
@@ -87,13 +87,20 @@ export function createS3Storage({ endpoint, accessKeyId, secretAccessKey, bucket
       };
     },
 
-    /** Tamaño del objeto, o null si no está en el bucket. */
+    /**
+     * Tamaño del objeto, o null si no está en el bucket. Pide solo el primer byte (el total viene en
+     * Content-Range) en vez de HEAD: la red nativa de Android no sabe dar el 404 de un HEAD sin cuerpo.
+     */
     async stat(key) {
       try {
-        const { ContentLength } = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-        return { size: ContentLength ?? 0 };
+        const { ContentRange, ContentLength, Body } = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key, Range: 'bytes=0-0' }));
+        await Body?.transformToByteArray(); // libera la conexión
+        const total = /\/(\d+)$/.exec(ContentRange ?? '')?.[1];
+        return { size: total === undefined ? (ContentLength ?? 0) : Number(total) };
       } catch (error) {
-        if (error?.$metadata?.httpStatusCode === 404 || error?.name === 'NotFound') return null;
+        const status = error?.$metadata?.httpStatusCode;
+        if (status === 404 || error?.name === 'NoSuchKey' || error?.name === 'NotFound') return null;
+        if (status === 416 || error?.name === 'InvalidRange') return { size: 0 }; // objeto vacío
         throw error;
       }
     },
