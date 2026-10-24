@@ -120,6 +120,10 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
 - **Firma**: la keystore de release no va al repo (`*.jks` ignorado). En CI llega de los secretos
   `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` y `ANDROID_KEY_PASSWORD`; sin ellos
   sale el debug. Si se pierde la keystore, las versiones nuevas no se instalan encima: hay que guardar copia.
+  En Google Play es la *clave de subida* (Google firma con la suya: firma de apps de Google Play).
+- **Google Play** (`com.marmol89.pulse`): cada versión sube el `.aab` a la **prueba interna** con la cuenta de
+  servicio del secreto `PLAY_SERVICE_ACCOUNT_JSON` (usuario de Play Console con permiso de publicar en pruebas) y
+  las notas de `scripts/notas-play.mjs` (su entrada del CHANGELOG). Sin ese secreto, se sube a mano en Play Console.
 
 ## Datos de internet (carátula, álbum, año, género, pista y letra)
 
