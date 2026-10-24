@@ -97,6 +97,10 @@ describe('handlers/online', () => {
     });
     await online[EVENTS.LOOKUP_TRACK](offline, despacito.path);
     assert.deepEqual(toasts(offline), ['No se pudo conectar. Inténtalo más tarde']);
+
+    const unavailable = playing({ library: spy({ lookup: async () => ({ track: despacito, changed: false, unavailable: true }) }) });
+    await online[EVENTS.LOOKUP_TRACK](unavailable, despacito.path);
+    assert.deepEqual(toasts(unavailable), ['No se pudo conectar. Inténtalo más tarde']);
     assert.deepEqual(callsOf(offline.nowPlaying.setLookupState), [['loading'], ['idle']]);
   });
 

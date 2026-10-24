@@ -33,6 +33,7 @@ export default {
     ctx.nowPlaying.setLookupState('loading');
     try {
       const result = await ctx.library.lookup(path, { force: true });
+      if (result?.unavailable) throw new Error('Servicio no disponible');
       if (result?.changed) applyTrackUpdates(ctx, [result.track]);
       const found = result?.track.online?.status === 'found';
       ctx.toast.show(found ? 'Información actualizada desde internet' : 'No se encontró esta canción en internet');

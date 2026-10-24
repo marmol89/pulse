@@ -95,14 +95,22 @@ export function createEnrichmentQueue({
     },
 
     /**
-     * Búsqueda inmediata. Lanza TransientError si no hay conexión.
-     * @returns {Promise<{ track: object, changed: boolean } | null>}
+     * Búsqueda inmediata. Sin conexión o con un servicio caído un momento no lanza (cruzaría el IPC
+     * como error): devuelve la pista sin cambios con `unavailable: true`.
+     * @returns {Promise<{ track: object, changed: boolean, unavailable?: true } | null>}
      */
     lookupNow(filePath, options = {}) {
       return exclusive(async () => {
         const record = store.get(filePath);
         if (!record) return null;
-        const { record: updated, changed } = await enricher.enrich(record, options);
+        let result;
+        try {
+          result = await enricher.enrich(record, options);
+        } catch (error) {
+          if (error instanceof TransientError) return { track: toTrack(record), changed: false, unavailable: true };
+          throw error;
+        }
+        const { record: updated, changed } = result;
         if (changed) {
           store.add([updated]);
           await store.save();

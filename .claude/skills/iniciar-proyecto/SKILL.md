@@ -10,7 +10,7 @@ reproduce la música de un **bucket S3** (o compatible, como MinIO), se parece a
 **Windows (NSIS)** y **Linux (AppImage + deb)**, con toda la coordinación de la UI en un **Mediator**
 que nunca se convierte en un *God Object*.
 
-`templates/` contiene **todo lo que no depende del diseño visual**, ya probado (310 tests): proceso main
+`templates/` contiene **todo lo que no depende del diseño visual**, ya probado (311 tests): proceso main
 (**S3**: conexión cifrada, sincronización, audio con rangos, subir canciones y metadatos/ en el bucket; **datos de internet**: carátula, álbum, año, género, pista y letra), preload, núcleo del patrón,
 mediator y handlers, modelos y servicios, tokens, `index.html`, scripts y tests.
 Lo visual (vistas, `ui/`, `layout.css`, `components.css`) se **genera** a partir del diseño (Paso 4).
@@ -307,6 +307,10 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
   subida con stream), aunque ya llegan a quien llama → logger silencioso salvo otros avisos.
 - Con el MinIO real una subida de metadatos recibió un 403 pasajero y no se reintentaba → reintento al minuto y
   el aviso incluye el código del servidor (antes todo 403 parecía "sin permiso").
+- Electron 45 marca obsoletas safeStorage.encryptString/decryptString → encryptStringAsync/decryptStringAsync
+  (y volver a cifrar si shouldReEncrypt).
+- Un TransientError devuelto por ipcMain.handle sale en consola como "Error occurred in handler" → lookupNow()
+  devuelve { unavailable: true } en vez de lanzar.
 - Prueba contra un S3/MinIO real: script aparte en el scratchpad (no en el repo) que lee las credenciales del
   archivo que indique el usuario sin imprimirlas.
 - Prueba de los datos de internet en vivo: un script aparte (no en el repo) con WAV sin etiquetas llamados
