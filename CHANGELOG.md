@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/marmol89/pulse/compare/v0.2.0...v0.3.0) (2026-10-24)
+
+
+### Novedades
+
+* **android:** App Bundle firmado (.aab) para Google Play ([#11](https://github.com/marmol89/pulse/issues/11)) ([5094987](https://github.com/marmol89/pulse/commit/509498725904d2156135c0ebedbb226219ae9527))
+* **android:** icono y pantalla de arranque de Pulse ([#9](https://github.com/marmol89/pulse/issues/9)) ([9cc4e5b](https://github.com/marmol89/pulse/commit/9cc4e5bbf9ca0ddd8ee1e168a748083d1d3c7136))
+
 ## [0.2.0](https://github.com/marmol89/pulse/compare/v0.1.0...v0.2.0) (2026-10-24)
 
 
