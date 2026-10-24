@@ -8,3 +8,6 @@ out/
 
 # Artefactos de los tests e2e
 tests/e2e/output/
+
+# Android: www/ se genera con scripts/build-android.mjs
+www/

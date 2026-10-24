@@ -3,7 +3,7 @@
   "productName": "Pulse",
   "version": "0.1.0",
   "private": true,
-  "description": "Reproductor de música de escritorio (Windows/Linux) con Electron y patrón Mediator",
+  "description": "Reproductor de música para Windows, Linux y Android con Electron/Capacitor y patrón Mediator",
   "author": "marmol89 <admin@marmol89.com>",
   "main": "src/main/main.js",
   "type": "module",
@@ -14,10 +14,14 @@
     "start": "electron .",
     "test": "node --test \"tests/**/*.test.js\"",
     "test:e2e": "node tests/e2e/smoke.mjs",
+    "test:e2e:android": "node tests/e2e/android.mjs",
     "icons": "node scripts/generate-icon.mjs",
     "dist": "electron-builder",
     "dist:win": "electron-builder --win",
-    "dist:linux": "electron-builder --linux"
+    "dist:linux": "electron-builder --linux",
+    "android:build": "node scripts/build-android.mjs && cap sync android",
+    "android:apk": "node scripts/android-apk.mjs",
+    "android:run": "node scripts/build-android.mjs && cap run android"
   },
   "build": {
     "appId": "com.example.reproductormediator",

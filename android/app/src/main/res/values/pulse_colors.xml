@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- color-bg de src/renderer/styles/tokens.css -->
+    <color name="pulseBackground">#0E0E12</color>
+</resources>
