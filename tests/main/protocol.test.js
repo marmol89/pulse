@@ -1,8 +1,9 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mediaUrl, parseMediaUrl } from '../../src/main/protocol/urls.js';
-import { mimeFor, objectResponse, respondToMedia } from '../../src/main/protocol/responses.js';
-import { createS3Storage } from '../../src/main/s3/storage.js';
+import { objectResponse, respondToMedia } from '../../src/main/protocol/responses.js';
+import { mimeFor } from '../../src/backend/library/tracks.js';
+import { createS3Storage } from '../../src/backend/s3/storage.js';
 import { startFakeS3 } from '../helpers/fakeS3.js';
 
 describe('protocol/urls', () => {

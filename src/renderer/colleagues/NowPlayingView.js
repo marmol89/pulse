@@ -175,7 +175,9 @@ export class NowPlayingView extends Colleague {
     document.addEventListener('pointerdown', (event) => {
       if (!this.#deviceMenu.hidden && !event.target.closest('.device')) this.#closeDeviceMenu();
     });
-    return h('div', { class: 'device' }, this.#device, this.#deviceMenu);
+    // Donde no se puede elegir la salida (el WebView de Android), el selector no se muestra.
+    const canChoose = typeof globalThis.HTMLMediaElement?.prototype.setSinkId === 'function';
+    return h('div', { class: 'device', hidden: !canChoose }, this.#device, this.#deviceMenu);
   }
 
   #closeDeviceMenu() {

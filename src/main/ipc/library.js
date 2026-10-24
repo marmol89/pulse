@@ -1,13 +1,14 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron';
 import { readFile } from 'node:fs/promises';
-import { AUDIO_EXTENSIONS, toTrack } from '../library/tracks.js';
+import { AUDIO_EXTENSIONS } from '../../backend/library/tracks.js';
+import { mediaTrack } from '../protocol/urls.js';
 
 /**
  * Canales IPC de la biblioteca (que vive en el bucket S3) y de la conexión.
  * El renderer solo llega a ellos a través de window.api; la clave secreta nunca vuelve a la ventana.
  */
 export function registerLibraryIpc({ store, s3, librarySync, uploader }) {
-  ipcMain.handle('library:load', () => store.all().map(toTrack));
+  ipcMain.handle('library:load', () => store.all().map(mediaTrack));
 
   // Los cambios llegan a la ventana por 'library:changed'; aquí solo se devuelve el resumen.
   ipcMain.handle('library:sync', async () => {

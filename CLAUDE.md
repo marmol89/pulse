@@ -1,6 +1,6 @@
 # Pulse — reproductor de música (Electron + patrón Mediator)
 
-Reproductor nativo para **Windows y Linux** en JavaScript puro (sin frameworks de UI). **La música viene de un bucket S3**
+Reproductor nativo para **Windows, Linux (Electron) y Android (Capacitor, APK)** en JavaScript puro (sin frameworks de UI). **La música viene de un bucket S3**
 (o compatible, como MinIO); las canciones del ordenador se suben al bucket. Diseño de referencia:
 `app-musica-figma.svg` (móvil) y su adaptación a escritorio en `.claude/skills/iniciar-proyecto/reference/diseno.md`.
 La skill `iniciar-proyecto` es la fuente de las reglas de abajo: tenla presente antes de tocar código.
@@ -14,22 +14,36 @@ La skill `iniciar-proyecto` es la fuente de las reglas de abajo: tenla presente 
 | `npm run test:e2e` | Prueba de humo de la app real (playwright-core) contra un **S3 falso** (`tests/helpers/fakeS3.js`): abre la ventana unos segundos, audio silenciado, capturas en `tests/e2e/output/` |
 | `npm run icons` | Regenera `src/assets/icon.png` |
 | `npm run dist:win` / `npm run dist:linux` | Instaladores en `dist/` (NSIS / AppImage + deb). Lento: solo cuando se pida. El `.deb`/AppImage, mejor desde Linux, WSL o CI |
+| `npm run android:apk` | `www/` → `cap sync` → Gradle → `dist/Pulse-X.Y.Z-debug.apk` (necesita `JAVA_HOME` y `ANDROID_HOME`) |
+| `npm run android:build` / `android:run` | Solo `www/` + `cap sync` / compilar y abrir en el emulador o móvil por USB |
+| `npm run test:e2e:android` | Prueba de humo del **APK ya instalado** (`adb install -r dist/Pulse-*-debug.apk` antes) en el emulador contra el S3 falso; capturas `android-*.png` |
 
 Electron 45 descarga su binario la primera vez que se usa; para forzarlo: `node node_modules/electron/install.js`.
 
 ## Estructura
 
 ```
-src/main/        proceso main (NO forma parte del mediator)
-  main.js        ventana, instancia única, sin navegación, --lang=es
-  s3/           storage.js (SDK: leer y subir, nunca borra), connection.js (conexión cifrada con safeStorage), service.js
-  protocol/      media://track|cover/<id>: audio desde S3 con rangos, solo pistas de la biblioteca (403 si no)
+src/backend/     lógica común a Electron y Android, SIN Node ni Electron (lo comprueba tests/backend/portable.test.js):
+                 la plataforma inyecta `files` (leer/escribir por nombre), `crypto`, `http`, `toTrack` (URLs) y `collect`
+  paths.js       basename/extname POSIX y nombre de carátula
+  s3/           storage.js (SDK: leer y subir, nunca borra; admite otro requestHandler), connection.js (conexión
+                 con la clave secreta cifrada por el `crypto` inyectado), service.js
   library/       remote.js (id s3://bucket/clave, etiquetas leyendo el principio del objeto), sync.js
-                 (biblioteca = bucket), upload.js (subir archivos y carpetas), metadata.js (copia en
+                 (biblioteca = bucket), upload.js (sube lo que da `collect`: {name,size,open}), metadata.js (copia en
                  metadatos/ del bucket), tracks.js (registro ↔ pista), store.js (library.json: caché local)
   online/        datos de internet: matching, itunes, deezer, lrclib, http, enricher, queue (ver abajo)
+src/main/        adaptador de Electron (NO forma parte del mediator)
+  main.js        ventana, instancia única, sin navegación, --lang=es
+  files.js       `files` sobre fs en userData; library/collect.js recorre archivos y carpetas para subir
+  protocol/      media://track|cover/<id>: audio desde S3 con rangos, solo pistas de la biblioteca (403 si no)
   ipc/           library.js (library:*, connection:*) y metadata.js (metadata:*); los usa el preload
 src/preload/preload.cjs   window.api (contextBridge, sandbox)
+src/android/     window.api de Android sobre el mismo backend (esbuild → www/api.js, antes que app.js)
+  api.js         mismos métodos que el preload; audio con URLs firmadas de S3 (7 días)
+  main.js        punto de entrada con los plugins reales (Filesystem, SecureStorage, App, CapacitorHttp)
+  nativeHttp.js  red nativa sin CORS (y requestHandler del SDK de S3); files.js, secret.js (Keystore),
+                 covers.js (carátulas en el móvil), picker.js (elegir archivos), backButton.js
+android/         proyecto Gradle de Capacitor (la versión se lee de package.json); www/ se genera y no va al repo
 src/renderer/
   app.js         raíz de composición: crea colegas → PlayerMediator → app-ready
   core/          Mediator (solo enruta) y Colleague
@@ -77,10 +91,29 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
 - Si una canción falla al sonar se comprueba en el bucket (`library:verify`); si ya no está, se quita.
 - Los tests nunca usan el S3 real: `tests/helpers/fakeS3.js` es un servidor S3 mínimo (listar, rangos, subidas, 403, solo lectura…).
 
+## Android (Capacitor 8)
+
+- Mismo renderer: el diseño móvil son reglas `@media (max-width: 720px)` en `layout.css` (tab bar abajo con la
+  pestaña "Tu música" para conexión, subir, actualizar y datos de internet; mini-player; safe-area). El mediator
+  y los handlers no saben de plataformas; `index.html` de Android lo genera `scripts/build-android.mjs` (CSP con
+  `media-src https: http:`, `data-platform="android"`).
+- La clave secreta va al **Android Keystore** (`@aparajita/capacitor-secure-storage`); en `s3.json` solo queda
+  la marca `keystore`. En Android no hay proceso main: el secreto vive en el JS de la app (en su sandbox).
+- Toda la red (S3, iTunes, Deezer, LRCLIB) va por `CapacitorHttp` nativo (sin CORS); el `<audio>` usa URLs
+  firmadas que piden rangos directamente al bucket.
+- Detalles que rompen si se tocan: `server.androidScheme: 'http'` (con https el audio http de un MinIO local es
+  contenido mixto y se bloquea), `usesCleartextTraffic`, y `stat()` con GET de un byte (CapacitorHttp rechaza
+  un HEAD con 404). `files.js` mira si algo existe listando su carpeta: cada rechazo del plugin ensucia la consola.
+- Entorno local: JDK 21 (`JAVA_HOME`) y SDK de Android (`ANDROID_HOME`: platform-tools, platforms;android-36,
+  build-tools, emulador). El emulador, **con ventana y la GPU por defecto**
+  (`emulator -avd pulse -no-boot-anim -audio none -no-snapshot-save`): sin ventana se cae al reproducir audio.
+  El e2e levanta el S3 falso en `0.0.0.0` y el emulador lo ve en `10.0.2.2`.
+- Sin probar aún: reproducir con la app en segundo plano o la pantalla apagada. El APK es debug (sin firma de release).
+
 ## Datos de internet (carátula, álbum, año, género, pista y letra)
 
 - Fuentes gratuitas y sin clave: **iTunes Search API** (datos y carátula 600×600, catálogo `ES`), **Deezer** si iTunes
-  no tiene la canción (datos sin género/año y carátula) y **LRCLIB** (letra). Todo en el proceso main (`src/main/online/`) con `net.fetch`; el renderer no sale a internet.
+  no tiene la canción (datos sin género/año y carátula) y **LRCLIB** (letra). Todo en `src/backend/online/` con el `http` de la plataforma (`net.fetch` en el main de Electron, `CapacitorHttp` en Android); el renderer no sale a internet.
 - **Rellena huecos, nunca pisa etiquetas**: título y artista solo se toman de internet si el título venía del
   nombre del archivo: se prueban "Artista - Título" y "Título - Artista" con una sola búsqueda por servicio. `matching.js` rechaza otras versiones (remix, directo, idiomas…),
   otros artistas y duraciones que no encajan: mejor no encontrar nada que poner datos equivocados.
@@ -104,7 +137,8 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
 - **release-please** (`.github/workflows/versiones.yml`, `release-please-config.json`): cada push a `main` mantiene
   la PR "chore: versión X.Y.Z" con `CHANGELOG.md` y la versión de `package.json` (`feat` → menor, `fix` → parche;
   `docs`/`ci`/`chore`… no sacan versión). Solo la fusiona el admin. Al fusionarla: etiqueta `vX.Y.Z`, release y
-  `instaladores.yml` compila en Windows (`Pulse-Setup-X.Y.Z.exe`) y Linux (AppImage + `.deb`) y los adjunta.
+  `instaladores.yml` compila en Windows (`Pulse-Setup-X.Y.Z.exe`), Linux (AppImage + `.deb`) y Android
+  (`Pulse-X.Y.Z-debug.apk`) y los adjunta.
 - **No toques a mano** la versión de `package.json`, `CHANGELOG.md` ni `.release-please-manifest.json`.
 - "Instaladores" se puede lanzar a mano en Actions: deja los instaladores como artefactos sin publicar nada.
 - `main` solo admite PR; `.github/CODEOWNERS` pide la revisión del admin (que puede fusionar sus propias PR).
@@ -115,3 +149,4 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
 - **Commits pequeños** (uno por pieza), estilo Conventional Commits (`feat(ui): …`, `fix(core): …`).
 - CSS: colores, radios y tamaños de fuente solo con tokens de `tokens.css` (lo comprueba `tests/ui/styles.test.js`).
 - Antes de dar algo por terminado: `npm test` y, si cambia la UI o el main, `npm run test:e2e` revisando las capturas frente al diseño.
+  Si cambia la UI de móvil, el backend o `src/android/`: `npm run android:apk`, instalarlo y `npm run test:e2e:android`.

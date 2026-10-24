@@ -13,10 +13,14 @@ const OVERLAY_DURATION_MS = 260;
 /**
  * Esqueleto de la app: sidebar (la tab bar del diseño), qué vista se ve,
  * el overlay Reproduciendo, el estado de la conexión con el bucket y soltar canciones en la ventana.
+ * En pantallas estrechas (Android) la sidebar es la tab bar de abajo y "Tu música" se abre como un
+ * panel desde su pestaña (estado de UI: `is-menu-open`).
  * Emite: navigate, open-connection, upload-songs, files-dropped, sync-library, set-online-lookup.
  */
 export class Router extends Colleague {
   #root;
+  #sidebar;
+  #menuButton;
   #views;
   #overlay;
   #navButtons = new Map();
@@ -33,13 +37,18 @@ export class Router extends Colleague {
     this.#root = root;
     this.#views = new Map([...root.querySelectorAll('[data-view]')].map((element) => [element.dataset.view, element]));
     this.#overlay = root.querySelector('[data-overlay]');
-    this.#renderSidebar(root.querySelector('[data-sidebar]'));
+    this.#sidebar = root.querySelector('[data-sidebar]');
+    this.#renderSidebar(this.#sidebar);
     this.#listenForDrops();
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') this.#setMenuOpen(false);
+    });
   }
 
   /** @param {'home'|'search'|'collection'} view @param {string|null} nav elemento de la sidebar a resaltar */
   show(view, nav = view) {
     if (!this.#views.has(view)) return;
+    this.#setMenuOpen(false);
     if (this.#current !== 'collection') this.#previous = this.#current;
     this.#current = view;
     for (const [name, element] of this.#views) element.hidden = name !== view;
@@ -105,9 +114,22 @@ export class Router extends Colleague {
     );
     const upload = h('button', { type: 'button', class: 'nav__item' }, icon('upload'), 'Subir canciones');
     const refresh = h('button', { type: 'button', class: 'nav__item' }, icon('refresh'), 'Actualizar biblioteca');
-    connection.addEventListener('click', () => this.notify(EVENTS.OPEN_CONNECTION));
-    upload.addEventListener('click', () => this.notify(EVENTS.UPLOAD_SONGS));
-    refresh.addEventListener('click', () => this.notify(EVENTS.SYNC_LIBRARY));
+    const act = (event) => () => {
+      this.#setMenuOpen(false);
+      this.notify(event);
+    };
+    connection.addEventListener('click', act(EVENTS.OPEN_CONNECTION));
+    upload.addEventListener('click', act(EVENTS.UPLOAD_SONGS));
+    refresh.addEventListener('click', act(EVENTS.SYNC_LIBRARY));
+    // Solo se ve en pantallas estrechas: abre "Tu música" encima de la tab bar.
+    this.#menuButton = h(
+      'button',
+      { type: 'button', class: 'nav__item nav__item--menu', 'aria-expanded': 'false', 'aria-controls': 'sidebar-menu' },
+      icon('cloud'),
+      'Tu música',
+    );
+    this.#menuButton.addEventListener('click', () => this.#setMenuOpen(!this.#sidebar.classList.contains('is-menu-open')));
+    nav.append(this.#menuButton);
     this.#onlineSwitch = h('input', { type: 'checkbox', role: 'switch', class: 'switch', checked: true });
     this.#onlineSwitch.addEventListener('change', () => this.notify(EVENTS.SET_ONLINE_LOOKUP, this.#onlineSwitch.checked));
     const onlineRow = h(
@@ -120,10 +142,15 @@ export class Router extends Colleague {
     sidebar.replaceChildren(
       h('div', { class: 'brand' }, h('span', { class: 'brand__logo' }, icon('pulse')), 'Pulse'),
       nav,
-      h('div', { class: 'sidebar__section' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, onlineRow),
+      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, onlineRow),
       h('p', { class: 'sidebar__hint' }, 'También puedes arrastrar canciones o carpetas a la ventana para subirlas a tu bucket.'),
     );
     this.#setActiveNav('home');
+  }
+
+  #setMenuOpen(open) {
+    this.#sidebar.classList.toggle('is-menu-open', open);
+    this.#menuButton.setAttribute('aria-expanded', String(open));
   }
 
   #setActiveNav(nav) {

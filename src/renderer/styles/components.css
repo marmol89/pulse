@@ -1324,6 +1324,11 @@
   padding-block: var(--space-2);
 }
 
+/* Pestaña "Tu música": solo en pantallas estrechas (ver layout.css) */
+.nav__item--menu {
+  display: none;
+}
+
 .nav__text {
   display: flex;
   flex-direction: column;

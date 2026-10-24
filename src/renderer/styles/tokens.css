@@ -91,6 +91,10 @@
   --chip-height: 34px;
   --genre-height: 68px;
   --feature-height: 180px;
+  /* Móvil (Android): tab bar y mini-player del diseño */
+  --tab-bar-height: 64px;
+  --mini-player-height: 64px;
+  --narrow-gutter: 20px;
 
   /* Efectos */
   --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-primary);
