@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/marmol89/pulse/compare/v0.1.0...v0.2.0) (2026-10-24)
+
+
+### Novedades
+
+* **android:** Pulse también como APK de Android ([#4](https://github.com/marmol89/pulse/issues/4)) ([40d2bad](https://github.com/marmol89/pulse/commit/40d2bad90949b78e8da17730f0c7aa35d1692d9f))
+* **android:** sigue sonando en segundo plano, con controles del sistema ([#8](https://github.com/marmol89/pulse/issues/8)) ([72296ac](https://github.com/marmol89/pulse/commit/72296ac08ab273a29eea3d33c143f0ed37d624c4))
+
+
+### Correcciones
+
+* el appId de Electron es com.marmol89.pulse, igual que en Android ([#6](https://github.com/marmol89/pulse/issues/6)) ([0503a02](https://github.com/marmol89/pulse/commit/0503a027dc1d469d2cf48b2d802fce58a5690805))
+
 ## 0.1.0 (2026-10-24)
 
 
