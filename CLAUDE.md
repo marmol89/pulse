@@ -12,7 +12,7 @@ La skill `iniciar-proyecto` es la fuente de las reglas de abajo: tenla presente 
 | `npm start` | Arranca la app en desarrollo |
 | `npm test` | Tests unitarios (`node:test`, Node ≥ 22) |
 | `npm run test:e2e` | Prueba de humo de la app real (playwright-core) contra un **S3 falso** (`tests/helpers/fakeS3.js`): abre la ventana unos segundos, audio silenciado, capturas en `tests/e2e/output/` |
-| `npm run icons` | Regenera `src/assets/icon.png` |
+| `npm run icons` | Regenera `src/assets/icon.png` y los iconos de Android (`mipmap-*`: clásico, redondo y adaptativo) |
 | `npm run dist:win` / `npm run dist:linux` | Instaladores en `dist/` (NSIS / AppImage + deb). Lento: solo cuando se pida. El `.deb`/AppImage, mejor desde Linux, WSL o CI |
 | `npm run android:apk` | `www/` → `cap sync` → Gradle → `dist/Pulse-X.Y.Z-debug.apk` (necesita `JAVA_HOME` y `ANDROID_HOME`) |
 | `npm run android:release` | Lo mismo firmado → `dist/Pulse-X.Y.Z.apk`, con la keystore de `PULSE_KEYSTORE`, `PULSE_KEYSTORE_PASSWORD`, `PULSE_KEY_ALIAS` y `PULSE_KEY_PASSWORD` |
