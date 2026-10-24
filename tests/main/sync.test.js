@@ -102,6 +102,54 @@ describe('library/sync', () => {
     await assert.rejects(readRemoteRecord(broken, { key: 'a.mp3', size: 10, etag: '"x"' }), /ECONNRESET/);
   });
 
+  test('con los metadatos del bucket no relee los archivos que no han cambiado (otro equipo, primera vez)', async () => {
+    await sync.sync();
+    const fromOtherPc = store.all().map((record) => ({ ...record, album: 'Neón', online: { checkedAt: 7, status: 'found' } }));
+    s3.put('musica', 'pop/b.wav', wav('Ola Azul (otra mezcla)', 'Marea Sur')); // b cambió después: su metadato ya no vale
+    const reads = [];
+    const fresh = createLibrarySync({
+      store: memoryStore(),
+      getStorage: () => storage,
+      onChange: (change) => changes.push(change),
+      pullMetadata: async () => fromOtherPc,
+      readRecord: async (s3Storage, object) => {
+        reads.push(object.key);
+        const { readRemoteRecord } = await import('../../src/main/library/remote.js');
+        return readRemoteRecord(s3Storage, object);
+      },
+    });
+
+    const { added } = await fresh.sync();
+
+    assert.deepEqual(reads, ['pop/b.wav'], 'solo se lee el que cambió');
+    assert.deepEqual(added.map((t) => [t.title, t.album]).sort(), [
+      ['Luces de Neón', 'Neón'],
+      ['Ola Azul (otra mezcla)', ''],
+    ]);
+  });
+
+  test('datos de internet más recientes en el bucket llegan como pistas actualizadas', async () => {
+    await sync.sync();
+    const local = store.get('s3://musica/pop/a.wav');
+    store.add([{ ...local, online: { checkedAt: 5, status: 'not-found' } }, { ...store.get('s3://musica/pop/b.wav'), online: { checkedAt: 3, status: 'not-found' } }]);
+    const remote = [
+      { ...local, album: 'Neón', online: { checkedAt: 9, status: 'found' } },
+      { ...store.get('s3://musica/pop/b.wav'), album: 'Antiguo', online: { checkedAt: 1 } }, // más antiguo: se ignora
+      { path: 's3://musica/ya-no-esta.wav', etag: '"x"' }, // borrado del bucket: se ignora
+    ];
+    const updated = [];
+    const withMetadata = createLibrarySync({ store, getStorage: () => storage, onChange: (change) => changes.push(change), onUpdated: (tracks) => updated.push(tracks), pullMetadata: async () => remote });
+    const saves = store.saves;
+
+    const change = await withMetadata.sync();
+
+    assert.deepEqual(change, { removed: [], added: [] });
+    assert.deepEqual(updated.map((tracks) => tracks.map((t) => t.album)), [['Neón']]);
+    assert.equal(store.get('s3://musica/pop/a.wav').album, 'Neón');
+    assert.equal(store.get('s3://musica/pop/b.wav').album, '');
+    assert.equal(store.saves, saves + 1);
+  });
+
   test('verify() confirma las que siguen y quita las borradas', async () => {
     await sync.sync();
     s3.remove('musica', 'pop/b.wav');
