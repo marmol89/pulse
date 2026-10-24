@@ -150,13 +150,16 @@ describe('online/queue', () => {
     assert.equal(await queue.lookupNow('/no-existe.mp3'), null);
   });
 
-  test('lookupNow() propaga la falta de conexión', async () => {
+  test('lookupNow() sin conexión (o con LRCLIB caído un momento) avisa sin lanzar', async () => {
     const { queue } = setup({
       enrich: async () => {
-        throw new TransientError('sin red');
+        throw new TransientError('lrclib.net respondió 503');
       },
     });
-    await assert.rejects(queue.lookupNow('/a.mp3'), TransientError);
+    const result = await queue.lookupNow('/a.mp3');
+    assert.equal(result.unavailable, true);
+    assert.equal(result.changed, false);
+    assert.equal(result.track.path, '/a.mp3');
   });
 
   test('las búsquedas van en fila: lookupNow() espera a la que está en curso', async () => {

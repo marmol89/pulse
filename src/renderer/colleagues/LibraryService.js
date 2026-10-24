@@ -73,7 +73,8 @@ export class LibraryService extends Colleague {
 
   /**
    * Busca en internet la carátula, los datos y la letra que falten (`force`: aunque ya se buscaran).
-   * @returns {Promise<{ track: object, changed: boolean } | null>} rechaza si no hay conexión
+   * @returns {Promise<{ track: object, changed: boolean, unavailable?: true } | null>} `unavailable`: sin conexión
+   *   o con un servicio caído un momento (se reintentará)
    */
   lookup(id, { force = false } = {}) {
     return this.#api.lookupTrack(id, { force });
