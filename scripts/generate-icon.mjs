@@ -3,6 +3,7 @@
  * gradiente primario → acento, un círculo decorativo como el de "Mix diario"
  * y el pulso del logo en blanco.
  * - src/assets/icon.png (512×512): electron-builder lo convierte en .ico para Windows.
+ * - docs/play/icono-512.png: icono de Google Play, cuadrado entero (Play le pone las esquinas).
  * - android/app/src/main/res/mipmap-*: icono clásico, redondo y adaptativo
  *   (fondo con el gradiente + pulso en primer plano, que sirve también de monocromo).
  * Uso: npm run icons
@@ -14,6 +15,7 @@ import { encodePng, paint, diagonalGradient } from './lib/png.js';
 const SIZE = 512;
 const CORNER = 0.22;
 const OUTPUT = new URL('../src/assets/icon.png', import.meta.url);
+const PLAY_ICON = new URL('../docs/play/icono-512.png', import.meta.url);
 const ANDROID_RES = new URL('../android/app/src/main/res/', import.meta.url);
 const DENSITIES = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
 
@@ -86,6 +88,9 @@ async function writePng(url, size, shader) {
 await mkdir(new URL('../src/assets/', import.meta.url), { recursive: true });
 await writePng(OUTPUT, SIZE, icon(insideRoundedSquare));
 console.log(`Icono generado en ${fileURLToPath(OUTPUT)}`);
+await mkdir(new URL('./', PLAY_ICON), { recursive: true });
+await writePng(PLAY_ICON, SIZE, icon(() => true));
+console.log(`Icono de Google Play generado en ${fileURLToPath(PLAY_ICON)}`);
 
 for (const [density, scale] of Object.entries(DENSITIES)) {
   const folder = new URL(`mipmap-${density}/`, ANDROID_RES);
