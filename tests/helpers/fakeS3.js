@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
  * Las peticiones firmadas con otra clave de acceso reciben 403 InvalidAccessKeyId; con `readOnly`,
  * las subidas reciben 403 AccessDenied (claves sin permiso de escritura).
  */
-export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = { musica: {} }, pageSize = 1000, readOnly = false } = {}) {
+export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = { musica: {} }, pageSize = 1000, readOnly = false, host = '127.0.0.1' } = {}) {
   const data = new Map(Object.entries(buckets).map(([name, objects]) => [name, new Map(Object.entries(objects).map(([key, body]) => [key, Buffer.from(body)]))]));
   const requests = [];
   const state = { readOnly };
@@ -39,7 +39,7 @@ export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = {
     return object(req, res, body);
   });
 
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  await new Promise((resolve) => server.listen(0, host, resolve)); // host '0.0.0.0': visible desde un móvil de la red
   const endpoint = `http://127.0.0.1:${server.address().port}`;
   return {
     endpoint,
