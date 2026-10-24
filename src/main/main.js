@@ -7,6 +7,7 @@ import { readRecordCover } from '../backend/library/tracks.js';
 import { readRemoteCover } from '../backend/library/remote.js';
 import { createLibrarySync } from '../backend/library/sync.js';
 import { createUploader } from '../backend/library/upload.js';
+import { collectPaths } from './library/collect.js';
 import { createMetadataStore } from '../backend/library/metadata.js';
 import { objectResponse } from './protocol/responses.js';
 import { mediaTrack } from './protocol/urls.js';
@@ -74,6 +75,7 @@ async function start() {
 
   const uploader = createUploader({
     getStorage: () => s3.storage(),
+    collect: collectPaths, // archivos y carpetas del ordenador
     afterUpload: () => librarySync.sync(),
     onProgress: (progress) => broadcast('library:upload-progress', progress),
   });
