@@ -16,9 +16,11 @@ const SDK_LOGGER = {
  * Acceso al bucket de música (S3 o compatible, como MinIO): leer y subir canciones; nunca borra.
  * Estilo path ("https://servidor/bucket/clave"), que es lo que esperan MinIO y similares.
  *
+ * `requestHandler` cambia cómo salen las peticiones (en Android, por la red nativa: sin CORS).
+ *
  * @typedef {{ endpoint: string, accessKeyId: string, secretAccessKey: string, bucket: string, prefix?: string, region?: string }} S3Config
  */
-export function createS3Storage({ endpoint, accessKeyId, secretAccessKey, bucket, prefix = '', region = 'us-east-1' }) {
+export function createS3Storage({ endpoint, accessKeyId, secretAccessKey, bucket, prefix = '', region = 'us-east-1' }, { requestHandler } = {}) {
   const client = new S3Client({
     endpoint,
     region,
@@ -29,11 +31,14 @@ export function createS3Storage({ endpoint, accessKeyId, secretAccessKey, bucket
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
     logger: SDK_LOGGER,
+    ...(requestHandler ? { requestHandler } : {}),
   });
 
   return {
     bucket,
     prefix,
+    /** Cliente del SDK (Android lo usa para firmar las URLs del audio). */
+    client,
 
     async listBuckets() {
       const { Buckets = [] } = await client.send(new ListBucketsCommand({}));

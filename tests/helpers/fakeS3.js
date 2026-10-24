@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 /**
  * Servidor S3 mínimo (estilo path, como MinIO) para tests y e2e sin red ni credenciales reales.
  * Entiende: ListBuckets, ListObjectsV2 (con paginación), HeadObject, GetObject con Range y PutObject.
+ * También lee con URLs firmadas (X-Amz-Credential en la query, como las del <audio> de Android).
  * Las peticiones firmadas con otra clave de acceso reciben 403 InvalidAccessKeyId; con `readOnly`,
  * las subidas reciben 403 AccessDenied (claves sin permiso de escritura).
  */
@@ -14,8 +15,10 @@ export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = {
 
   const server = createServer((req, res) => {
     const url = new URL(req.url, 'http://localhost');
-    requests.push({ method: req.method, path: decodeURIComponent(url.pathname), range: req.headers.range ?? null });
-    if (!String(req.headers.authorization ?? '').includes(`Credential=${accessKeyId}/`)) {
+    const signedUrl = req.method === 'GET' && String(url.searchParams.get('X-Amz-Credential') ?? '').startsWith(`${accessKeyId}/`);
+    requests.push({ method: req.method, path: decodeURIComponent(url.pathname), range: req.headers.range ?? null, signedUrl });
+    // Firma en la cabecera o, para leer, una URL firmada (el <audio> de Android).
+    if (!signedUrl && !String(req.headers.authorization ?? '').includes(`Credential=${accessKeyId}/`)) {
       return xml(res, 403, `<Error><Code>InvalidAccessKeyId</Code><Message>La clave no existe</Message></Error>`);
     }
     const [, bucketName, ...keyParts] = url.pathname.split('/');
