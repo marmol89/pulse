@@ -4,20 +4,30 @@ import path from 'node:path';
 import { UNKNOWN_ARTIST } from '../library/tracks.js';
 import { TransientError } from './http.js';
 import { searchItunes } from './itunes.js';
+import { searchDeezer } from './deezer.js';
 import { findLyrics } from './lrclib.js';
-import { isTitleFromFile, pickBest, queryFromRecord } from './matching.js';
+import { isTitleFromFile, pickBestOf, queriesFromRecord } from './matching.js';
 
 const MAX_COVER_BYTES = 5 * 1024 * 1024;
+/**
+ * Versión de la búsqueda. Al mejorarla (2: Deezer y nombres "Título - Artista"), lo que no se
+ * encontró con una versión anterior se vuelve a buscar una vez.
+ */
+const LOOKUP_VERSION = 2;
 
-/** A la pista le falta algo que internet puede aportar y todavía no se ha buscado. */
+const outdated = (version) => (version ?? 1) < LOOKUP_VERSION;
+
+/** A la pista le falta algo que internet puede aportar y todavía no se ha buscado (con esta versión). */
 export function needsInfo(record) {
-  if (record.online?.checkedAt) return false;
+  const { online } = record;
+  if (online?.checkedAt && !(online.status === 'not-found' && outdated(online.version))) return false;
   const hasCover = record.hasCover || Boolean(record.coverFile);
   return !hasCover || !record.album || !record.genre || !record.year || isTitleFromFile(record);
 }
 
 /**
- * Completa registros de la biblioteca con iTunes (datos y carátula) y LRCLIB (letra).
+ * Completa registros de la biblioteca con iTunes (datos y carátula), Deezer si iTunes no tiene la
+ * canción (datos y carátula, sin género ni año) y LRCLIB (letra).
  * Nunca pisa las etiquetas del archivo: solo rellena lo que falta.
  */
 export function createEnricher({ http, coversDir, now = Date.now }) {
@@ -29,24 +39,39 @@ export function createEnricher({ http, coversDir, now = Date.now }) {
     async enrich(record, { force = false, lyrics = false } = {}) {
       let updated = record;
       if (force || needsInfo(record)) updated = await lookupInfo(updated);
-      if (lyrics && !updated.lyrics && (force || !updated.online?.lyricsCheckedAt)) updated = await lookupLyrics(updated);
+      const lyricsPending = !updated.online?.lyricsCheckedAt || outdated(updated.online.lyricsVersion);
+      if (lyrics && !updated.lyrics && (force || lyricsPending)) {
+        try {
+          updated = await lookupLyrics(updated);
+        } catch (error) {
+          // Si LRCLIB falla un momento, no se pierde lo ya encontrado: solo la letra queda pendiente.
+          if (!(error instanceof TransientError) || updated === record) throw error;
+        }
+      }
       return { record: updated, changed: updated !== record };
     },
   };
 
   async function lookupInfo(record) {
-    const query = queryFromRecord(record);
-    const match = pickBest(query, await orFallback(() => searchItunes(http, query), []));
-    const online = { ...record.online, checkedAt: now() };
+    // Las lecturas del nombre tienen las mismas palabras: una búsqueda por servicio vale para todas.
+    const queries = queriesFromRecord(record);
+    let match = pickBestOf(queries, await orFallback(() => searchItunes(http, queries[0]), []));
+    match ??= pickBestOf(queries, await orFallback(() => searchDeezer(http, queries[0]), []));
+    const online = { ...record.online, checkedAt: now(), version: LOOKUP_VERSION };
     if (!match) return { ...record, online: { ...online, status: 'not-found', source: null } };
     const coverFile = record.hasCover ? (record.coverFile ?? null) : ((await saveCover(match.artworkUrl)) ?? record.coverFile ?? null);
     return { ...merge(record, match), coverFile, online: { ...online, status: 'found', source: match.source, url: match.url } };
   }
 
+  // Con los datos ya completados, o con las lecturas del nombre del archivo si no se encontraron.
   async function lookupLyrics(record) {
-    const artist = record.artist === UNKNOWN_ARTIST ? '' : record.artist;
-    const text = await orFallback(() => findLyrics(http, { title: record.title, artist, duration: record.duration }), null);
-    return { ...record, lyrics: text ?? '', online: { ...record.online, lyricsSource: text ? 'LRCLIB' : null, lyricsCheckedAt: now() } };
+    let text = null;
+    for (const query of queriesFromRecord(record)) {
+      text = await orFallback(() => findLyrics(http, query), null);
+      if (text) break;
+    }
+    const online = { ...record.online, lyricsSource: text ? 'LRCLIB' : null, lyricsCheckedAt: now(), lyricsVersion: LOOKUP_VERSION };
+    return { ...record, lyrics: text ?? '', online };
   }
 
   /** Guarda la carátula en la caché. Las pistas de un mismo álbum comparten archivo. */

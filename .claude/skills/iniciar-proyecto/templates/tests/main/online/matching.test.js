@@ -7,7 +7,8 @@ import {
   primaryArtist,
   parseFileName,
   isTitleFromFile,
-  queryFromRecord,
+  queriesFromRecord,
+  pickBestOf,
   pickBest,
 } from '../../../src/main/online/matching.js';
 
@@ -54,12 +55,27 @@ describe('online/matching', () => {
     assert.equal(isTitleFromFile({ path: '/m/01.mp3', title: 'Despacito' }), false);
   });
 
-  test('queryFromRecord() usa las etiquetas o, si no hay, el nombre del archivo', () => {
+  test('queriesFromRecord() usa las etiquetas o, si no hay, las dos lecturas del nombre del archivo', () => {
     const tagged = { path: '/m/x.mp3', title: 'Despacito', artist: 'Luis Fonsi', album: '', duration: 229, titleFromFile: false };
-    assert.deepEqual(queryFromRecord(tagged), { title: 'Despacito', artist: 'Luis Fonsi', album: '', duration: 229 });
+    assert.deepEqual(queriesFromRecord(tagged), [{ title: 'Despacito', artist: 'Luis Fonsi', album: '', duration: 229 }]);
 
     const untagged = { path: '/m/Luis Fonsi - Despacito.mp3', title: 'Luis Fonsi - Despacito', artist: 'Artista desconocido', album: '', duration: 229, titleFromFile: true };
-    assert.deepEqual(queryFromRecord(untagged), { title: 'Despacito', artist: 'Luis Fonsi', album: '', duration: 229 });
+    assert.deepEqual(queriesFromRecord(untagged), [
+      { title: 'Despacito', artist: 'Luis Fonsi', album: '', duration: 229 },
+      { title: 'Luis Fonsi', artist: 'Despacito', album: '', duration: 229 },
+    ]);
+
+    const noArtist = { ...untagged, path: '/m/03 Intro.mp3', title: '03 Intro' };
+    assert.deepEqual(queriesFromRecord(noArtist), [{ title: 'Intro', artist: '', album: '', duration: 229 }]);
+  });
+
+  test('pickBestOf() acepta "Título - Artista" sin relajar las comprobaciones', () => {
+    const [straight, swapped] = queriesFromRecord({ path: '/m/Tussi - Arcángel.mp3', title: 'Tussi - Arcángel', artist: 'Artista desconocido', album: '', duration: 192.65, titleFromFile: true });
+    const tussi = candidate({ title: 'Tussi', artist: 'Arcangel', duration: 189 });
+    assert.equal(pickBestOf([straight, swapped], [candidate({ title: 'Tussi', artist: 'Maik G', duration: 159 }), tussi]), tussi);
+    assert.equal(pickBestOf([straight], [tussi]), null);
+    // Con la duración muy distinta sigue sin valer, en cualquier orden.
+    assert.equal(pickBestOf([straight, swapped], [candidate({ title: 'Tussi', artist: 'Arcangel', duration: 240 })]), null);
   });
 
   describe('pickBest()', () => {

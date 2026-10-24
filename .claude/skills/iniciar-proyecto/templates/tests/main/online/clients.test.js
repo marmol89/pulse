@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { createHttp, TransientError } from '../../../src/main/online/http.js';
 import { searchItunes, itunesSearchUrl } from '../../../src/main/online/itunes.js';
 import { findLyrics } from '../../../src/main/online/lrclib.js';
-import { fakeFetch, jsonResponse, imageResponse, itunesResult, lrclibResult } from '../../helpers/fakeFetch.js';
+import { searchDeezer, deezerSearchUrl } from '../../../src/main/online/deezer.js';
+import { fakeFetch, jsonResponse, imageResponse, itunesResult, lrclibResult, deezerResult } from '../../helpers/fakeFetch.js';
 
 const USER_AGENT = 'Pulse/test';
 const httpWith = (routes) => {
@@ -83,6 +84,40 @@ describe('online/itunes', () => {
     assert.deepEqual(await searchItunes(http, { title: '' }), []);
     assert.equal(fetch.requests.length, 0);
     await assert.rejects(searchItunes(http, { title: 'Despacito' }), TransientError);
+  });
+});
+
+describe('online/deezer', () => {
+  test('busca por artista y título', () => {
+    assert.equal(new URL(deezerSearchUrl({ title: 'Tussi', artist: 'Arcángel' })).searchParams.get('q'), 'Arcángel Tussi');
+  });
+
+  test('convierte los resultados en candidatos con la carátula grande', async () => {
+    const { http } = httpWith({ 'https://api.deezer.com/search': { data: [deezerResult(), { type: 'album' }], total: 2 } });
+    const [candidate, ...rest] = await searchDeezer(http, { title: 'Tussi', artist: 'Arcángel' });
+    assert.equal(rest.length, 0);
+    assert.deepEqual(candidate, {
+      source: 'Deezer',
+      title: 'Tussi',
+      artist: 'Arcangel',
+      album: 'Tussi',
+      albumArtist: 'Arcangel',
+      genre: '',
+      year: 0,
+      trackNo: 0,
+      trackCount: 0,
+      disc: 0,
+      duration: 189,
+      artworkUrl: deezerResult().album.cover_xl,
+      url: 'https://www.deezer.com/track/1080687652',
+    });
+  });
+
+  test('sin título no busca y el límite de peticiones es un fallo pasajero', async () => {
+    const { fetch, http } = httpWith({ 'https://api.deezer.com/search': { error: { type: 'Exception', message: 'Quota limit exceeded', code: 4 } } });
+    assert.deepEqual(await searchDeezer(http, { title: '' }), []);
+    assert.equal(fetch.requests.length, 0);
+    await assert.rejects(searchDeezer(http, { title: 'Tussi' }), TransientError);
   });
 });
 

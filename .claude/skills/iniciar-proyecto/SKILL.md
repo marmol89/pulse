@@ -10,7 +10,7 @@ reproduce la música de un **bucket S3** (o compatible, como MinIO), se parece a
 **Windows (NSIS)** y **Linux (AppImage + deb)**, con toda la coordinación de la UI en un **Mediator**
 que nunca se convierte en un *God Object*.
 
-`templates/` contiene **todo lo que no depende del diseño visual**, ya probado (289 tests): proceso main
+`templates/` contiene **todo lo que no depende del diseño visual**, ya probado (298 tests): proceso main
 (**S3**: conexión cifrada, sincronización, audio con rangos y subir canciones; **datos de internet**: carátula, álbum, año, género, pista y letra), preload, núcleo del patrón,
 mediator y handlers, modelos y servicios, tokens, `index.html`, scripts y tests.
 Lo visual (vistas, `ui/`, `layout.css`, `components.css`) se **genera** a partir del diseño (Paso 4).
@@ -59,7 +59,8 @@ src/main/                          T  proceso main (no forma parte del mediator)
   library/upload.js                   subir archivos y carpetas del ordenador (sin sobrescribir) y sincronizar
   library/tracks.js · store.js        registro ↔ Track · library.json en userData (escritura atómica)
   online/matching.js                  ¿es la misma canción? (título, artista, duración, otras versiones)
-  online/itunes.js · lrclib.js        iTunes Search (datos + carátula) y LRCLIB (letra), sin clave
+  online/itunes.js · deezer.js        iTunes Search y, si no la tiene, Deezer (datos + carátula), sin clave
+  online/lrclib.js                    LRCLIB (letra), sin clave
   online/http.js                      net.fetch con User-Agent, tiempo máximo y TransientError
   online/enricher.js · queue.js       completar sin pisar etiquetas + cola en segundo plano (~17/min)
   ipc/library.js                      library:load | sync | verify | choose-uploads | upload · connection:get | save | import
@@ -209,13 +210,16 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
 
 ### Datos de internet (ya en `templates/`)
 
-- iTunes Search API (catálogo `ES`, géneros en español, carátula 600×600) y LRCLIB (letra): gratuitas y sin clave,
+- iTunes Search API (catálogo `ES`, géneros en español, carátula 600×600), Deezer como segunda fuente (sin género,
+  año ni pista) y LRCLIB (letra): gratuitas y sin clave,
   siempre desde el proceso main con `net.fetch` (respeta el proxy del sistema). El renderer nunca sale a internet.
 - **Rellenar huecos, nunca pisar etiquetas.** Título y artista solo se toman de internet si el título venía del nombre
-  del archivo. `matching.js` exige título ≥ 0,8, artista ≥ 0,6 y ≤ 20 s de diferencia; sin artista, título casi
+  del archivo, probando "Artista - Título" y "Título - Artista" (`queriesFromRecord` + `pickBestOf`; las dos lecturas
+  tienen las mismas palabras, así que basta una búsqueda por servicio). `matching.js` exige título ≥ 0,8, artista ≥ 0,6 y ≤ 20 s de diferencia; sin artista, título casi
   idéntico y ≤ 3 s; descarta otras versiones (remix, directo, idiomas…). Más vale no encontrar que equivocarse.
 - La pista que empieza a sonar se completa al momento (con letra); el resto en segundo plano, una cada 3,5 s,
-  empezando 10 s después de arrancar. Lo no encontrado se marca y no se repite; sin red, se reintenta al minuto.
+  empezando 10 s después de arrancar. Lo no encontrado se marca y no se repite (salvo una vez si sube
+  `LOOKUP_VERSION`); sin red, se reintenta al minuto.
 - Persistencia: `library.json` + carátulas en `userData/covers/` (una por álbum). Funciona sin conexión.
 - **Privacidad**: envía título y artista a esos servicios → interruptor "Datos de internet" (`Settings`,
   activado por defecto) y botón "Buscar en internet" para forzar una pista.
@@ -250,7 +254,7 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
      con etiquetas ID3, carátulas y letra generados con `tests/helpers/audio.js` (no versiones música);
    - arranca Electron con `--user-data-dir` temporal y, **antes de conectar**, pon
      `localStorage['pulse.muted'] = 'true'` (que no suene en los altavoces del usuario) y
-     `localStorage['pulse.onlineLookup'] = 'false'` (la prueba nunca llama a iTunes ni a LRCLIB) y recarga;
+     `localStorage['pulse.onlineLookup'] = 'false'` (la prueba nunca llama a iTunes, Deezer ni LRCLIB) y recarga;
    - conecta desde el formulario (primero con una clave incorrecta: debe explicar el error); recorre Inicio,
      Biblioteca, Reproduciendo, Buscar y Álbumes; sube una canción al S3 falso y pulsa "Actualizar biblioteca";
      sube otra con "Subir canciones" sustituyendo el diálogo del main (`app.evaluate(({ dialog }) => …)`), repítela
@@ -283,6 +287,9 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
   (pero en interruptores y casillas Espacio debe marcarlos).
 - iTunes devolvía "Despacito (Mandarin Version) [feat. JJ Lin]" empatada con la original porque `simplify()`
   ignora los paréntesis → `isOtherVersion()` descarta marcas de otra versión ("Remastered" no cuenta).
+- "Tussi - Arcángel.mp3" es "Título - Artista" y iTunes no tiene la canción: se buscaba la canción "Arcángel" de
+  "Tussi" y la letra con el nombre entero → dos lecturas del nombre, Deezer de respaldo y letra con lo encontrado.
+- LRCLIB responde 503 a ratos y eso tiraba también los datos ya encontrados → la letra falla sola y queda pendiente.
 - LRCLIB con "Luis Fonsi & Daddy Yankee" devuelve letras con "^" en vez de saltos de línea → buscar con
   `primaryArtist()` y convertir "^" en salto de línea.
 - Con la tarjeta Información, la portada de Reproduciendo (centrada en vertical) quedaba baja y cortada →
