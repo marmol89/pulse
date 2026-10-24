@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 /** Única puerta del renderer al proceso main (contextIsolation + sandbox). */
 contextBridge.exposeInMainWorld('api', {
@@ -12,6 +12,18 @@ contextBridge.exposeInMainWorld('api', {
     const listener = (_event, change) => callback(change);
     ipcRenderer.on('library:changed', listener);
     return () => ipcRenderer.removeListener('library:changed', listener);
+  },
+  /** Elige canciones del ordenador y las sube al bucket. null si se cancela. */
+  chooseUploads: () => ipcRenderer.invoke('library:choose-uploads'),
+  /** Sube archivos o carpetas (rutas absolutas) al bucket. */
+  uploadPaths: (paths) => ipcRenderer.invoke('library:upload', paths),
+  /** Ruta en disco de un File arrastrado a la ventana ('' si no viene de un archivo). */
+  pathForFile: (file) => webUtils.getPathForFile(file),
+  /** Progreso de una subida ({ current, total, name }). Devuelve la función para dejar de escuchar. */
+  onUploadProgress: (callback) => {
+    const listener = (_event, progress) => callback(progress);
+    ipcRenderer.on('library:upload-progress', listener);
+    return () => ipcRenderer.removeListener('library:upload-progress', listener);
   },
 
   // Conexión S3 (la clave secreta nunca vuelve a la ventana)
