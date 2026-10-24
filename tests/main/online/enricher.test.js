@@ -132,6 +132,16 @@ describe('online/enricher', () => {
     );
   });
 
+  test('si LRCLIB falla un momento, se guardan los datos encontrados y la letra queda pendiente', async () => {
+    const { enricher } = setup({ [LRCLIB]: () => jsonResponse({}, 503) });
+    const { record: updated, changed } = await enricher.enrich(record(), { lyrics: true });
+    assert.equal(changed, true);
+    assert.equal(updated.album, 'VIDA');
+    assert.equal(updated.online.lyricsCheckedAt, undefined, 'se reintentará');
+
+    await assert.rejects(enricher.enrich(complete, { lyrics: true }), TransientError, 'sin nada nuevo, el fallo se propaga');
+  });
+
   test('una letra no encontrada con la búsqueda anterior se busca otra vez', async () => {
     const { enricher, calls } = setup({ [LRCLIB]: [] });
     const old = { ...complete, online: { checkedAt: 5, status: 'found', lyricsCheckedAt: 5 } };

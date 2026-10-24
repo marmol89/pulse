@@ -40,7 +40,14 @@ export function createEnricher({ http, coversDir, now = Date.now }) {
       let updated = record;
       if (force || needsInfo(record)) updated = await lookupInfo(updated);
       const lyricsPending = !updated.online?.lyricsCheckedAt || outdated(updated.online.lyricsVersion);
-      if (lyrics && !updated.lyrics && (force || lyricsPending)) updated = await lookupLyrics(updated);
+      if (lyrics && !updated.lyrics && (force || lyricsPending)) {
+        try {
+          updated = await lookupLyrics(updated);
+        } catch (error) {
+          // Si LRCLIB falla un momento, no se pierde lo ya encontrado: solo la letra queda pendiente.
+          if (!(error instanceof TransientError) || updated === record) throw error;
+        }
+      }
       return { record: updated, changed: updated !== record };
     },
   };
