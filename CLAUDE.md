@@ -25,8 +25,8 @@ src/main/        proceso main (NO forma parte del mediator)
   s3/           storage.js (SDK: leer y subir, nunca borra), connection.js (conexión cifrada con safeStorage), service.js
   protocol/      media://track|cover/<id>: audio desde S3 con rangos, solo pistas de la biblioteca (403 si no)
   library/       remote.js (id s3://bucket/clave, etiquetas leyendo el principio del objeto), sync.js
-                 (biblioteca = bucket), upload.js (subir archivos y carpetas), tracks.js (registro ↔ pista),
-                 store.js (library.json en userData)
+                 (biblioteca = bucket), upload.js (subir archivos y carpetas), metadata.js (copia en
+                 metadatos/ del bucket), tracks.js (registro ↔ pista), store.js (library.json: caché local)
   online/        datos de internet: matching, itunes, deezer, lrclib, http, enricher, queue (ver abajo)
   ipc/           library.js (library:*, connection:*) y metadata.js (metadata:*); los usa el preload
 src/preload/preload.cjs   window.api (contextBridge, sandbox)
@@ -68,6 +68,12 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   (`webUtils.getPathForFile` en el preload). `upload.js` sube de una en una bajo la carpeta de la conexión
   (una carpeta conserva su nombre: "Disco/01.mp3"), **nunca sobrescribe** (mismo archivo → se salta; otro con
   ese nombre → "Nombre (2).mp3") y sincroniza al terminar. Claves sin permiso de escritura → mensaje claro.
+- **Metadatos en el bucket** (`metadata.js`), bajo la carpeta de la conexión: `metadatos/biblioteca.json` (todos los
+  datos de cada canción: etiquetas leídas e internet) y `metadatos/caratulas/<sha1>.jpg` (carátulas de internet,
+  por nombre: `coverName`). Cada guardado de la biblioteca se sube a los 5 s (máx. 60 s), al arrancar y antes de
+  cerrar; si falla, se reintenta al minuto. Cada sincronización lo lee primero: lo que tenga el mismo ETag no se
+  relee del archivo y los datos de internet más recientes (`lookupStamp`) llegan como `tracks-updated`.
+  `library.json` y `covers/` en userData quedan como caché (arranque al momento y sin conexión).
 - Si una canción falla al sonar se comprueba en el bucket (`library:verify`); si ya no está, se quita.
 - Los tests nunca usan el S3 real: `tests/helpers/fakeS3.js` es un servidor S3 mínimo (listar, rangos, subidas, 403, solo lectura…).
 
