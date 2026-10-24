@@ -60,3 +60,26 @@ export function lrclibResult(fields = {}) {
     ...fields,
   };
 }
+
+/** Resultado de Deezer con la forma real de /search (respuesta de "Arcangel Tussi"). */
+export function deezerResult(fields = {}) {
+  return {
+    id: 1080687652,
+    readable: true,
+    title: 'Tussi',
+    title_short: 'Tussi',
+    title_version: '',
+    link: 'https://www.deezer.com/track/1080687652',
+    duration: 189,
+    artist: { id: 5536564, name: 'Arcangel', type: 'artist' },
+    album: {
+      id: 173388092,
+      title: 'Tussi',
+      cover_big: 'https://cdn-images.dzcdn.net/images/cover/49ea7180807b1f8457f90bf915fe208d/500x500-000000-80-0-0.jpg',
+      cover_xl: 'https://cdn-images.dzcdn.net/images/cover/49ea7180807b1f8457f90bf915fe208d/1000x1000-000000-80-0-0.jpg',
+      type: 'album',
+    },
+    type: 'track',
+    ...fields,
+  };
+}
