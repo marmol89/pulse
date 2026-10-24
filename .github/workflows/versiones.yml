@@ -1,0 +1,35 @@
+# Sistema de versiones con release-please:
+# 1. Cada push a main actualiza (o abre) la PR "chore: versión X.Y.Z" con todos los cambios desde la última
+#    versión: sube la versión de package.json y escribe CHANGELOG.md a partir de los Conventional Commits
+#    (feat → versión menor, fix → parche).
+# 2. Al fusionar esa PR (solo el admin), se crea la etiqueta vX.Y.Z y su release de GitHub, y se compilan y
+#    adjuntan los instaladores. Los siguientes commits abren la PR de la siguiente versión.
+name: Versiones
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      creada: ${{ steps.release.outputs.release_created }}
+      etiqueta: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  instaladores:
+    needs: release-please
+    if: needs.release-please.outputs.creada == 'true'
+    uses: ./.github/workflows/instaladores.yml
+    with:
+      etiqueta: ${{ needs.release-please.outputs.etiqueta }}
