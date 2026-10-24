@@ -48,8 +48,11 @@ async function start() {
 
   // La música vive en un bucket S3. La clave secreta se cifra con el almacén seguro del sistema.
   const connections = createConnectionStore(path.join(userData, 's3.json'), {
-    encrypt: (text) => safeStorage.encryptString(text).toString('base64'),
-    decrypt: (text) => safeStorage.decryptString(Buffer.from(text, 'base64')),
+    encrypt: async (text) => (await safeStorage.encryptStringAsync(text)).toString('base64'),
+    decrypt: async (text) => {
+      const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(Buffer.from(text, 'base64'));
+      return { text: result, reencrypt: shouldReEncrypt };
+    },
   });
   const s3 = createS3Service({ connections });
   await s3.load();

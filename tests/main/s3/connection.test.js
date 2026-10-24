@@ -8,7 +8,10 @@ import { createS3Storage } from '../../../src/main/s3/storage.js';
 import { startFakeS3 } from '../../helpers/fakeS3.js';
 
 /** "Cifrado" reversible y visible para comprobar que la clave no se guarda en claro. */
-const fakeCrypto = { encrypt: (text) => `cifrado:${Buffer.from(text).toString('base64')}`, decrypt: (text) => Buffer.from(text.slice(8), 'base64').toString() };
+const fakeCrypto = {
+  encrypt: async (text) => `cifrado:${Buffer.from(text).toString('base64')}`,
+  decrypt: async (text) => ({ text: Buffer.from(text.slice(8), 'base64').toString() }),
+};
 const valid = { endpoint: 'https://minio.ejemplo.com/', accessKeyId: ' clave ', secretAccessKey: 'secreto', bucket: 'musica', prefix: '/pop/' };
 
 describe('s3/connection', () => {
@@ -33,6 +36,17 @@ describe('s3/connection', () => {
 
     await reopened.clear();
     assert.equal(reopened.summary(), null);
+  });
+
+  test('si el sistema cambió su clave, vuelve a cifrar el secreto al cargar', async () => {
+    const file = path.join(dir, 'rotada.json');
+    await createConnectionStore(file, { ...fakeCrypto, encrypt: async (text) => `antiguo:${Buffer.from(text).toString('base64')}` }).save(normalizeConfig(valid));
+    const rotated = createConnectionStore(file, { ...fakeCrypto, decrypt: async (text) => ({ ...(await fakeCrypto.decrypt(text)), reencrypt: true }) });
+
+    await rotated.load();
+
+    assert.equal(rotated.get().secretAccessKey, 'secreto');
+    assert.match(JSON.parse(await readFile(file, 'utf8')).secretAccessKey, /^cifrado:/);
   });
 
   test('sin conexión guardada no hay resumen', async () => {

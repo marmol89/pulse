@@ -4,15 +4,27 @@ import path from 'node:path';
 /**
  * Conexión S3 guardada en userData. La clave secreta se cifra con el almacén seguro del
  * sistema (safeStorage: DPAPI en Windows, llavero en Linux) y nunca sale del proceso main.
+ *
+ * @param {{ encrypt: (text: string) => Promise<string>, decrypt: (text: string) => Promise<{ text: string, reencrypt?: boolean }> }} crypto
+ *   `reencrypt`: el sistema cambió su clave y conviene volver a cifrar el secreto.
  */
 export function createConnectionStore(file, { encrypt, decrypt }) {
   let config = null;
+
+  async function write(next) {
+    await mkdir(path.dirname(file), { recursive: true });
+    const temporary = `${file}.tmp`;
+    await writeFile(temporary, JSON.stringify({ ...next, secretAccessKey: await encrypt(next.secretAccessKey) }));
+    await rename(temporary, file);
+  }
 
   return {
     async load() {
       try {
         const saved = JSON.parse(await readFile(file, 'utf8'));
-        config = { ...saved, secretAccessKey: decrypt(saved.secretAccessKey) };
+        const { text, reencrypt } = await decrypt(saved.secretAccessKey);
+        config = { ...saved, secretAccessKey: text };
+        if (reencrypt) await write(config).catch((error) => console.warn('[s3] no se pudo volver a cifrar la clave', error));
       } catch (error) {
         if (error.code !== 'ENOENT') console.warn('[s3] no se pudo leer la conexión guardada', error);
         config = null;
@@ -31,10 +43,7 @@ export function createConnectionStore(file, { encrypt, decrypt }) {
     },
 
     async save(next) {
-      await mkdir(path.dirname(file), { recursive: true });
-      const temporary = `${file}.tmp`;
-      await writeFile(temporary, JSON.stringify({ ...next, secretAccessKey: encrypt(next.secretAccessKey) }));
-      await rename(temporary, file);
+      await write(next);
       config = next;
     },
 
