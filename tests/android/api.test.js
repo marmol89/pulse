@@ -121,6 +121,10 @@ describe('android/api (window.api sobre el backend compartido)', () => {
     assert.equal((await api.loadLibrary()).length, 2);
   });
 
+  test('nunca pide al Filesystem algo que no existe (cada rechazo sale como error en la consola)', () => {
+    assert.equal(fs.calls.rejected, 0);
+  });
+
   test('buscar en internet solo acepta pistas de la biblioteca', async () => {
     await assert.rejects(api.lookupTrack('s3://musica/otra.mp3'), /Pista desconocida/);
   });

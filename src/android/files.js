@@ -5,29 +5,38 @@ import { base64ToBytes, bytesToBase64 } from './nativeHttp.js';
  * relativo ("library.json", "covers/abc.jpg"): el adaptador `files` del backend, como
  * src/main/files.js en Electron. `uri(name)` da la ruta file:// para mostrar una imagen.
  *
+ * Si algo no existe se mira listando su carpeta antes de pedirlo: un plugin que rechaza
+ * ("el archivo no existe") deja un error en la consola aunque se capture.
+ *
  * @param {object} Filesystem plugin @capacitor/filesystem
  * @param {string} directory Directory.Data
  */
 export function createCapacitorFiles(Filesystem, directory) {
   const at = (name) => ({ path: String(name), directory });
+  const split = (name) => {
+    const parts = String(name).split('/');
+    return { folder: parts.slice(0, -1).join('/'), base: parts.at(-1) };
+  };
 
-  async function readOrNull(name, encoding) {
-    try {
-      const { data } = await Filesystem.readFile({ ...at(name), ...(encoding ? { encoding } : {}) });
-      return data;
-    } catch (error) {
-      if (await exists(name)) throw error;
-      return null;
+  /** Nombres de una carpeta ('' es la raíz de los datos de la app, que siempre existe). */
+  async function list(folder) {
+    if (folder) {
+      const { folder: parent, base } = split(folder);
+      if (!(await list(parent)).includes(base)) return [];
     }
+    const { files } = await Filesystem.readdir(at(folder));
+    return files.map((entry) => (typeof entry === 'string' ? entry : entry.name));
   }
 
   async function exists(name) {
-    try {
-      await Filesystem.stat(at(name));
-      return true;
-    } catch {
-      return false;
-    }
+    const { folder, base } = split(name);
+    return (await list(folder)).includes(base);
+  }
+
+  async function readOrNull(name, encoding) {
+    if (!(await exists(name))) return null;
+    const { data } = await Filesystem.readFile({ ...at(name), ...(encoding ? { encoding } : {}) });
+    return data;
   }
 
   return {
@@ -54,14 +63,7 @@ export function createCapacitorFiles(Filesystem, directory) {
     },
 
     /** Nombres de una carpeta ([] si no existe). */
-    async list(folder) {
-      try {
-        const { files } = await Filesystem.readdir(at(folder));
-        return files.map((entry) => (typeof entry === 'string' ? entry : entry.name));
-      } catch {
-        return [];
-      }
-    },
+    list,
 
     async uri(name) {
       return (await Filesystem.getUri(at(name))).uri;

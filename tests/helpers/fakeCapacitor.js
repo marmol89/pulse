@@ -45,9 +45,14 @@ export function fakeSecureStorage() {
 /** Plugin Filesystem en memoria (lo justo para src/android/files.js; los datos binarios, en base64). */
 export function fakeFilesystem() {
   const entries = new Map(); // ruta → { data, encoding }
-  const missing = (path) => Object.assign(new Error(`File does not exist: ${path}`), { code: 'OS-PLUG-FILE-0008' });
+  const calls = { readdir: 0, rejected: 0 };
+  const missing = (path) => {
+    calls.rejected += 1; // en el móvil, cada rechazo deja un error en la consola
+    return Object.assign(new Error(`File does not exist: ${path}`), { code: 'OS-PLUG-FILE-0008' });
+  };
   return {
     entries,
+    calls,
     async readFile({ path, encoding }) {
       if (!entries.has(path)) throw missing(path);
       const stored = entries.get(path);
@@ -71,9 +76,12 @@ export function fakeFilesystem() {
     async deleteFile({ path }) {
       if (!entries.delete(path)) throw missing(path);
     },
+    /** Como el plugin: la raíz ('') siempre existe; una carpeta que no existe, rechaza. */
     async readdir({ path }) {
-      const names = [...entries.keys()].filter((name) => name.startsWith(`${path}/`)).map((name) => name.slice(path.length + 1).split('/')[0]);
-      if (names.length === 0) throw missing(path);
+      const prefix = path ? `${path}/` : '';
+      const names = [...entries.keys()].filter((name) => name.startsWith(prefix)).map((name) => name.slice(prefix.length).split('/')[0]);
+      if (path && names.length === 0) throw missing(path);
+      calls.readdir += 1;
       return { files: [...new Set(names)].map((name) => ({ name })) };
     },
     async getUri({ path }) {
