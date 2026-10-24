@@ -24,6 +24,7 @@
     "icon": "src/assets/icon.png",
     "files": ["src/**/*", "package.json"],
     "win": { "target": ["nsis"] },
-    "linux": { "target": ["AppImage", "deb"], "category": "Audio", "executableName": "pulse" }
+    "linux": { "target": ["AppImage", "deb"], "category": "Audio", "executableName": "pulse", "artifactName": "pulse-${version}-${arch}.${ext}" },
+    "nsis": { "artifactName": "Pulse-Setup-${version}.${ext}" }
   }
 }

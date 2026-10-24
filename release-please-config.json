@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "include-component-in-tag": false,
+  "pull-request-title-pattern": "chore: versión ${version}",
+  "pull-request-header": "Versión preparada por release-please. Al fusionar esta PR se publica la versión y se compilan los instaladores de Windows y Linux.",
+  "changelog-sections": [
+    { "type": "feat", "section": "Novedades" },
+    { "type": "fix", "section": "Correcciones" },
+    { "type": "perf", "section": "Rendimiento" },
+    { "type": "revert", "section": "Reversiones" },
+    { "type": "docs", "section": "Documentación", "hidden": true },
+    { "type": "style", "section": "Estilo", "hidden": true },
+    { "type": "refactor", "section": "Reorganización del código", "hidden": true },
+    { "type": "test", "section": "Tests", "hidden": true },
+    { "type": "build", "section": "Compilación", "hidden": true },
+    { "type": "ci", "section": "Integración continua", "hidden": true },
+    { "type": "chore", "section": "Mantenimiento", "hidden": true }
+  ],
+  "packages": {
+    ".": {
+      "initial-version": "0.1.0"
+    }
+  }
+}

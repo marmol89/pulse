@@ -99,6 +99,16 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
 2. Sus eventos en `mediator/events.js`.
 3. Un **módulo nuevo** en `mediator/handlers/` registrado con `.use()` en `PlayerMediator` (solo gana esa línea), con su test en `tests/handlers/`.
 
+## Versiones y publicación
+
+- **release-please** (`.github/workflows/versiones.yml`, `release-please-config.json`): cada push a `main` mantiene
+  la PR "chore: versión X.Y.Z" con `CHANGELOG.md` y la versión de `package.json` (`feat` → menor, `fix` → parche;
+  `docs`/`ci`/`chore`… no sacan versión). Solo la fusiona el admin. Al fusionarla: etiqueta `vX.Y.Z`, release y
+  `instaladores.yml` compila en Windows (`Pulse-Setup-X.Y.Z.exe`) y Linux (AppImage + `.deb`) y los adjunta.
+- **No toques a mano** la versión de `package.json`, `CHANGELOG.md` ni `.release-please-manifest.json`.
+- "Instaladores" se puede lanzar a mano en Actions: deja los instaladores como artefactos sin publicar nada.
+- `main` solo admite PR; `.github/CODEOWNERS` pide la revisión del admin (que puede fusionar sus propias PR).
+
 ## Convenciones
 
 - Todo en español: UI, documentación y commits.

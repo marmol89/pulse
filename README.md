@@ -56,6 +56,19 @@ Por dentro está organizado con el patrón **Mediator**.
   </tr>
 </table>
 
+## 📦 Descargas
+
+Cada versión publicada en [**Releases**](https://github.com/marmol89/pulse/releases) trae los instaladores:
+
+| Sistema | Archivo |
+|---|---|
+| Windows | `Pulse-Setup-X.Y.Z.exe` (instalador) |
+| Linux | `pulse-X.Y.Z-x86_64.AppImage` (portable) o `pulse-X.Y.Z-amd64.deb` (Debian/Ubuntu) |
+
+> [!NOTE]
+> Los instaladores no están firmados: Windows SmartScreen puede avisar la primera vez («Más información» →
+> «Ejecutar de todas formas»). En Linux, al AppImage hay que darle permiso de ejecución (`chmod +x`).
+
 ## 🚀 Inicio rápido
 
 Necesitas **Node.js 22 o posterior** y un bucket S3 o MinIO con tu música (mp3, m4a, flac, ogg, wav…).
@@ -183,12 +196,16 @@ tests/                    unitarios por carpeta, helpers (S3 falso, WAV con ID3�
 | `npm run dist:win` | Instalador NSIS para Windows en `dist/` |
 | `npm run dist:linux` | AppImage y `.deb` en `dist/` (mejor desde Linux, WSL o CI) |
 
+Para publicar no hace falta compilar en local: lo hace GitHub Actions al sacar cada versión (ver
+«Versiones», más abajo).
+
 Los tests **nunca** usan un S3 real ni servicios de internet: `tests/helpers/fakeS3.js` es un servidor S3 mínimo y
 las búsquedas usan un `fetch` falso.
 
 ## 🤝 Contribuir
 
-- `main` solo acepta cambios **por pull request**. Crea una rama, haz tus cambios y abre la PR.
+- `main` solo acepta cambios **por pull request**, revisados por el admin del repositorio. Crea una rama, haz tus
+  cambios y abre la PR.
 - Commits pequeños (uno por pieza) en español, con [Conventional Commits](https://www.conventionalcommits.org/es/):
   `feat(ui): …`, `fix(online): …`, `docs: …`.
 - Para añadir una funcionalidad: si hace falta, un colega nuevo en `colleagues/`; sus eventos en `events.js`; y un
@@ -197,6 +214,20 @@ las búsquedas usan un `fetch` falso.
   archivos: usa `h()` de `ui/dom.js`.
 - Antes de abrir la PR, ejecuta `npm test` y, si tocas la interfaz o el proceso principal, también
   `npm run test:e2e`.
+
+### 🏷️ Versiones
+
+Las versiones siguen [SemVer](https://semver.org/lang/es/) y las prepara
+[release-please](https://github.com/googleapis/release-please) a partir de los commits:
+
+1. Cada cambio que entra en `main` se acumula en una PR **«chore: versión X.Y.Z»**, que sube la versión de
+   `package.json` y escribe el [`CHANGELOG.md`](CHANGELOG.md). Un `feat` sube la versión menor (0.1.0 → 0.2.0) y
+   un `fix`, el parche (0.1.0 → 0.1.1).
+2. Solo el admin del repositorio la aprueba. Al fusionarla se crea la etiqueta `vX.Y.Z` con su release, y GitHub
+   Actions compila y adjunta los instaladores de Windows y Linux.
+3. Los commits siguientes abren la PR de la versión siguiente. La primera versión es la **0.1.0**.
+
+Para probar la compilación sin publicar nada: pestaña **Actions** → **Instaladores** → **Run workflow**.
 
 <div align="center">
 <sub>Hecho con ♪ y JavaScript puro.</sub>
