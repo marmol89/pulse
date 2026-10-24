@@ -108,12 +108,19 @@ export function isTitleFromFile(record) {
   return record.titleFromFile ?? record.title === path.basename(record.path, path.extname(record.path));
 }
 
-/** Qué buscar: las etiquetas si las hay; si no, lo que se deduzca del nombre del archivo. */
-export function queryFromRecord(record) {
+/**
+ * Qué buscar: las etiquetas si las hay; si no, lo que se deduzca del nombre del archivo.
+ * Un nombre "A - B" puede ser "Artista - Título" o "Título - Artista" ("Tussi - Arcángel"): se prueban
+ * las dos lecturas, en ese orden. Ambas tienen las mismas palabras, así que basta una búsqueda por servicio.
+ */
+export function queriesFromRecord(record) {
   const knownArtist = record.artist && record.artist !== UNKNOWN_ARTIST ? record.artist : '';
-  if (!isTitleFromFile(record)) return { title: record.title, artist: knownArtist, album: record.album, duration: record.duration };
+  const base = { album: record.album, duration: record.duration };
+  if (!isTitleFromFile(record)) return [{ title: record.title, artist: knownArtist, ...base }];
   const parsed = parseFileName(record.title);
-  return { title: parsed.title, artist: knownArtist || parsed.artist, album: record.album, duration: record.duration };
+  const queries = [{ title: parsed.title, artist: knownArtist || parsed.artist, ...base }];
+  if (parsed.artist && !knownArtist) queries.push({ title: parsed.artist, artist: parsed.title, ...base });
+  return queries;
 }
 
 export function scoreCandidate(query, candidate) {
@@ -137,6 +144,15 @@ export function isMatch({ title, artist, durationGap, otherVersion }) {
 
 function rank({ title, artist, album, durationGap, compilation }) {
   return title * 0.6 + (artist ?? 0) * 0.4 + (album ?? 0) * 0.2 - (compilation ? 0.05 : 0) - (durationGap ?? MAX_DURATION_GAP) / 100;
+}
+
+/** El candidato que encaja con la primera lectura que encaje (ver queriesFromRecord), o null. */
+export function pickBestOf(queries, candidates) {
+  for (const query of queries) {
+    const best = pickBest(query, candidates);
+    if (best) return best;
+  }
+  return null;
 }
 
 /** El candidato que mejor encaja, o null si ninguno es fiable. */
