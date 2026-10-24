@@ -16,6 +16,7 @@
     "test:e2e": "node tests/e2e/smoke.mjs",
     "test:e2e:android": "node tests/e2e/android.mjs",
     "icons": "node scripts/generate-icon.mjs",
+    "play:graficos": "node scripts/graficos-play.mjs",
     "dist": "electron-builder",
     "dist:win": "electron-builder --win",
     "dist:linux": "electron-builder --linux",
