@@ -10,8 +10,8 @@ reproduce la música de un **bucket S3** (o compatible, como MinIO), se parece a
 **Windows (NSIS)** y **Linux (AppImage + deb)**, con toda la coordinación de la UI en un **Mediator**
 que nunca se convierte en un *God Object*.
 
-`templates/` contiene **todo lo que no depende del diseño visual**, ya probado (269 tests): proceso main
-(**S3**: conexión cifrada, sincronización y audio con rangos; **datos de internet**: carátula, álbum, año, género, pista y letra), preload, núcleo del patrón,
+`templates/` contiene **todo lo que no depende del diseño visual**, ya probado (289 tests): proceso main
+(**S3**: conexión cifrada, sincronización, audio con rangos y subir canciones; **datos de internet**: carátula, álbum, año, género, pista y letra), preload, núcleo del patrón,
 mediator y handlers, modelos y servicios, tokens, `index.html`, scripts y tests.
 Lo visual (vistas, `ui/`, `layout.css`, `components.css`) se **genera** a partir del diseño (Paso 4).
 
@@ -48,28 +48,30 @@ npm install music-metadata @fontsource/inter @aws-sdk/client-s3
 ```
 src/main/                          T  proceso main (no forma parte del mediator)
   main.js                             ventana 1280×800 (mín. 960×600), instancia única, sin navegación, --lang=es
-  s3/storage.js                       SDK de S3 (path-style, solo lectura): listar audio, rangos, exists, errores en español
+  s3/storage.js                       SDK de S3 (path-style): listar audio, rangos, stat/exists, upload (nunca borra),
+                                      errores en español
   s3/connection.js · service.js       conexión en userData/s3.json con la clave secreta cifrada (safeStorage),
                                       importar credentials.json (MinIO o AWS), probar y conectar
   protocol/urls.js · responses.js     media://track|cover/<id>: audio de S3 con rangos (206/416), 403 fuera de la biblioteca
   protocol/media.js                   registro del esquema en Electron
   library/remote.js                   id "s3://bucket/clave"; etiquetas leyendo los primeros 512 KB del objeto
   library/sync.js                     biblioteca = bucket: añade, relee (ETag) y quita; verify(id)
+  library/upload.js                   subir archivos y carpetas del ordenador (sin sobrescribir) y sincronizar
   library/tracks.js · store.js        registro ↔ Track · library.json en userData (escritura atómica)
   online/matching.js                  ¿es la misma canción? (título, artista, duración, otras versiones)
   online/itunes.js · lrclib.js        iTunes Search (datos + carátula) y LRCLIB (letra), sin clave
   online/http.js                      net.fetch con User-Agent, tiempo máximo y TransientError
   online/enricher.js · queue.js       completar sin pisar etiquetas + cola en segundo plano (~17/min)
-  ipc/library.js                      library:load | sync | verify · connection:get | save | import
+  ipc/library.js                      library:load | sync | verify | choose-uploads | upload · connection:get | save | import
   ipc/metadata.js                     metadata:lookup | set-enabled (+ aviso library:tracks-updated)
-src/preload/preload.cjs            T  window.api (contextBridge, sandbox)
+src/preload/preload.cjs            T  window.api (contextBridge, sandbox, webUtils.getPathForFile)
 src/assets/icon.png                T* lo genera `npm run icons` (scripts/generate-icon.mjs)
 src/renderer/
   index.html · app.js              T  esqueleto con CSP · raíz de composición (colegas → mediator → app-ready)
   core/Mediator.js · Colleague.js  T
   mediator/                        T  PlayerMediator (solo compone), events.js, actions.js, handlers/
-    handlers/playback · output · navigation · modes · library · changes · connection · views ·
-             favorites · recents · online · errors
+    handlers/playback · output · navigation · modes · library · changes · connection · uploads ·
+             views · favorites · recents · online · errors
   colleagues/                         modelos y servicios (T) + vistas (G)
     Catalog · Playlist · Favorites · Recents · Settings T  modelos puros
     AudioEngine · LibraryService · MediaSessionBridge T  servicios
@@ -140,6 +142,9 @@ Eventos y dónde se manejan:
 | HomeView (Mix diario) | `play-mix` | modes | biblioteca entera en aleatorio |
 | Router · HomeView | `sync-library` | library | sincroniza con el bucket y avisa ("ya está al día" / error) |
 | LibraryService | `library-changed` `{removed, added}` | changes | añade/quita pistas, sigue la cola si sonaba una borrada y avisa |
+| Router · HomeView | `upload-songs` | uploads | diálogo del main, sube y resume ("2 canciones subidas · 1 ya estaba…"); sin conexión abre el formulario |
+| Router (soltar en la ventana) | `files-dropped` `File[]` | uploads | igual, con lo arrastrado |
+| LibraryService | `upload-progress` `{current, total, name}` | uploads | aviso fijo "Subiendo 2 de 5: «…»" |
 | Router · HomeView | `open-connection` | connection | abre el formulario con la conexión guardada (sin secreto) |
 | ConnectionView | `save-connection`, `import-credentials` | connection | conecta (o muestra el error en el formulario), toast "Conectado a «bucket»" y sincroniza |
 | Router · teclado | `navigate` | views | inicio/buscar/biblioteca (biblioteca = colección) |
@@ -163,11 +168,13 @@ Los modelos y servicios ya vienen en `templates/`. Las vistas que generes **debe
 
 - **Router**: `show(view, nav = view)` (`'home'|'search'|'collection'`), `back()`, `openOverlay()`,
   `closeOverlay()`, `isOverlayOpen()`, `setOnlineLookup(bool)`, `setConnection(summary|null)` ("Conexión S3" con
-  "bucket · host" o "Sin conectar"). Emite `navigate`, `open-connection`, `sync-library` ("Actualizar biblioteca")
-  y `set-online-lookup` (interruptor "Datos de internet" en la sidebar). Sin arrastrar archivos.
+  "bucket · host" o "Sin conectar"). Emite `navigate`, `open-connection`, `upload-songs` ("Subir canciones"),
+  `files-dropped` (soltar archivos o carpetas en la ventana, con la clase `.app.is-dropping` mientras se arrastra),
+  `sync-library` ("Actualizar biblioteca") y `set-online-lookup` (interruptor "Datos de internet" en la sidebar).
 - **HomeView**: `render({ isEmpty, recents, genres, albums, artists, favoriteTracks, favorites, currentPath, playing })`,
   `highlight(path)`, `setPlaying(bool)`, `setFavorite(path, bool)`, `updateTrack(track, isFavorite)`, `removeTracks(paths)`.
-  Sin biblioteca: "Conectar mi bucket" (`open-connection`) y "Actualizar biblioteca" (`sync-library`).
+  Sin biblioteca: "Conectar mi bucket" (`open-connection`), "Subir canciones" (`upload-songs`) y
+  "Actualizar biblioteca" (`sync-library`).
 - **PlaylistView**: `render(collection, state)`, `source()`, `highlight`, `setPlaying`, `setFavorite`, `updateTrack`,
   `removeTracks`, `setModes({ shuffle })`.
 - **SearchView**: `focus()`, `showResults(query, tracks, state)`, `highlight`, `setPlaying`, `setFavorite`, `updateTrack`, `removeTracks`.
@@ -196,6 +203,9 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
 - Sincronización (`sync.js`): al arrancar, al volver a la ventana (como mucho cada 15 s) y con "Actualizar
   biblioteca". Lo que falla al descargarse no se guarda a medias: se reintenta en la siguiente.
 - Si una pista falla al sonar, `library:verify` mira si sigue en el bucket; si no, se quita de todo.
+- Subir (`upload.js`): de una en una bajo la carpeta de la conexión; una carpeta arrastrada conserva su nombre en la
+  clave. **Nunca sobrescribe**: mismo nombre y tamaño → se salta; otro archivo con ese nombre → "Nombre (2).mp3".
+  Después sincroniza, y las canciones llegan como cualquier otra novedad del bucket.
 
 ### Datos de internet (ya en `templates/`)
 
@@ -243,6 +253,8 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
      `localStorage['pulse.onlineLookup'] = 'false'` (la prueba nunca llama a iTunes ni a LRCLIB) y recarga;
    - conecta desde el formulario (primero con una clave incorrecta: debe explicar el error); recorre Inicio,
      Biblioteca, Reproduciendo, Buscar y Álbumes; sube una canción al S3 falso y pulsa "Actualizar biblioteca";
+     sube otra con "Subir canciones" sustituyendo el diálogo del main (`app.evaluate(({ dialog }) => …)`), repítela
+     (no se duplica) y prueba con el S3 falso en solo lectura (mensaje de permiso);
      borra otra y comprueba que al reproducirla se quita; comprueba que el tiempo avanza, que saltar funciona, favoritos, letra, salidas,
      Espacio con el foco en un botón y **cero errores de consola**;
    - capturas con `animations: 'disabled'` en `tests/e2e/output/` y **compáralas con el diseño**.
@@ -277,6 +289,10 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
   alineada arriba y `position: sticky` en dos columnas.
 - Un fallo de red al leer las etiquetas se tomaba como "sin etiquetas" y guardaba la pista a medias (duración 0)
   → `readRemoteRecord` propaga los errores de descarga y `sync` salta ese objeto hasta la próxima.
+- El SDK de S3 calcula por defecto sumas CRC32 y envía el cuerpo "aws-chunked", que algunos servicios compatibles
+  no entienden → `requestChecksumCalculation: 'WHEN_REQUIRED'` (el S3 falso rechaza "aws-chunked" para detectarlo).
+- Con un logger propio el SDK escribe en consola cada error (y "non-retryable streaming request" al fallar una
+  subida con stream), aunque ya llegan a quien llama → logger silencioso salvo otros avisos.
 - Prueba contra un S3/MinIO real: script aparte en el scratchpad (no en el repo) que lee las credenciales del
   archivo que indique el usuario sin imprimirlas.
 - Prueba de los datos de internet en vivo: un script aparte (no en el repo) con WAV sin etiquetas llamados

@@ -45,6 +45,7 @@ con `letter-spacing` 1.2–1.5 en mayúsculas ("PARA TI", "REPRODUCIENDO DESDE")
 │  ○ Biblioteca│                                               │
 │ ─ Tu música ─│                                               │
 │  ☁ Conexión  │                                               │
+│  ⇪ Subir     │                                               │
 │  ↻ Actualizar│                                               │
 ├──────────────┴───────────────────────────────────────────────┤
 │ Player bar  (mini-player ampliado a todo el ancho)           │
@@ -81,6 +82,7 @@ con `letter-spacing` 1.2–1.5 en mayúsculas ("PARA TI", "REPRODUCIENDO DESDE")
 | (nuevo) Tarjeta "Información" | En Reproduciendo, con el estilo de la de Letra: álbum, artista del álbum, año, género, pista, duración y origen de los datos, más "Buscar en internet" |
 | (nuevo) "Datos de internet"  | Interruptor en la sidebar (sección "Tu música"), píldora con `--grad-accent` cuando está activo |
 | (nuevo) "Conexión S3"        | En la sidebar (icono nube) con "bucket · host" o "Sin conectar"; abre un `<dialog>` con `--color-surface`, radio de tarjeta y botón principal con `--grad-accent` |
+| (nuevo) "Subir canciones"    | En la sidebar (icono subir) y en la bienvenida; soltar archivos o carpetas en la ventana muestra un recuadro discontinuo `--color-primary` sobre `--color-scrim`: "Suelta para subir a tu bucket" |
 | (nuevo) "Actualizar biblioteca" | En la sidebar (icono refrescar) y en la bienvenida sin música, junto a "Conectar mi bucket" |
 | Compartir, ⋯, avatar/Perfil  | Fuera de alcance en v1: no se renderizan                              |
 
