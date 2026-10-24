@@ -26,7 +26,8 @@ for (const name of ['JAVA_HOME', 'ANDROID_HOME']) {
 run('node', ['scripts/build-android.mjs']);
 run('npx', ['cap', 'sync', 'android']);
 const android = path.join(root, 'android');
-run(`"${path.join(android, windows ? 'gradlew.bat' : 'gradlew')}"`, ['assembleDebug', '--console=plain'], android);
+// En Windows va por la shell (cmd), que necesita las comillas si la ruta tiene espacios.
+run(windows ? `"${path.join(android, 'gradlew.bat')}"` : path.join(android, 'gradlew'),['assembleDebug', '--console=plain'], android);
 
 const { version } = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
 const name = `Pulse-${version}-debug.apk`;
