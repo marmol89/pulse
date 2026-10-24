@@ -5,6 +5,7 @@ import { SecureStorage } from '@aparajita/capacitor-secure-storage';
 import { createAndroidApi } from './api.js';
 import { createCapacitorFiles } from './files.js';
 import { createKeystoreCrypto } from './secret.js';
+import { handleBackButton } from './backButton.js';
 
 /**
  * Punto de entrada de Android (scripts/build-android.mjs lo empaqueta en www/api.js, que se carga
@@ -27,3 +28,5 @@ window.api = createAndroidApi({
   userAgent: `Pulse/${__PULSE_VERSION__} (reproductor de música para Android)`,
   App,
 });
+
+App.addListener('backButton', () => handleBackButton(document, { minimize: () => App.minimizeApp() }));
