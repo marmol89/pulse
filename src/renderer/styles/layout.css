@@ -363,3 +363,181 @@ svg {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- Pantallas estrechas (Android): el diseño móvil original ---------- */
+
+@media (max-width: 720px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'main'
+      'player'
+      'sidebar';
+    height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* La sidebar vuelve a ser la tab bar de abajo: icono encima del texto. */
+  .sidebar {
+    position: relative;
+    z-index: 5;
+    flex-direction: row;
+    gap: 0;
+    padding: 0 var(--space-2) env(safe-area-inset-bottom);
+    border-top: 1px solid var(--color-surface);
+    border-right: 0;
+    background: var(--color-bg);
+    overflow: visible;
+  }
+
+  .brand,
+  .sidebar__hint {
+    display: none;
+  }
+
+  .nav {
+    flex: 1;
+    flex-direction: row;
+    gap: 0;
+  }
+
+  /* Con .sidebar delante: components.css se carga después y, a igual especificidad, ganaría. */
+  .sidebar .nav__item {
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--space-1);
+    height: var(--tab-bar-height);
+    padding: 0;
+    font-size: var(--fs-label);
+    text-align: center;
+  }
+
+  .sidebar .nav__item:hover {
+    background: none;
+  }
+
+  .sidebar .nav__item .icon {
+    flex-shrink: 0;
+  }
+
+  .sidebar .nav__item--menu {
+    display: flex;
+  }
+
+  /* "Tu música": panel que sube desde la tab bar */
+  .sidebar__section {
+    position: absolute;
+    right: var(--space-3);
+    bottom: calc(100% + var(--space-2));
+    left: var(--space-3);
+    padding: var(--space-4) var(--space-2) var(--space-2);
+    border-radius: var(--radius-card);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-overlay);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(var(--space-4));
+    transition:
+      opacity var(--duration-fast) var(--ease),
+      transform var(--duration) var(--ease);
+  }
+
+  .sidebar.is-menu-open .sidebar__section {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
+
+  .sidebar .sidebar__section .nav__item {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--space-4);
+    height: 48px;
+    padding: 0 var(--space-3);
+    font-size: var(--fs-chip);
+    text-align: left;
+  }
+
+  .view {
+    padding: var(--space-5) var(--narrow-gutter) var(--space-8);
+  }
+
+  .view--collection {
+    background-size: 100% 360px;
+  }
+
+  .section {
+    margin-top: var(--space-8);
+  }
+
+  .collection-header {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-5);
+    text-align: center;
+  }
+
+  .collection-header__info {
+    align-items: center;
+  }
+
+  /* Mini-player: portada, título y play/siguiente, con una línea de progreso. */
+  .player-bar {
+    padding: 0 var(--space-2) var(--space-2);
+  }
+
+  .player {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-3);
+    height: var(--mini-player-height);
+    padding: 0 var(--space-2);
+    overflow: hidden;
+  }
+
+  .player__extras,
+  .player .seek-bar__time,
+  .player .mode-button,
+  .player .transport [aria-label='Anterior'] {
+    display: none;
+  }
+
+  .player .seek-bar {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+  }
+
+  .now-playing {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .now-playing__inner {
+    padding: var(--space-4) var(--narrow-gutter) calc(var(--space-8) + env(safe-area-inset-bottom));
+  }
+
+  .now-playing__body {
+    justify-content: flex-start;
+    gap: var(--space-6);
+  }
+
+  /* En columna la portada ocupa el ancho (si no, su 100 % sería de un contenedor sin ancho). */
+  .now-playing__art {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .toast {
+    bottom: calc(var(--tab-bar-height) + var(--mini-player-height) + var(--space-6) + env(safe-area-inset-bottom));
+  }
+
+  /* Con Reproduciendo abierto no hay tab bar ni mini-player: el aviso baja y no tapa los controles. */
+  .now-playing:not([hidden]) ~ .toast {
+    bottom: calc(var(--space-6) + env(safe-area-inset-bottom));
+  }
+}
