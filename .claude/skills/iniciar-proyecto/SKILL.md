@@ -1,18 +1,19 @@
 ---
 name: iniciar-proyecto
-description: Inicializa (scaffold) "Pulse", el reproductor de música de escritorio nativo para Windows y Linux hecho con JavaScript (Electron) y estructurado con el patrón de diseño Mediator, siguiendo el diseño app-musica-figma.svg. Úsala cuando el usuario pida iniciar, crear, arrancar o montar el proyecto del reproductor, generar su estructura base, o rehacer el esqueleto desde cero.
+description: Inicializa (scaffold) "Pulse", el reproductor de música para Windows y Linux (Electron) y Android (Capacitor, APK) hecho con JavaScript y estructurado con el patrón de diseño Mediator, siguiendo el diseño app-musica-figma.svg. Úsala cuando el usuario pida iniciar, crear, arrancar o montar el proyecto del reproductor, generar su estructura base, o rehacer el esqueleto desde cero.
 ---
 
 # Iniciar proyecto: reproductor de música con patrón Mediator
 
 Objetivo: dejar en la carpeta actual un proyecto **Electron + JavaScript puro** que arranca con `npm start`,
 reproduce la música de un **bucket S3** (o compatible, como MinIO), se parece al diseño `app-musica-figma.svg` y empaqueta para
-**Windows (NSIS)** y **Linux (AppImage + deb)**, con toda la coordinación de la UI en un **Mediator**
+**Windows (NSIS)**, **Linux (AppImage + deb)** y **Android (APK con Capacitor, mismo renderer)**, con toda la coordinación de la UI en un **Mediator**
 que nunca se convierte en un *God Object*.
 
-`templates/` contiene **todo lo que no depende del diseño visual**, ya probado (311 tests): proceso main
-(**S3**: conexión cifrada, sincronización, audio con rangos, subir canciones y metadatos/ en el bucket; **datos de internet**: carátula, álbum, año, género, pista y letra), preload, núcleo del patrón,
-mediator y handlers, modelos y servicios, tokens, `index.html`, scripts y tests.
+`templates/` contiene **todo lo que no depende del diseño visual**, ya probado (332 tests): backend común sin Node ni Electron
+(**S3**: conexión cifrada, sincronización, audio con rangos, subir canciones y metadatos/ en el bucket; **datos de internet**: carátula, álbum, año, género, pista y letra), adaptadores de Electron (main, preload) y de Android (`src/android/`), núcleo del patrón,
+mediator y handlers, modelos y servicios, tokens, `index.html`, scripts (iconos, www/ y APK), los archivos de
+`android/` que se cambian tras `cap add android` y tests.
 Lo visual (vistas, `ui/`, `layout.css`, `components.css`) se **genera** a partir del diseño (Paso 4).
 
 ## Paso 0 — Comprobaciones
@@ -21,8 +22,8 @@ Lo visual (vistas, `ui/`, `layout.css`, `components.css`) se **genera** a partir
 2. Lista la carpeta. Si ya existe `package.json` o `src/`, **no sobrescribas**: pregunta si rehacer el
    esqueleto o solo completar lo que falte.
 3. Si no es repositorio git: `git init -b main`, `.gitignore` (`node_modules/`, `dist/`, `out/`, `*.log`,
-   `.claude/settings.local.json`, `tests/e2e/output/`) y `.gitattributes` (`* text=auto eol=lf` y
-   `*.png`/`*.ico`/`*.wav binary`). Si git no tiene identidad, configúrala **solo en el repo**.
+   `.claude/settings.local.json`, `tests/e2e/output/`, `www/`) y `.gitattributes` (`* text=auto eol=lf`,
+   `*.png`/`*.ico`/`*.wav`/`*.jar binary` y `*.bat text eol=crlf`). Si git no tiene identidad, configúrala **solo en el repo**.
 4. **Commits pequeños**: uno por pieza verificada (núcleo, cada modelo, cada grupo de handlers, cada vista…),
    en español y estilo Conventional Commits (`feat(core): …`, `fix(ui): …`).
 
@@ -33,11 +34,14 @@ Copia `templates/package.json`, añade `"author": "Nombre <email>"` (electron-bu
 ```bash
 npm install --save-dev electron electron-builder playwright-core
 npm install music-metadata @fontsource/inter @aws-sdk/client-s3
+# Android (Capacitor 8): en devDependencies, electron-builder no los mete en el instalador
+npm install --save-dev @capacitor/core @capacitor/cli @capacitor/android @capacitor/filesystem @capacitor/app \
+  @aparajita/capacitor-secure-storage @aws-sdk/s3-request-presigner esbuild
 ```
 
 - Electron ≥ 45 ya no tiene `postinstall`: descarga el binario en el primer uso. Fuérzalo ya con
   `node node_modules/electron/install.js` para no llevarte sorpresas.
-- `music-metadata` (ESM) y `@aws-sdk/client-s3` solo en el proceso main. `@fontsource/inter`: tipografía del diseño sin conexión.
+- `music-metadata` (ESM) y `@aws-sdk/client-s3` solo en `src/backend/` (Electron los usa en el main; Android, empaquetados con esbuild). `@fontsource/inter`: tipografía del diseño sin conexión.
 - `playwright-core` solo para el e2e (maneja Electron sin descargar navegadores).
 - Nada de frameworks de UI salvo que el usuario lo pida: HTML + ES modules.
 
@@ -46,27 +50,38 @@ npm install music-metadata @fontsource/inter @aws-sdk/client-s3
 `T` = copiar de `templates/` tal cual · `G` = generar en el Paso 4.
 
 ```
-src/main/                          T  proceso main (no forma parte del mediator)
-  main.js                             ventana 1280×800 (mín. 960×600), instancia única, sin navegación, --lang=es
-  s3/storage.js                       SDK de S3 (path-style): listar audio, rangos, stat/exists, upload (nunca borra),
-                                      errores en español
-  s3/connection.js · service.js       conexión en userData/s3.json con la clave secreta cifrada (safeStorage),
+src/backend/                       T  lógica común, SIN Node ni Electron (tests/backend/portable.test.js): la
+                                      plataforma inyecta files, crypto, http, toTrack (URLs) y collect
+  paths.js                            basename/extname POSIX, nombre de carátula
+  s3/storage.js                       SDK de S3 (path-style, requestHandler opcional): listar audio, rangos, stat (GET de
+                                      un byte, no HEAD), upload (nunca borra), errores en español
+  s3/connection.js · service.js       conexión en s3.json con la clave secreta cifrada por el crypto de la plataforma,
                                       importar credentials.json (MinIO o AWS), probar y conectar
-  protocol/urls.js · responses.js     media://track|cover/<id>: audio de S3 con rangos (206/416), 403 fuera de la biblioteca
-  protocol/media.js                   registro del esquema en Electron
   library/remote.js                   id "s3://bucket/clave"; etiquetas leyendo los primeros 512 KB del objeto
   library/sync.js                     biblioteca = bucket: añade, relee (ETag) y quita; verify(id)
-  library/upload.js                   subir archivos y carpetas del ordenador (sin sobrescribir) y sincronizar
+  library/upload.js                   sube lo que da collect ({name,size,open}) sin sobrescribir y sincroniza
   library/metadata.js                 copia de la biblioteca en metadatos/biblioteca.json + metadatos/caratulas/
-  library/tracks.js · store.js        registro ↔ Track · library.json en userData (caché local, escritura atómica, onSave)
+  library/tracks.js · store.js        registro ↔ Track (toTrack con las URLs de la plataforma) · library.json (caché)
   online/matching.js                  ¿es la misma canción? (título, artista, duración, otras versiones)
   online/itunes.js · deezer.js        iTunes Search y, si no la tiene, Deezer (datos + carátula), sin clave
   online/lrclib.js                    LRCLIB (letra), sin clave
-  online/http.js                      net.fetch con User-Agent, tiempo máximo y TransientError
+  online/http.js                      fetch inyectado con User-Agent, tiempo máximo y TransientError
   online/enricher.js · queue.js       completar sin pisar etiquetas + cola en segundo plano (~17/min)
+src/main/                          T  adaptador de Electron (no forma parte del mediator)
+  main.js                             ventana 1280×800 (mín. 960×600), instancia única, sin navegación, --lang=es
+  files.js                            files sobre fs en userData (escritura atómica)
+  library/collect.js                  archivos y carpetas del ordenador → lo que sube upload.js
+  protocol/urls.js · responses.js     media://track|cover/<id>: audio de S3 con rangos (206/416), 403 fuera de la biblioteca
+  protocol/media.js                   registro del esquema en Electron
   ipc/library.js                      library:load | sync | verify | choose-uploads | upload · connection:get | save | import
   ipc/metadata.js                     metadata:lookup | set-enabled (+ aviso library:tracks-updated)
 src/preload/preload.cjs            T  window.api (contextBridge, sandbox, webUtils.getPathForFile)
+src/android/                       T  window.api de Android con los mismos métodos (esbuild → www/api.js)
+  api.js · main.js                    backend + URLs firmadas de S3 (7 días) · entrada con los plugins reales
+  nativeHttp.js                       CapacitorHttp (sin CORS) como fetch y como requestHandler del SDK de S3
+  files.js · secret.js · covers.js    Filesystem (sin provocar rechazos) · secreto en el Keystore · carátulas en el móvil
+  picker.js · backButton.js           elegir archivos (<input type=file>) · botón atrás de Android
+capacitor.config.json · android/   T* cap add android y luego copiar los archivos de templates/android/ (Paso 5b)
 src/assets/icon.png                T* lo genera `npm run icons` (scripts/generate-icon.mjs)
 src/renderer/
   index.html · app.js              T  esqueleto con CSP · raíz de composición (colegas → mediator → app-ready)
@@ -85,10 +100,11 @@ src/renderer/
   ui/                              G  dom · icons · cover · format · trackList · transport
   styles/tokens.css                T  único sitio con valores del diseño
   styles/layout.css · components.css G
-scripts/                           T  generate-icon.mjs + lib/png.js (codificador PNG sin dependencias)
-tests/                             T  core, handlers, modelos, servicios, main, reglas + helpers/
+scripts/                           T  generate-icon.mjs + lib/png.js · build-android.mjs (www/) · android-apk.mjs
+tests/                             T  core, handlers, modelos, servicios, backend, main, android, reglas + helpers/
   ui/format.test.js · cover.test.js G  tests de lo generado en ui/
-  e2e/smoke.mjs                    G  prueba de la app real (Paso 5)
+  e2e/fixtures.js                  T  bucket de prueba compartido por los dos e2e
+  e2e/smoke.mjs · android.mjs      G  prueba de la app real y del APK (Pasos 5 y 5b)
 ```
 
 ## Paso 3 — Reglas del patrón Mediator (obligatorias)
@@ -102,7 +118,8 @@ tests/                             T  core, handlers, modelos, servicios, main, 
 5. Fuentes de verdad: `Catalog` (biblioteca), `Playlist` (cola, aleatorio, repetir), `AudioEngine`
    (tiempo, volumen, salida), `Settings` (preferencias). Las vistas solo guardan estado de UI (filtro de
    chips, letra desplegada…).
-6. El proceso main **no** es un colega: solo `LibraryService` lo usa, vía `window.api`.
+6. El proceso main (o `src/android/`) **no** es un colega: solo `LibraryService` lo usa, vía `window.api`. El
+   mediator, los handlers y los colegas no saben en qué plataforma están.
 7. Seguridad: `contextIsolation`, `sandbox`, sin `nodeIntegration`, la CSP de `index.html`
    (`default-src 'self'; img-src 'self' data: media:; media-src media:; connect-src media:; style-src 'self';
    font-src 'self'; script-src 'self'`), y nunca `innerHTML` con datos de archivos (usar `h()` de `ui/dom.js`).
@@ -199,7 +216,8 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
 
 - **Las claves nunca van en el repo ni en el instalador.** Se introducen en la app (o se importa un
   `credentials.json`) y se guardan en `userData/s3.json` con la clave secreta cifrada con `safeStorage`
-  (DPAPI en Windows, llavero en Linux). La clave secreta nunca vuelve al renderer.
+  (DPAPI en Windows, llavero en Linux). La clave secreta nunca vuelve al renderer. En Android va al Keystore
+  (`secret.js`) y en `s3.json` solo queda la marca `keystore`.
 - Si el usuario te da credenciales reales, **no las imprimas ni las copies a ningún archivo del proyecto**:
   úsalas solo en scripts de prueba fuera del repo (scratchpad).
 - Sincronización (`sync.js`): al arrancar, al volver a la ventana (como mucho cada 15 s) y con "Actualizar
@@ -217,7 +235,8 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
 
 - iTunes Search API (catálogo `ES`, géneros en español, carátula 600×600), Deezer como segunda fuente (sin género,
   año ni pista) y LRCLIB (letra): gratuitas y sin clave,
-  siempre desde el proceso main con `net.fetch` (respeta el proxy del sistema). El renderer nunca sale a internet.
+  con el `http` de la plataforma: `net.fetch` en el main de Electron (respeta el proxy del sistema) y `CapacitorHttp`
+  en Android. El código del renderer nunca sale a internet.
 - **Rellenar huecos, nunca pisar etiquetas.** Título y artista solo se toman de internet si el título venía del nombre
   del archivo, probando "Artista - Título" y "Título - Artista" (`queriesFromRecord` + `pickBestOf`; las dos lecturas
   tienen las mismas palabras, así que basta una búsqueda por servicio). `matching.js` exige título ≥ 0,8, artista ≥ 0,6 y ≤ 20 s de diferencia; sin artista, título casi
@@ -250,6 +269,12 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
    `--color-accent` con ecualizador, corazón relleno, aleatorio/repetir en `--color-primary` con punto,
    chip activo con `--grad-accent`, salida no predeterminada en `--color-success`.
 5. Lo que no existe en la app (Podcasts, Radio, Perfil, Compartir) **no se renderiza**.
+6. **Móvil (Android)**: el diseño original del Figma, con `@media (max-width: 720px)` en `layout.css` (y tokens
+   `--tab-bar-height`, `--mini-player-height`, `--narrow-gutter`): la sidebar pasa a **tab bar abajo** (Inicio,
+   Buscar, Biblioteca y "Tu música", que abre un panel con Conexión S3, Subir, Actualizar y Datos de internet;
+   el Router lo abre y cierra como estado de UI), mini-player encima, Reproduciendo en una columna y
+   `env(safe-area-inset-*)`. Las reglas de la tab bar, con `.sidebar .nav__item` (components.css va después y
+   ganaría a igual especificidad). `NowPlayingView` oculta la salida de audio si no existe `setSinkId`.
 
 ## Paso 5 — Tests y verificación
 
@@ -274,6 +299,23 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
    y secciones del changelog en español; `.release-please-manifest.json` vacío) y `instaladores.yml`
    (`workflow_call` + `workflow_dispatch`: Windows y Linux, `npm ci`, `npm test`,
    `electron-builder --publish never` y `gh release upload`). En el repo, Actions necesita permiso para crear PR.
+
+## Paso 5b — Android (APK)
+
+1. Copia `capacitor.config.json` (appId, `webDir: www`, **`server.androidScheme: 'http'`**, CapacitorHttp sin
+   parchear fetch, SystemBars) y ejecuta `node scripts/build-android.mjs && npx cap add android`. Después copia
+   encima los archivos de `templates/android/` (`build.gradle` lee la versión de package.json y nombra el APK
+   `Pulse-X.Y.Z-debug.apk`; el manifest con `allowBackup=false` y `usesCleartextTraffic`; fondo oscuro sin
+   destello blanco). Los comentarios XML no pueden llevar `--`.
+2. Entorno: JDK 21 (`JAVA_HOME`) y SDK de Android (`ANDROID_HOME`: cmdline-tools, platform-tools,
+   platforms;android-36, build-tools;36.0.0, emulator y una imagen x86_64). Solo para el usuario, sin admin.
+3. `npm run android:apk`, `adb install -r dist/Pulse-*-debug.apk` y `npm run test:e2e:android`
+   (`tests/e2e/android.mjs` con `_android` de playwright-core): S3 falso en `0.0.0.0` (el emulador lo ve en
+   `10.0.2.2`), `pm clear`, audio silenciado e internet desactivado antes de conectar; recorre lo mismo que el e2e
+   de escritorio (subir soltando un `File`, botón atrás con `adb shell input keyevent KEYCODE_BACK`, reabrir sin
+   pedir conexión) y **cero errores de consola**. Revisa las capturas `android-*.png` frente al Figma móvil.
+4. CI: trabajo `android` en `instaladores.yml` (`setup-java` 21 temurin, `npm ci`, `npm test`,
+   `npm run android:apk` y adjuntar `dist/*.apk` o dejarlo como artefacto). El runner de Ubuntu ya trae el SDK.
 
 ## Paso 6 — Cierre
 
@@ -318,6 +360,14 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
   (y volver a cifrar si shouldReEncrypt).
 - Un TransientError devuelto por ipcMain.handle sale en consola como "Error occurred in handler" → lookupNow()
   devuelve { unavailable: true } en vez de lanzar.
+- Android: el emulador sin ventana (`-no-window`, GPU swiftshader) se cae (exit 139) al reproducir audio →
+  con ventana y la GPU por defecto (`-audio none`).
+- Android: con `androidScheme` https, el audio de un MinIO `http://` es contenido mixto y no suena → `http`.
+- Android: CapacitorHttp rechaza un HEAD que responde 404 → `stat()` con GET de `bytes=0-0` (tamaño de Content-Range).
+- Android: cada rechazo del plugin Filesystem ("no existe") sale como error en la consola aunque se capture →
+  `files.js` mira la carpeta con `readdir` antes de leer o borrar.
+- Android: CapacitorHttp añade él mismo `host` y `content-length`; si el SDK los manda, la firma falla → quitarlos.
+- `test:e2e:android` prueba el APK **instalado**: tras cambiar CSS o JS hay que recompilar e instalar.
 - Prueba contra un S3/MinIO real: script aparte en el scratchpad (no en el repo) que lee las credenciales del
   archivo que indique el usuario sin imprimirlas.
 - Prueba de los datos de internet en vivo: un script aparte (no en el repo) con WAV sin etiquetas llamados
