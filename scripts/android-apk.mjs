@@ -3,6 +3,7 @@
  * - `npm run android:apk`: debug (dist/Pulse-X.Y.Z-debug.apk), el que usa el e2e.
  * - `npm run android:release`: firmado (dist/Pulse-X.Y.Z.apk) con la keystore de PULSE_KEYSTORE,
  *   PULSE_KEYSTORE_PASSWORD, PULSE_KEY_ALIAS y PULSE_KEY_PASSWORD.
+ * - `npm run android:bundle`: App Bundle firmado con esa keystore (dist/Pulse-X.Y.Z.aab), el que pide Google Play.
  * Necesita JDK 21 (JAVA_HOME) y el SDK de Android (ANDROID_HOME).
  */
 import { spawnSync } from 'node:child_process';
@@ -13,7 +14,8 @@ import path from 'node:path';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const windows = process.platform === 'win32';
-const release = process.argv.includes('--release');
+const bundle = process.argv.includes('--bundle');
+const release = bundle || process.argv.includes('--release');
 
 function run(command, args, cwd = root) {
   const result = spawnSync(command, args, { cwd, stdio: 'inherit', shell: windows });
@@ -42,10 +44,17 @@ const android = path.join(root, 'android');
 const variant = release ? 'release' : 'debug';
 // En Windows va por la shell (cmd), que necesita las comillas si la ruta tiene espacios.
 run(windows ? `"${path.join(android, 'gradlew.bat')}"` : path.join(android, 'gradlew'),
-  [release ? 'assembleRelease' : 'assembleDebug', '--console=plain'], android);
+  [bundle ? 'bundleRelease' : release ? 'assembleRelease' : 'assembleDebug', '--console=plain'], android);
 
 const { version } = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
-const name = `Pulse-${version}${release ? '' : '-debug'}.apk`;
 await mkdir(path.join(root, 'dist'), { recursive: true });
-await copyFile(path.join(root, 'android/app/build/outputs/apk', variant, name), path.join(root, 'dist', name));
-console.log(`APK listo: dist/${name}`);
+if (bundle) {
+  // Gradle no renombra el .aab (outputFileName solo vale para APK): siempre sale como app-release.aab.
+  const name = `Pulse-${version}.aab`;
+  await copyFile(path.join(root, 'android/app/build/outputs/bundle/release/app-release.aab'), path.join(root, 'dist', name));
+  console.log(`App Bundle listo: dist/${name}`);
+} else {
+  const name = `Pulse-${version}${release ? '' : '-debug'}.apk`;
+  await copyFile(path.join(root, 'android/app/build/outputs/apk', variant, name), path.join(root, 'dist', name));
+  console.log(`APK listo: dist/${name}`);
+}
