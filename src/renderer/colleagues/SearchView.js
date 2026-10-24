@@ -80,4 +80,13 @@ export class SearchView extends Colleague {
   updateTrack(track, isFavorite) {
     this.#list.updateTrack(track, isFavorite);
   }
+
+  removeTracks(paths) {
+    this.#list.removeTracks(paths);
+    const text = this.#query.trim();
+    if (text && this.#list.tracks().length === 0) {
+      this.#hint.hidden = false;
+      this.#hint.textContent = `No hay resultados para «${text}».`;
+    }
+  }
 }

@@ -11,6 +11,8 @@ import { formatTime } from './format.js';
 export class TrackList {
   #element;
   #rows = new Map();
+  /** Pistas que muestra, en orden (para recalcular datos de la vista al quitar filas). */
+  #tracks = new Map();
   #currentPath = null;
 
   constructor({ onPlay, onToggleFavorite, label = 'Canciones' }) {
@@ -41,11 +43,13 @@ export class TrackList {
   /** @param {object[]} tracks @param {{ favorites?: Set<string>, currentPath?: string|null, playing?: boolean }} state */
   render(tracks, { favorites = new Set(), currentPath = null, playing = false } = {}) {
     this.#rows.clear();
+    this.#tracks.clear();
     this.#currentPath = null;
     const fragment = document.createDocumentFragment();
     for (const track of tracks) {
       const row = this.#createRow(track, favorites.has(track.path));
       this.#rows.set(track.path, row);
+      this.#tracks.set(track.path, track);
       fragment.append(row);
     }
     this.#element.replaceChildren(fragment);
@@ -84,7 +88,23 @@ export class TrackList {
     }
     row.replaceWith(next);
     this.#rows.set(track.path, next);
+    this.#tracks.set(track.path, track);
     if (focused) next.focus();
+  }
+
+  /** Quita las filas de esas pistas (p. ej. archivos que ya no existen). */
+  removeTracks(paths) {
+    for (const path of paths) {
+      this.#rows.get(path)?.remove();
+      this.#rows.delete(path);
+      this.#tracks.delete(path);
+      if (path === this.#currentPath) this.#currentPath = null;
+    }
+  }
+
+  /** Pistas que muestra ahora, en orden. */
+  tracks() {
+    return [...this.#tracks.values()];
   }
 
   #createRow(track, isFavorite) {

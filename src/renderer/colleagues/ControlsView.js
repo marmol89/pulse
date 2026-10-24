@@ -4,6 +4,9 @@ import { h, iconButton, favoriteButton, setFavoriteButton } from '../ui/dom.js';
 import { createCover, trackSeed } from '../ui/cover.js';
 import { createSeekBar, createTransport, createVolumeControl } from '../ui/transport.js';
 
+const EMPTY_TITLE = 'Nada sonando';
+const EMPTY_ARTIST = 'Elige una canción de tu biblioteca';
+
 /**
  * Player bar: el mini-player del diseño ampliado a todo el ancho
  * (pista + corazón · transporte + progreso · volumen + abrir Reproduciendo).
@@ -28,8 +31,8 @@ export class ControlsView extends Colleague {
       createCover({ className: 'cover--thumb', tag: 'span' }),
     );
     this.#cover.addEventListener('click', () => this.notify(EVENTS.OPEN_NOW_PLAYING));
-    this.#title = h('span', { class: 'player__title ellipsis' }, 'Nada sonando');
-    this.#artist = h('span', { class: 'player__artist ellipsis' }, 'Elige una canción de tu biblioteca');
+    this.#title = h('span', { class: 'player__title ellipsis' }, EMPTY_TITLE);
+    this.#artist = h('span', { class: 'player__artist ellipsis' }, EMPTY_ARTIST);
     this.#favorite = favoriteButton(false, { hidden: true });
     this.#favorite.addEventListener('click', () => this.notify(EVENTS.TOGGLE_FAVORITE, this.#currentPath ?? undefined));
     this.#transport = createTransport((event) => this.notify(event));
@@ -60,6 +63,21 @@ export class ControlsView extends Colleague {
     this.#artist.title = track.artist;
     this.#favorite.hidden = false;
     setFavoriteButton(this.#favorite, isFavorite);
+  }
+
+  /** Vuelve al estado inicial ("Nada sonando"), p. ej. si desaparece el archivo de la pista. */
+  clear() {
+    this.#currentPath = null;
+    this.#cover.replaceChildren(createCover({ className: 'cover--thumb', tag: 'span' }));
+    this.#cover.disabled = true;
+    this.#expand.disabled = true;
+    this.#title.textContent = EMPTY_TITLE;
+    this.#title.removeAttribute('title');
+    this.#artist.textContent = EMPTY_ARTIST;
+    this.#artist.removeAttribute('title');
+    this.#favorite.hidden = true;
+    this.#transport.setPlaying(false);
+    this.#seek.setProgress(0, 0);
   }
 
   setPlaying(playing) {

@@ -122,6 +122,15 @@ export class PlaylistView extends Colleague {
     this.#list.updateTrack(track, isFavorite);
   }
 
+  /** Quita filas y actualiza "N canciones · duración" y el estado vacío. */
+  removeTracks(paths) {
+    this.#list.removeTracks(paths);
+    const tracks = this.#list.tracks();
+    this.#stats.textContent = collectionStats(tracks);
+    this.#empty.hidden = tracks.length > 0;
+    this.#play.disabled = tracks.length === 0;
+  }
+
   setModes({ shuffle }) {
     this.#shuffle.classList.toggle('is-active', shuffle);
     this.#shuffle.setAttribute('aria-pressed', String(shuffle));
