@@ -10,6 +10,7 @@ const COVERS_FOLDER = 'caratulas/';
 const VERSION = 1;
 const PUSH_DELAY_MS = 5_000; // agrupa varios guardados seguidos en una sola subida
 const MAX_PUSH_WAIT_MS = 60_000; // aunque no paren los guardados (búsqueda en segundo plano)
+const RETRY_MS = 60_000; // si una subida falla (p. ej. un 403 pasajero del servidor), se reintenta
 
 /** Última búsqueda en internet de un registro: entre dos copias, se queda la más reciente. */
 export function lookupStamp(record) {
@@ -22,7 +23,7 @@ export function lookupStamp(record) {
  * Así otro equipo conectado al mismo bucket no tiene que releer cada archivo ni volver a buscar en internet.
  * La copia local (library.json y covers/) sigue siendo la caché para arrancar al momento y sin conexión.
  */
-export function createMetadataStore({ getStorage, getRecords, coversDir, delay = PUSH_DELAY_MS, maxWait = MAX_PUSH_WAIT_MS }) {
+export function createMetadataStore({ getStorage, getRecords, coversDir, delay = PUSH_DELAY_MS, maxWait = MAX_PUSH_WAIT_MS, retry = RETRY_MS }) {
   const uploadedCovers = new Set(); // "bucket/clave" ya presentes en el bucket
   let timer = null;
   let firstPendingAt = 0;
@@ -33,9 +34,10 @@ export function createMetadataStore({ getStorage, getRecords, coversDir, delay =
   const key = (storage, name) => `${storage.prefix}${METADATA_FOLDER}${name}`;
   const coverKey = (storage, name) => key(storage, `${COVERS_FOLDER}${name}`);
 
-  /** Avisa una sola vez de cada problema (p. ej. claves sin permiso de escritura). */
+  /** Avisa una sola vez de cada problema, con el código del servidor para poder diagnosticarlo. */
   function warn(message, error) {
-    const text = `${message}: ${describeUploadError(error)}`;
+    const code = [error?.Code ?? error?.name, error?.$metadata?.httpStatusCode].filter(Boolean).join(' ');
+    const text = `${message}: ${describeUploadError(error)}${code ? ` (${code})` : ''}`;
     if (text !== lastWarning) console.warn(`[metadatos] ${text}`);
     lastWarning = text;
   }
@@ -71,7 +73,19 @@ export function createMetadataStore({ getStorage, getRecords, coversDir, delay =
       lastWarning = '';
     } catch (error) {
       warn('no se pudieron guardar los metadatos en el bucket (siguen en este equipo)', error);
+      schedule(retry);
     }
+  }
+
+  function schedule(wait) {
+    clearTimeout(timer);
+    timer = setTimeout(flush, wait);
+  }
+
+  /** Las subidas se encadenan: nunca van dos a la vez. */
+  function flush() {
+    pushing = pushing.then(push, push);
+    return pushing;
   }
 
   return {
@@ -96,9 +110,7 @@ export function createMetadataStore({ getStorage, getRecords, coversDir, delay =
     /** Programa una subida (tras cada guardado de la biblioteca). */
     schedulePush() {
       firstPendingAt ||= Date.now();
-      clearTimeout(timer);
-      const wait = Math.max(0, Math.min(delay, firstPendingAt + maxWait - Date.now()));
-      timer = setTimeout(() => this.flush(), wait);
+      schedule(Math.max(0, Math.min(delay, firstPendingAt + maxWait - Date.now())));
     },
 
     /** ¿Hay una subida pendiente? (para no cerrar la app sin hacerla) */
@@ -106,11 +118,8 @@ export function createMetadataStore({ getStorage, getRecords, coversDir, delay =
       return timer !== null;
     },
 
-    /** Sube ya lo pendiente. Las subidas se encadenan: nunca van dos a la vez. */
-    flush() {
-      pushing = pushing.then(push, push);
-      return pushing;
-    },
+    /** Sube ya lo pendiente. */
+    flush,
 
     /** Carátula de internet por nombre: de la caché local o, si no está, del bucket (y se guarda en la caché). */
     async readCover(name) {

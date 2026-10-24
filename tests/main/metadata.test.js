@@ -90,7 +90,10 @@ describe('library/metadata', () => {
       s3.setReadOnly(false);
     }
     assert.equal(warn.mock.callCount(), 1);
-    assert.match(warn.mock.calls[0].arguments[0], /no tienen permiso para subir/);
+    assert.match(warn.mock.calls[0].arguments[0], /no tienen permiso para subir.*(AccessDenied 403)/);
+    assert.equal(metadata.hasPending(), true, 'se reintentará');
+    await metadata.flush();
+    assert.ok(s3.get('musica', 'metadatos/biblioteca.json'), 'al volver el permiso, se sube');
   });
 
   test('sin conexión no hace nada', async () => {
