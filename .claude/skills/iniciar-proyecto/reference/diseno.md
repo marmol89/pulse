@@ -44,8 +44,8 @@ con `letter-spacing` 1.2–1.5 en mayúsculas ("PARA TI", "REPRODUCIENDO DESDE")
 │  ○ Buscar    │                                               │
 │  ○ Biblioteca│                                               │
 │ ─ Tu música ─│                                               │
-│  + carpeta   │                                               │
-│  + archivos  │                                               │
+│  ☁ Conexión  │                                               │
+│  ↻ Actualizar│                                               │
 ├──────────────┴───────────────────────────────────────────────┤
 │ Player bar  (mini-player ampliado a todo el ancho)           │
 │ [portada] Título/Artista ♥ │ ⤨ ⏮ ⏯ ⏭ ↻  ──●──── 1:24/3:32 │ 🔊 ▭ │
@@ -66,20 +66,22 @@ con `letter-spacing` 1.2–1.5 en mayúsculas ("PARA TI", "REPRODUCIENDO DESDE")
   tarjeta destacada, carrusel "Escuchado recientemente" y tarjetas de género. En escritorio las
   rejillas usan `auto-fill` en vez de 3 columnas fijas.
 
-## 3. Qué significa cada elemento en un reproductor local
+## 3. Qué significa cada elemento en este reproductor (música de un bucket S3)
 
 | Elemento del diseño          | Implementación                                                        |
 |------------------------------|-----------------------------------------------------------------------|
 | Tarjeta "Mix diario"         | "Mezcla aleatoria": reproduce toda la biblioteca en shuffle           |
 | "Escuchado recientemente"    | Últimas pistas iniciadas (colega `Recents`, persistido)               |
 | Tarjetas de género           | Géneros leídos de los metadatos (`common.genre`), los 4 más frecuentes |
-| Chips Todo/Música/Podcasts/Radio | Se reinterpretan como **Todo · Álbumes · Artistas · Favoritos** (no hay podcasts ni radio en local) |
+| Chips Todo/Música/Podcasts/Radio | Se reinterpretan como **Todo · Álbumes · Artistas · Favoritos** (no hay podcasts ni radio) |
 | Corazón ♥                    | Favoritos (colega `Favorites`, persistido)                            |
 | "Altavoz de la sala"         | Selector de dispositivo de salida (`HTMLMediaElement.setSinkId`)      |
 | Tarjeta "Letra"              | Letra embebida en los metadatos o, si falta, de LRCLIB; si no hay, se oculta |
 | Portadas de colores          | Carátula incrustada o, si falta, la de iTunes; si tampoco hay, se genera con uno de los 4 gradientes elegido por hash del álbum/título, con las formas decorativas del diseño (círculos/triángulo al 25 % de opacidad) |
 | (nuevo) Tarjeta "Información" | En Reproduciendo, con el estilo de la de Letra: álbum, artista del álbum, año, género, pista, duración y origen de los datos, más "Buscar en internet" |
 | (nuevo) "Datos de internet"  | Interruptor en la sidebar (sección "Tu música"), píldora con `--grad-accent` cuando está activo |
+| (nuevo) "Conexión S3"        | En la sidebar (icono nube) con "bucket · host" o "Sin conectar"; abre un `<dialog>` con `--color-surface`, radio de tarjeta y botón principal con `--grad-accent` |
+| (nuevo) "Actualizar biblioteca" | En la sidebar (icono refrescar) y en la bienvenida sin música, junto a "Conectar mi bucket" |
 | Compartir, ⋯, avatar/Perfil  | Fuera de alcance en v1: no se renderizan                              |
 
 ## 4. Iconos
