@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { collectAudioFiles, readTrackRecords, toTrack } from './tracks.js';
+import { isMissing } from './availability.js';
 
 /** Las rutas llegan del renderer: solo se aceptan rutas absolutas. */
 export function assertAbsolutePaths(paths) {
@@ -8,14 +9,20 @@ export function assertAbsolutePaths(paths) {
   }
 }
 
-/** Importa archivos y carpetas a la biblioteca. Devuelve solo las pistas nuevas. */
+/** Importa archivos y carpetas a la biblioteca. Devuelve solo las pistas nuevas o recuperadas. */
 export async function importPaths(store, paths) {
   assertAbsolutePaths(paths);
-  const files = (await collectAudioFiles(paths)).filter((file) => !store.has(file));
-  const records = await readTrackRecords(files);
-  if (records.length > 0) {
-    store.add(records);
+  const files = await collectAudioFiles(paths);
+  // Las que se dieron por desaparecidas y vuelven a estar se recuperan con todos sus datos.
+  const returning = files
+    .map((file) => store.get(file))
+    .filter((record) => record && isMissing(record))
+    .map(({ missingSince, ...record }) => record);
+  const fresh = await readTrackRecords(files.filter((file) => !store.has(file)));
+  const changed = [...returning, ...fresh];
+  if (changed.length > 0) {
+    store.add(changed);
     await store.save();
   }
-  return records.map(toTrack);
+  return changed.map(toTrack);
 }

@@ -57,6 +57,7 @@ describe('online/enricher', () => {
     assert.equal(needsInfo(complete), false);
     assert.equal(needsInfo({ ...complete, titleFromFile: true }), true);
     assert.equal(needsInfo(record({ online: { checkedAt: 5 } })), false);
+    assert.equal(needsInfo(record({ missingSince: 5 })), false, 'su archivo ya no existe');
   });
 
   test('rellena álbum, año, género, pista y carátula sin pisar las etiquetas', async () => {

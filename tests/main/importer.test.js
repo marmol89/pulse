@@ -39,6 +39,18 @@ describe('library/importer', () => {
     assert.deepEqual(await importPaths(store, [path.join(dir, 'musica')]), []);
   });
 
+  test('volver a importar una pista dada por desaparecida la recupera con sus datos', async () => {
+    const store = createLibraryStore(path.join(dir, 'library.json'));
+    await store.load();
+    const file = path.join(dir, 'musica', 'a.wav');
+    store.add([{ ...store.get(file), album: 'De internet', missingSince: 5 }]);
+
+    const tracks = await importPaths(store, [path.join(dir, 'musica')]);
+
+    assert.deepEqual(tracks.map((t) => [t.title, t.album]), [['A', 'De internet']]);
+    assert.equal('missingSince' in store.get(file), false);
+  });
+
   test('rechaza rutas relativas o que no son texto', async () => {
     assert.throws(() => assertAbsolutePaths(['relativa/a.mp3']), TypeError);
     assert.throws(() => assertAbsolutePaths('no-es-lista'), TypeError);
