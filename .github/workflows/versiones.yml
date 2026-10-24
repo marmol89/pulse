@@ -33,3 +33,5 @@ jobs:
     uses: ./.github/workflows/instaladores.yml
     with:
       etiqueta: ${{ needs.release-please.outputs.etiqueta }}
+    # Sin esto, el workflow llamado no ve los secretos (keystore, Google Play) y sale el APK debug.
+    secrets: inherit
