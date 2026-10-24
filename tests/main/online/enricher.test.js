@@ -77,8 +77,8 @@ describe('online/enricher', () => {
       { title: updated.title, artist: updated.artist, album: updated.album, albumArtist: updated.albumArtist, genre: updated.genre, year: updated.year, trackNo: updated.trackNo, trackCount: updated.trackCount },
       { title: 'Despacito', artist: 'Luis Fonsi', album: 'VIDA', albumArtist: 'Luis Fonsi', genre: 'Pop en español', year: 2017, trackNo: 9, trackCount: 15 },
     );
-    assert.deepEqual(new Uint8Array(await readFile(updated.coverFile)), JPEG);
-    assert.equal(path.dirname(updated.coverFile), coversDir);
+    assert.deepEqual(new Uint8Array(await readFile(path.join(coversDir, updated.coverName))), JPEG);
+    assert.match(updated.coverName, /^[0-9a-f]{40}\.jpg$/);
     assert.deepEqual(updated.online, { checkedAt: 1000, version: 2, status: 'found', source: 'iTunes', url: itunesResult().trackViewUrl });
     assert.equal(needsInfo(updated), false);
   });
@@ -109,7 +109,7 @@ describe('online/enricher', () => {
     assert.equal(calls(ITUNES), 1);
     assert.equal(calls(DEEZER), 1, 'una sola búsqueda en Deezer para las dos lecturas');
     assert.deepEqual([updated.title, updated.artist, updated.album, updated.online.source], ['Tussi', 'Arcangel', 'Tussi', 'Deezer']);
-    assert.deepEqual(new Uint8Array(await readFile(updated.coverFile)), JPEG);
+    assert.deepEqual(new Uint8Array(await readFile(path.join(coversDir, updated.coverName))), JPEG);
     assert.equal(updated.lyrics, 'Letra de Tussi');
     const lyricsQuery = new URL(fetch.requests.find((request) => request.url.startsWith(LRCLIB)).url).searchParams;
     assert.deepEqual([lyricsQuery.get('track_name'), lyricsQuery.get('artist_name')], ['Tussi', 'Arcangel']);
@@ -156,14 +156,14 @@ describe('online/enricher', () => {
     const { enricher, calls } = setup();
     const { record: updated } = await enricher.enrich(record({ hasCover: true }));
     assert.equal(calls(ARTWORK), 0);
-    assert.equal(updated.coverFile, null);
+    assert.equal(updated.coverName, null);
   });
 
   test('las pistas de un mismo álbum comparten la carátula descargada', async () => {
     const { enricher, calls } = setup({}, path.join(coversDir, 'album'));
     const first = await enricher.enrich(record({ path: '/m/a.mp3' }));
     const second = await enricher.enrich(record({ path: '/m/b.mp3' }));
-    assert.equal(first.record.coverFile, second.record.coverFile);
+    assert.equal(first.record.coverName, second.record.coverName);
     assert.equal(calls(ARTWORK), 1);
   });
 

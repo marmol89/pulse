@@ -3,11 +3,17 @@ import path from 'node:path';
 
 const VERSION = 1;
 
+/** Las carátulas de internet se guardaban con su ruta en este equipo; ahora, por nombre. */
+function migrate({ coverFile, ...record }) {
+  return coverFile && !record.coverName ? { ...record, coverName: path.basename(coverFile) } : record;
+}
+
 /**
  * Biblioteca persistida en un JSON (en userData). También sirve como lista de
- * rutas permitidas para el protocolo media://.
+ * rutas permitidas para el protocolo media://. `onSave` se llama tras cada guardado
+ * (lo usa la copia en metadatos/ del bucket).
  */
-export function createLibraryStore(file) {
+export function createLibraryStore(file, { onSave = () => {} } = {}) {
   const records = new Map();
   let saving = Promise.resolve();
 
@@ -16,13 +22,14 @@ export function createLibraryStore(file) {
     const temporary = `${file}.tmp`;
     await writeFile(temporary, JSON.stringify({ version: VERSION, tracks: [...records.values()] }));
     await rename(temporary, file); // escritura atómica: nunca queda un JSON a medias
+    onSave();
   }
 
   return {
     async load() {
       try {
         const data = JSON.parse(await readFile(file, 'utf8'));
-        for (const record of data.tracks ?? []) if (record?.path) records.set(record.path, record);
+        for (const record of data.tracks ?? []) if (record?.path) records.set(record.path, migrate(record));
       } catch (error) {
         if (error.code !== 'ENOENT') console.warn('[library] no se pudo leer la biblioteca, se empieza vacía', error);
       }

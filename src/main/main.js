@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Menu, net, safeStorage } from 'electron';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { registerMediaScheme, handleMediaProtocol } from './protocol/media.js';
@@ -39,7 +40,8 @@ async function start() {
   const http = createHttp((url, init) => net.fetch(url, init), {
     userAgent: `Pulse/${app.getVersion()} (reproductor de música de escritorio)`,
   });
-  const enricher = createEnricher({ http, coversDir: path.join(userData, 'covers') });
+  const coversDir = path.join(userData, 'covers');
+  const enricher = createEnricher({ http, coversDir });
   const queue = createEnrichmentQueue({ store, enricher, onUpdated: (tracks) => broadcast('library:tracks-updated', tracks) });
 
   // La música vive en un bucket S3. La clave secreta se cifra con el almacén seguro del sistema.
@@ -66,7 +68,11 @@ async function start() {
 
   handleMediaProtocol({
     isAllowed: (id) => store.has(id),
-    readCover: (id) => readRecordCover(store.get(id), (record) => readRemoteCover(s3.storage(), record)),
+    readCover: (id) =>
+      readRecordCover(store.get(id), {
+        readEmbedded: (record) => readRemoteCover(s3.storage(), record),
+        readCover: (name) => readFile(path.join(coversDir, name)),
+      }),
     openTrack: (id, range) => {
       const storage = s3.storage();
       const key = store.get(id)?.key;

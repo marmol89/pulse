@@ -21,7 +21,7 @@ const outdated = (version) => (version ?? 1) < LOOKUP_VERSION;
 export function needsInfo(record) {
   const { online } = record;
   if (online?.checkedAt && !(online.status === 'not-found' && outdated(online.version))) return false;
-  const hasCover = record.hasCover || Boolean(record.coverFile);
+  const hasCover = record.hasCover || Boolean(record.coverName);
   return !hasCover || !record.album || !record.genre || !record.year || isTitleFromFile(record);
 }
 
@@ -59,8 +59,8 @@ export function createEnricher({ http, coversDir, now = Date.now }) {
     match ??= pickBestOf(queries, await orFallback(() => searchDeezer(http, queries[0]), []));
     const online = { ...record.online, checkedAt: now(), version: LOOKUP_VERSION };
     if (!match) return { ...record, online: { ...online, status: 'not-found', source: null } };
-    const coverFile = record.hasCover ? (record.coverFile ?? null) : ((await saveCover(match.artworkUrl)) ?? record.coverFile ?? null);
-    return { ...merge(record, match), coverFile, online: { ...online, status: 'found', source: match.source, url: match.url } };
+    const coverName = record.hasCover ? (record.coverName ?? null) : ((await saveCover(match.artworkUrl)) ?? record.coverName ?? null);
+    return { ...merge(record, match), coverName, online: { ...online, status: 'found', source: match.source, url: match.url } };
   }
 
   // Con los datos ya completados, o con las lecturas del nombre del archivo si no se encontraron.
@@ -74,16 +74,20 @@ export function createEnricher({ http, coversDir, now = Date.now }) {
     return { ...record, lyrics: text ?? '', online };
   }
 
-  /** Guarda la carátula en la caché. Las pistas de un mismo álbum comparten archivo. */
+  /**
+   * Guarda la carátula en la caché y devuelve su nombre (el mismo en metadatos/caratulas/ del bucket).
+   * Las pistas de un mismo álbum comparten archivo.
+   */
   async function saveCover(url) {
     if (!url) return null;
-    const file = path.join(coversDir, `${createHash('sha1').update(url).digest('hex')}.jpg`);
-    if (await exists(file)) return file;
+    const name = `${createHash('sha1').update(url).digest('hex')}.jpg`;
+    const file = path.join(coversDir, name);
+    if (await exists(file)) return name;
     const image = await orFallback(() => http.image(url, MAX_COVER_BYTES), null);
     if (!image) return null;
     await mkdir(coversDir, { recursive: true });
     await writeFile(file, image.data);
-    return file;
+    return name;
   }
 }
 

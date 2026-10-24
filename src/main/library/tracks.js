@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { selectCover } from 'music-metadata';
 import { mediaUrl } from '../protocol/urls.js';
@@ -61,39 +60,37 @@ export function pictureFrom(common) {
 }
 
 /** Registro persistido → pista para el renderer (con URLs media://). */
-export function toTrack({ hasCover, coverFile, titleFromFile, key, etag, size, ...record }) {
+export function toTrack({ hasCover, coverName, titleFromFile, key, etag, size, ...record }) {
   return {
     ...record,
     trackCount: record.trackCount ?? 0,
     online: record.online ?? null,
     url: mediaUrl('track', record.path),
-    cover: coverUrl(record, hasCover, coverFile),
+    cover: coverUrl(record, hasCover, coverName),
   };
 }
 
-function coverUrl(record, hasCover, coverFile) {
+function coverUrl(record, hasCover, coverName) {
   if (hasCover) return mediaUrl('cover', record.path);
   // La de internet lleva versión: si se vuelve a buscar, la vista no usa la de la caché.
-  if (coverFile) return `${mediaUrl('cover', record.path)}?v=${record.online?.checkedAt ?? 0}`;
+  if (coverName) return `${mediaUrl('cover', record.path)}?v=${record.online?.checkedAt ?? 0}`;
   return null;
 }
 
 /**
- * Carátula de un registro: la incrustada (con `readEmbedded`) o, si no tiene, la descargada de internet.
+ * Carátula de un registro: la incrustada (con `readEmbedded`) o, si no tiene, la descargada de internet
+ * (`readCover(coverName)` → Buffer o null: de la caché local o de metadatos/caratulas/ en el bucket).
  */
-export async function readRecordCover(record, readEmbedded) {
+export async function readRecordCover(record, { readEmbedded, readCover }) {
   if (!record) return null;
   if (record.hasCover) {
     const embedded = await readEmbedded(record).catch(() => null);
     if (embedded) return embedded;
   }
-  if (!record.coverFile) return null;
-  try {
-    const data = await readFile(record.coverFile);
-    return { format: data[0] === 0x89 && data[1] === 0x50 ? 'image/png' : 'image/jpeg', data };
-  } catch {
-    return null; // se borró la caché: se usará la portada generada
-  }
+  if (!record.coverName) return null;
+  const data = await readCover(record.coverName).catch(() => null);
+  if (!data?.length) return null; // sin caché ni copia en el bucket: se usará la portada generada
+  return { format: data[0] === 0x89 && data[1] === 0x50 ? 'image/png' : 'image/jpeg', data };
 }
 
 function clean(value) {
