@@ -74,7 +74,7 @@ export function applyTrackUpdates(ctx, tracks) {
   refreshHome(ctx);
 }
 
-/** Colecciones que combinan varios modelos; el resto las resuelve Catalog. */
+/** Colecciones que combinan varios modelos (también las listas del usuario); el resto las resuelve Catalog. */
 export function resolveCollection(ctx, source) {
   switch (source.kind) {
     case 'queue':
@@ -85,6 +85,10 @@ export function resolveCollection(ctx, source) {
       return { source, title: 'Escuchado recientemente', byline: 'Creado por ti', tracks: ctx.catalog.byPaths(ctx.recents.list()) };
     case 'mix':
       return { source, title: 'Mix diario', byline: 'Para ti', tracks: ctx.catalog.all() };
+    case 'list': {
+      const list = ctx.lists.get(source.id);
+      return { source, title: list?.name ?? 'Lista eliminada', byline: 'Tu lista · en tu bucket', tracks: list ? ctx.catalog.byPaths(list.tracks) : [] };
+    }
     default:
       return ctx.catalog.collection(source);
   }
@@ -102,10 +106,16 @@ export function renderCollection(ctx, source) {
   ctx.playlistView.render(resolveCollection(ctx, source), trackListState(ctx));
 }
 
+/** Elemento de la sidebar que se resalta con cada colección. */
+function navFor(source) {
+  if (source.kind === 'library') return 'library';
+  return source.kind === 'list' ? `list:${source.id}` : null;
+}
+
 export function openCollection(ctx, source) {
   renderCollection(ctx, source);
   ctx.router.closeOverlay();
-  ctx.router.show('collection', source.kind === 'library' ? 'library' : null);
+  ctx.router.show('collection', navFor(source));
 }
 
 /** Inicio y, si está abierta, la colección visible reflejan la biblioteca actual. */
@@ -123,8 +133,23 @@ export function refreshHome(ctx) {
     albums: ctx.catalog.albums(),
     artists: ctx.catalog.artists(),
     favoriteTracks: ctx.catalog.byPaths(ctx.favorites.list()),
+    lists: ctx.lists.all().map((list) => {
+      const tracks = ctx.catalog.byPaths(list.tracks);
+      return { id: list.id, name: list.name, count: tracks.length, sample: tracks.find((track) => track.cover) ?? tracks[0] ?? null };
+    }),
     ...trackListState(ctx),
   });
+}
+
+/** Listas nuevas (propias o de otro equipo): modelo, sidebar, Inicio y la lista abierta, si es una. */
+export function applyLists(ctx, lists) {
+  ctx.lists.set(lists);
+  ctx.router.setLists(ctx.lists.all());
+  refreshHome(ctx);
+  const source = ctx.playlistView.source();
+  if (source?.kind !== 'list') return;
+  if (ctx.lists.get(source.id)) renderCollection(ctx, source);
+  else if (ctx.router.current() === 'collection') ctx.router.back(); // la han eliminado
 }
 
 export function showModes(ctx) {
