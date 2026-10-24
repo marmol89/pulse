@@ -112,7 +112,7 @@ export class Router extends Colleague {
     this.#onlineSwitch.addEventListener('change', () => this.notify(EVENTS.SET_ONLINE_LOOKUP, this.#onlineSwitch.checked));
     const onlineRow = h(
       'label',
-      { class: 'switch-row', title: 'Envía el título y el artista de tus canciones a iTunes y LRCLIB' },
+      { class: 'switch-row', title: 'Envía el título y el artista de tus canciones a iTunes, Deezer y LRCLIB' },
       h('span', { class: 'switch-row__text' }, h('span', { class: 'switch-row__title' }, 'Datos de internet'), h('span', { class: 'switch-row__hint' }, 'Carátulas, álbum, año y letra')),
       this.#onlineSwitch,
     );

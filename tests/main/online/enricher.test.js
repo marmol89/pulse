@@ -5,11 +5,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createEnricher, needsInfo } from '../../../src/main/online/enricher.js';
 import { createHttp, TransientError } from '../../../src/main/online/http.js';
-import { fakeFetch, jsonResponse, imageResponse, itunesResult, lrclibResult } from '../../helpers/fakeFetch.js';
+import { fakeFetch, jsonResponse, imageResponse, itunesResult, lrclibResult, deezerResult } from '../../helpers/fakeFetch.js';
 
 const ITUNES = 'https://itunes.apple.com/search';
 const LRCLIB = 'https://lrclib.net/api/search';
+const DEEZER = 'https://api.deezer.com/search';
 const ARTWORK = 'https://is1-ssl.mzstatic.com/';
+const DEEZER_COVER = 'https://cdn-images.dzcdn.net/';
 const JPEG = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
 
 let coversDir;
@@ -59,6 +61,12 @@ describe('online/enricher', () => {
     assert.equal(needsInfo(record({ online: { checkedAt: 5 } })), false);
   });
 
+  test('needsInfo(): lo no encontrado con la búsqueda anterior (sin Deezer) se busca otra vez, una sola', () => {
+    assert.equal(needsInfo(record({ online: { checkedAt: 5, status: 'not-found' } })), true);
+    assert.equal(needsInfo(record({ online: { checkedAt: 5, status: 'not-found', version: 2 } })), false);
+    assert.equal(needsInfo(record({ online: { checkedAt: 5, status: 'found' } })), false);
+  });
+
   test('rellena álbum, año, género, pista y carátula sin pisar las etiquetas', async () => {
     const { enricher } = setup();
 
@@ -71,7 +79,7 @@ describe('online/enricher', () => {
     );
     assert.deepEqual(new Uint8Array(await readFile(updated.coverFile)), JPEG);
     assert.equal(path.dirname(updated.coverFile), coversDir);
-    assert.deepEqual(updated.online, { checkedAt: 1000, status: 'found', source: 'iTunes', url: itunesResult().trackViewUrl });
+    assert.deepEqual(updated.online, { checkedAt: 1000, version: 2, status: 'found', source: 'iTunes', url: itunesResult().trackViewUrl });
     assert.equal(needsInfo(updated), false);
   });
 
@@ -85,6 +93,53 @@ describe('online/enricher', () => {
     assert.equal(updated.title, 'Despacito');
     assert.equal(updated.artist, 'Luis Fonsi & Daddy Yankee');
     assert.equal(updated.titleFromFile, false);
+  });
+
+  test('si iTunes no la tiene, usa Deezer; acepta nombres "Título - Artista" y busca la letra con lo encontrado', async () => {
+    const { enricher, calls, fetch } = setup({
+      [ITUNES]: { results: [itunesResult({ trackName: 'Tussi', artistName: 'Maik G', trackTimeMillis: 159000 })] },
+      [DEEZER]: { data: [deezerResult()] },
+      [DEEZER_COVER]: () => imageResponse(JPEG),
+      [LRCLIB]: [lrclibResult({ trackName: 'Tussi', artistName: 'Arcángel', duration: 192.59, plainLyrics: 'Letra de Tussi' })],
+    });
+    const untagged = record({ path: '/m/Tussi - Arcángel.mp3', title: 'Tussi - Arcángel', titleFromFile: true, artist: 'Artista desconocido', duration: 192.65 });
+
+    const { record: updated } = await enricher.enrich(untagged, { lyrics: true });
+
+    assert.equal(calls(ITUNES), 1);
+    assert.equal(calls(DEEZER), 1, 'una sola búsqueda en Deezer para las dos lecturas');
+    assert.deepEqual([updated.title, updated.artist, updated.album, updated.online.source], ['Tussi', 'Arcangel', 'Tussi', 'Deezer']);
+    assert.deepEqual(new Uint8Array(await readFile(updated.coverFile)), JPEG);
+    assert.equal(updated.lyrics, 'Letra de Tussi');
+    const lyricsQuery = new URL(fetch.requests.find((request) => request.url.startsWith(LRCLIB)).url).searchParams;
+    assert.deepEqual([lyricsQuery.get('track_name'), lyricsQuery.get('artist_name')], ['Tussi', 'Arcangel']);
+  });
+
+  test('sin datos en ningún servicio, la letra se busca con las lecturas del nombre del archivo', async () => {
+    const { enricher, fetch } = setup({
+      [ITUNES]: { results: [] },
+      [LRCLIB]: (url) => (new URL(url).searchParams.get('track_name') === 'Tussi' ? [lrclibResult({ trackName: 'Tussi', artistName: 'Arcángel', duration: 192.59, plainLyrics: 'Letra de Tussi' })] : []),
+    });
+    const untagged = record({ path: '/m/Tussi - Arcángel.mp3', title: 'Tussi - Arcángel', titleFromFile: true, artist: 'Artista desconocido', duration: 192.65 });
+
+    const { record: updated } = await enricher.enrich(untagged, { lyrics: true });
+
+    assert.equal(updated.online.status, 'not-found');
+    assert.equal(updated.lyrics, 'Letra de Tussi');
+    assert.deepEqual(
+      fetch.requests.filter((request) => request.url.startsWith(LRCLIB)).map((request) => new URL(request.url).searchParams.get('track_name')),
+      ['Arcángel', 'Tussi'],
+    );
+  });
+
+  test('una letra no encontrada con la búsqueda anterior se busca otra vez', async () => {
+    const { enricher, calls } = setup({ [LRCLIB]: [] });
+    const old = { ...complete, online: { checkedAt: 5, status: 'found', lyricsCheckedAt: 5 } };
+    const { record: updated } = await enricher.enrich(old, { lyrics: true });
+    const again = await enricher.enrich(updated, { lyrics: true });
+    assert.equal(updated.online.lyricsVersion, 2);
+    assert.equal(again.changed, false);
+    assert.equal(calls(LRCLIB), 1);
   });
 
   test('si el archivo ya tiene carátula no descarga otra', async () => {
@@ -108,7 +163,7 @@ describe('online/enricher', () => {
     const { record: updated } = await enricher.enrich(record());
     const again = await enricher.enrich(updated);
 
-    assert.deepEqual(updated.online, { checkedAt: 1000, status: 'not-found', source: null });
+    assert.deepEqual(updated.online, { checkedAt: 1000, version: 2, status: 'not-found', source: null });
     assert.equal(updated.album, '');
     assert.equal(again.changed, false);
     assert.equal(calls(ITUNES), 1);
