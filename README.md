@@ -40,7 +40,8 @@ Por dentro está organizado con el patrón **Mediator**.
   las etiquetas de tus archivos y prefiere no encontrar nada antes que poner datos equivocados (rechaza remixes,
   directos, otros artistas o duraciones que no encajan).
 - ❤️ Favoritos, escuchado recientemente, Mix diario, álbumes y artistas, aleatorio y repetir, búsqueda sin tildes,
-  elección de la salida de audio y controles multimedia del sistema.
+  elección de la salida de audio y controles multimedia del sistema (en Android, también en la notificación y la
+  pantalla de bloqueo, y sigue sonando con la pantalla apagada).
 - 🔐 **Seguridad**: la clave secreta se guarda cifrada con el almacén del sistema (DPAPI en Windows, llavero en
   Linux, Keystore en Android) y en el escritorio nunca vuelve a la ventana. La ventana se ejecuta aislada (`contextIsolation`, `sandbox`, CSP estricta).
 
@@ -178,7 +179,7 @@ src/
 │   └── online/           iTunes, Deezer, LRCLIB, emparejado y cola en segundo plano
 ├── main/                 Electron (fuera del mediador): ventana, archivos, media:// con rangos, ipc/
 ├── preload/preload.cjs   window.api (contextBridge)
-├── android/              window.api de Android: red nativa, Keystore, carátulas, URLs firmadas
+├── android/              window.api de Android: red nativa, Keystore, carátulas, URLs firmadas, Media Session
 └── renderer/
     ├── app.js            raíz de composición
     ├── core/             Mediator y Colleague

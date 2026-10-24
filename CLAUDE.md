@@ -43,7 +43,9 @@ src/android/     window.api de Android sobre el mismo backend (esbuild → www/a
   main.js        punto de entrada con los plugins reales (Filesystem, SecureStorage, App, CapacitorHttp)
   nativeHttp.js  red nativa sin CORS (y requestHandler del SDK de S3); files.js, secret.js (Keystore),
                  covers.js (carátulas en el móvil), picker.js (elegir archivos), backButton.js
+  mediaSession.js navigator.mediaSession (y MediaMetadata) sobre el plugin nativo PulsePlayback
 android/         proyecto Gradle de Capacitor (la versión se lee de package.json); www/ se genera y no va al repo
+  app/src/main/java/…/  PlaybackService (servicio en primer plano + MediaSession) y PlaybackPlugin
 src/renderer/
   app.js         raíz de composición: crea colegas → PlayerMediator → app-ready
   core/          Mediator (solo enruta) y Colleague
@@ -108,7 +110,12 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   build-tools, emulador). El emulador, **con ventana y la GPU por defecto**
   (`emulator -avd pulse -no-boot-anim -audio none -no-snapshot-save`): sin ventana se cae al reproducir audio.
   El e2e levanta el S3 falso en `0.0.0.0` y el emulador lo ve en `10.0.2.2`.
-- Sin probar aún: reproducir con la app en segundo plano o la pantalla apagada. El APK es debug (sin firma de release).
+- **Segundo plano**: sin un servicio en primer plano, Android silencia el audio del WebView al salir de la app
+  ("AudioHardening" en logcat). `PlaybackService` (`mediaPlayback`) vive mientras hay pista: notificación con
+  controles, MediaSession (pantalla de bloqueo, auriculares) y wake lock solo mientras suena. El WebView no trae la
+  Media Session API: `src/android/mediaSession.js` la imita y `MediaSessionBridge` no sabe de Android. Probado con la
+  pantalla apagada y Doze forzado; el e2e comprueba que sigue sonando con la app en segundo plano.
+- El APK es debug (sin firma de release).
 
 ## Datos de internet (carátula, álbum, año, género, pista y letra)
 
