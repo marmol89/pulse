@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { registerMediaScheme, handleMediaProtocol } from './protocol/media.js';
 import { createLibraryStore } from './library/store.js';
 import { readRecordCover } from './library/tracks.js';
+import { createAvailabilityMonitor } from './library/availability.js';
 import { createHttp } from './online/http.js';
 import { createEnricher } from './online/enricher.js';
 import { createEnrichmentQueue } from './online/queue.js';
@@ -36,12 +37,16 @@ async function start() {
   const enricher = createEnricher({ http, coversDir: path.join(userData, 'covers') });
   const queue = createEnrichmentQueue({ store, enricher, onUpdated: (tracks) => broadcast('library:tracks-updated', tracks) });
 
+  // Archivos borrados o movidos fuera de la app: se ocultan al arrancar y al volver a la ventana.
+  const monitor = createAvailabilityMonitor({ store, onChange: (change) => broadcast('library:changed', change) });
+
   handleMediaProtocol({ isAllowed: (filePath) => store.has(filePath), readCover: (filePath) => readRecordCover(store.get(filePath)) });
-  registerLibraryIpc(store, { onImported: () => queue.wake() });
+  registerLibraryIpc(store, { onImported: () => queue.wake(), verifyTrack: (filePath) => monitor.verify(filePath) });
   registerMetadataIpc({ store, queue });
   if (app.isPackaged) Menu.setApplicationMenu(null);
 
-  createWindow();
+  createWindow().webContents.once('did-finish-load', () => monitor.checkSoon());
+  app.on('browser-window-focus', () => monitor.checkSoon());
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -70,6 +75,7 @@ function createWindow() {
   win.webContents.on('will-navigate', (event) => event.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.loadFile(path.join(__dirname, '../renderer/index.html'));
+  return win;
 }
 
 function broadcast(channel, payload) {

@@ -8,6 +8,14 @@ contextBridge.exposeInMainWorld('api', {
   importPaths: (paths) => ipcRenderer.invoke('library:import', paths),
   // Ruta real de un archivo arrastrado a la ventana (File.path ya no existe en Electron).
   pathForFile: (file) => webUtils.getPathForFile(file),
+  /** ¿Sigue el archivo de la pista en el disco? */
+  verifyTrack: (path) => ipcRenderer.invoke('library:verify', path),
+  /** Archivos que desaparecen o vuelven con la app abierta. Devuelve la función para dejar de escuchar. */
+  onLibraryChanged: (callback) => {
+    const listener = (_event, change) => callback(change);
+    ipcRenderer.on('library:changed', listener);
+    return () => ipcRenderer.removeListener('library:changed', listener);
+  },
 
   // Datos de internet (carátulas, álbum, año, género, letra)
   lookupTrack: (path, options) => ipcRenderer.invoke('metadata:lookup', path, options),
