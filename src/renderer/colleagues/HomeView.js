@@ -8,6 +8,7 @@ import { TrackList } from '../ui/trackList.js';
 
 const FILTERS = [
   ['all', 'Todo'],
+  ['lists', 'Listas'],
   ['albums', 'Álbumes'],
   ['artists', 'Artistas'],
   ['favorites', 'Favoritos'],
@@ -15,9 +16,10 @@ const FILTERS = [
 const RECENTS_LIMIT = 8;
 
 /**
- * Pantalla 01 · Inicio: saludo, chips, "Mix diario", "Escuchado recientemente"
+ * Pantalla 01 · Inicio: saludo, chips, "Mix diario", "Tus listas", "Escuchado recientemente"
  * y géneros. El filtro de los chips es estado de la vista; los datos llegan en render().
- * Emite: play-mix, track-selected, open-collection, toggle-favorite, open-connection, sync-library.
+ * Emite: play-mix, track-selected, open-collection, toggle-favorite, open-connection, sync-library,
+ * new-list, choose-list.
  */
 export class HomeView extends Colleague {
   #greeting;
@@ -42,11 +44,15 @@ export class HomeView extends Colleague {
       label: 'Tus favoritos',
       onPlay: (path) => this.notify(EVENTS.TRACK_SELECTED, { source: { kind: 'favorites' }, path }),
       onToggleFavorite: (path) => this.notify(EVENTS.TOGGLE_FAVORITE, path),
+      onAddToList: (path) => this.notify(EVENTS.CHOOSE_LIST, path),
     });
     root.replaceChildren(h('header', { class: 'home-header' }, this.#greeting), chips, this.#content);
   }
 
-  /** @param {{ isEmpty, recents, genres, albums, artists, favoriteTracks, favorites, currentPath, playing }} data */
+  /**
+   * @param {{ isEmpty, recents, genres, albums, artists, favoriteTracks, lists, favorites, currentPath, playing }} data
+   *   `lists`: [{ id, name, count, sample }] (sample: una pista para la portada, o null)
+   */
   render(data) {
     this.#data = data;
     this.#greeting.textContent = greeting();
@@ -87,7 +93,8 @@ export class HomeView extends Colleague {
       return;
     }
     const sections = {
-      all: () => [this.#mixCard(), this.#recentsSection(data.recents), this.#genreCards(data.genres)],
+      all: () => [this.#mixCard(), this.#listsSection(data.lists), this.#recentsSection(data.recents), this.#genreCards(data.genres)],
+      lists: () => [h('div', { class: 'card-grid' }, data.lists.map((list) => this.#listCard(list)), this.#newListCard())],
       albums: () => [this.#albumGrid(data.albums)],
       artists: () => [this.#artistGrid(data.artists)],
       favorites: () => [this.#favoritesList(data)],
@@ -130,6 +137,36 @@ export class HomeView extends Colleague {
       h('header', { class: 'section__header' }, h('h2', { class: 'section__title' }, 'Escuchado recientemente'), seeAll),
       h('div', { class: 'card-grid' }, cards),
     );
+  }
+
+  #listsSection(lists) {
+    const seeAll = h('button', { type: 'button', class: 'link-button' }, 'Ver todas');
+    seeAll.addEventListener('click', () => this.#setFilter('lists'));
+    return h(
+      'section',
+      { class: 'section', 'aria-label': 'Tus listas' },
+      h('header', { class: 'section__header' }, h('h2', { class: 'section__title' }, 'Tus listas'), lists.length > 0 && seeAll),
+      h('div', { class: 'card-grid' }, lists.slice(0, RECENTS_LIMIT - 1).map((list) => this.#listCard(list)), this.#newListCard()),
+    );
+  }
+
+  #listCard(list) {
+    return this.#card({
+      cover: createCover({ src: list.sample?.cover ?? null, seed: list.name, className: 'cover--card', tag: 'span' }),
+      title: list.name,
+      subtitle: plural(list.count, 'canción', 'canciones'),
+      onClick: () => this.notify(EVENTS.OPEN_COLLECTION, { kind: 'list', id: list.id }),
+    });
+  }
+
+  /** Tarjeta "Nueva lista": la portada es un "+" sobre la superficie. */
+  #newListCard() {
+    return this.#card({
+      cover: h('span', { class: 'cover cover--card cover--new' }, icon('plus')),
+      title: 'Nueva lista',
+      subtitle: 'Se guarda en tu bucket',
+      onClick: () => this.notify(EVENTS.NEW_LIST),
+    });
   }
 
   #genreCards(genres) {

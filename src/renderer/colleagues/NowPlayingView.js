@@ -12,7 +12,7 @@ const DEFAULT_DEVICE_LABEL = 'Este equipo';
  * Pantalla 02 · Reproduciendo (overlay): portada grande, título, artista,
  * progreso, controles, salida de audio ("Altavoz de la sala"), cola, información y letra.
  * Emite: close-now-playing, toggle-favorite, seek, controles de transporte,
- * show-output-devices, output-device-change, open-collection (cola), lookup-track.
+ * show-output-devices, output-device-change, open-collection (cola), lookup-track, choose-list.
  */
 export class NowPlayingView extends Colleague {
   #art;
@@ -42,6 +42,8 @@ export class NowPlayingView extends Colleague {
     this.#artist = h('p', { class: 'now-playing__artist' });
     this.#favorite = favoriteButton(false);
     this.#favorite.addEventListener('click', () => this.notify(EVENTS.TOGGLE_FAVORITE, this.#currentPath ?? undefined));
+    const addToList = iconButton('plus', 'Añadir a una lista', { className: 'now-playing__add' });
+    addToList.addEventListener('click', () => this.notify(EVENTS.CHOOSE_LIST, this.#currentPath ?? undefined));
     this.#seek = createSeekBar((seconds) => this.notify(EVENTS.SEEK, seconds), { size: 'lg' });
     this.#transport = createTransport((event) => this.notify(event), { size: 'lg' });
     const queue = iconButton('queue', 'Ver la cola');
@@ -65,7 +67,7 @@ export class NowPlayingView extends Colleague {
           h(
             'div',
             { class: 'now-playing__details' },
-            h('div', { class: 'now-playing__info' }, h('div', { class: 'now-playing__text' }, this.#title, this.#artist), this.#favorite),
+            h('div', { class: 'now-playing__info' }, h('div', { class: 'now-playing__text' }, this.#title, this.#artist), addToList, this.#favorite),
             this.#seek.element,
             this.#transport.element,
             h('div', { class: 'now-playing__actions' }, this.#createDevicePicker(), queue),

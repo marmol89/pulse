@@ -6,6 +6,7 @@ import { Playlist } from './colleagues/Playlist.js';
 import { Catalog } from './colleagues/Catalog.js';
 import { Favorites } from './colleagues/Favorites.js';
 import { Recents } from './colleagues/Recents.js';
+import { Lists } from './colleagues/Lists.js';
 import { Settings } from './colleagues/Settings.js';
 import { LibraryService } from './colleagues/LibraryService.js';
 import { MediaSessionBridge } from './colleagues/MediaSessionBridge.js';
@@ -17,6 +18,7 @@ import { NowPlayingView } from './colleagues/NowPlayingView.js';
 import { ControlsView } from './colleagues/ControlsView.js';
 import { ToastView } from './colleagues/ToastView.js';
 import { ConnectionView } from './colleagues/ConnectionView.js';
+import { ListDialog } from './colleagues/ListDialog.js';
 import { KeyboardShortcuts } from './colleagues/KeyboardShortcuts.js';
 
 /** Raíz de composición: crea los colegas, los conecta con el mediator y arranca la app. */
@@ -30,6 +32,7 @@ const mediator = new PlayerMediator({
   catalog: new Catalog(),
   favorites: new Favorites(storage),
   recents: new Recents(storage),
+  lists: new Lists(),
   settings: new Settings(storage),
   library: new LibraryService(window.api),
   mediaSession: new MediaSessionBridge(),
@@ -42,6 +45,7 @@ const mediator = new PlayerMediator({
   controls: new ControlsView($('#player-bar')),
   toast: new ToastView($('#toast')),
   connection: new ConnectionView($('#connection')),
+  listDialog: new ListDialog($('#list-dialog')),
   keyboard: new KeyboardShortcuts(window),
 });
 

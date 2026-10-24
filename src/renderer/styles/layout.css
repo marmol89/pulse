@@ -391,8 +391,10 @@ svg {
     overflow: visible;
   }
 
+  /* "Tus listas" se ven en Inicio: la tab bar no tiene sitio */
   .brand,
-  .sidebar__hint {
+  .sidebar__hint,
+  .sidebar .sidebar__lists {
     display: none;
   }
 

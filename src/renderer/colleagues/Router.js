@@ -15,7 +15,9 @@ const OVERLAY_DURATION_MS = 260;
  * el overlay Reproduciendo, el estado de la conexión con el bucket y soltar canciones en la ventana.
  * En pantallas estrechas (Android) la sidebar es la tab bar de abajo y "Tu música" se abre como un
  * panel desde su pestaña (estado de UI: `is-menu-open`).
- * Emite: navigate, open-connection, upload-songs, files-dropped, sync-library, set-online-lookup.
+ * En la sidebar también están "Tus listas" (en pantallas estrechas se llega a ellas desde Inicio).
+ * Emite: navigate, open-connection, upload-songs, files-dropped, sync-library, set-online-lookup,
+ * new-list, open-collection (una lista).
  */
 export class Router extends Colleague {
   #root;
@@ -24,6 +26,8 @@ export class Router extends Colleague {
   #views;
   #overlay;
   #navButtons = new Map();
+  #listsNav;
+  #activeNav = 'home';
   #onlineSwitch;
   #connectionStatus;
   #current = 'home';
@@ -45,7 +49,7 @@ export class Router extends Colleague {
     });
   }
 
-  /** @param {'home'|'search'|'collection'} view @param {string|null} nav elemento de la sidebar a resaltar */
+  /** @param {'home'|'search'|'collection'} view @param {string|null} nav elemento de la sidebar a resaltar ('list:<id>' para una lista) */
   show(view, nav = view) {
     if (!this.#views.has(view)) return;
     this.#setMenuOpen(false);
@@ -54,6 +58,11 @@ export class Router extends Colleague {
     for (const [name, element] of this.#views) element.hidden = name !== view;
     this.#setActiveNav(nav);
     this.#views.get(view).parentElement.scrollTop = 0;
+  }
+
+  /** Vista que se ve ahora. */
+  current() {
+    return this.#current;
   }
 
   /** Desde una colección, vuelve a la vista desde la que se abrió. */
@@ -95,6 +104,19 @@ export class Router extends Colleague {
   setConnection(summary) {
     this.#connectionStatus.textContent = summary ? `${summary.bucket} · ${new URL(summary.endpoint).host}` : 'Sin conectar';
     this.#connectionStatus.classList.toggle('is-off', !summary);
+  }
+
+  /** Listas del usuario bajo "Tus listas" ({ id, name }[]). */
+  setLists(lists) {
+    for (const key of [...this.#navButtons.keys()]) if (key.startsWith('list:')) this.#navButtons.delete(key);
+    const items = lists.map((list) => {
+      const button = h('button', { type: 'button', class: 'nav__item nav__item--list', title: list.name }, icon('playlist'), h('span', { class: 'ellipsis' }, list.name));
+      button.addEventListener('click', () => this.notify(EVENTS.OPEN_COLLECTION, { kind: 'list', id: list.id }));
+      this.#navButtons.set(`list:${list.id}`, button);
+      return button;
+    });
+    this.#listsNav.replaceChildren(...items);
+    this.#setActiveNav(this.#activeNav);
   }
 
   #renderSidebar(sidebar) {
@@ -139,9 +161,14 @@ export class Router extends Colleague {
       this.#onlineSwitch,
     );
 
+    const newList = h('button', { type: 'button', class: 'nav__item' }, icon('plus'), 'Nueva lista');
+    newList.addEventListener('click', act(EVENTS.NEW_LIST));
+    this.#listsNav = h('div', { class: 'sidebar__lists-items' });
+
     sidebar.replaceChildren(
       h('div', { class: 'brand' }, h('span', { class: 'brand__logo' }, icon('pulse')), 'Pulse'),
       nav,
+      h('div', { class: 'sidebar__section sidebar__lists' }, h('h2', { class: 'sidebar__heading' }, 'Tus listas'), newList, this.#listsNav),
       h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, onlineRow),
       h('p', { class: 'sidebar__hint' }, 'También puedes arrastrar canciones o carpetas a la ventana para subirlas a tu bucket.'),
     );
@@ -154,6 +181,7 @@ export class Router extends Colleague {
   }
 
   #setActiveNav(nav) {
+    this.#activeNav = nav;
     for (const [name, button] of this.#navButtons) {
       const active = name === nav;
       button.classList.toggle('is-active', active);
@@ -188,10 +216,10 @@ export class Router extends Colleague {
     });
   }
 
-  /** Con el overlay abierto, lo de detrás no recibe foco ni clics. */
+  /** Con el overlay abierto, lo de detrás no recibe foco ni clics (salvo los avisos y los diálogos, que se abren encima). */
   #setBackgroundInert(inert) {
     for (const element of this.#root.children) {
-      if (element !== this.#overlay && !element.matches('[role="status"]')) element.inert = inert;
+      if (element !== this.#overlay && !element.matches('[role="status"], dialog')) element.inert = inert;
     }
   }
 }

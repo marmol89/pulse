@@ -48,6 +48,15 @@ const ICONS = {
   upload: { viewBox: '-12 -12 24 24', stroke: 2, body: '<path d="M0 5 V-8"/><path d="M-5 -3 L0 -8 L5 -3"/><path d="M-9 3 V8 H9 V3"/>' },
   refresh: { viewBox: '-12 -12 24 24', stroke: 2, body: '<path d="M8.5 -4 A9 9 0 1 0 9 3"/><path d="M9 -10 V-4 H3"/>' },
   pulse: { viewBox: '-12 -12 24 24', stroke: 2.2, body: '<path d="M-11 0 H-6 L-3 -7 L1 7 L4 -3 L6 0 H11"/>' },
+  // Listas de canciones
+  playlist: {
+    viewBox: '-12 -12 24 24',
+    stroke: 2,
+    body: '<path d="M-10 -7 H4"/><path d="M-10 -1 H4"/><path d="M-10 5 H-3"/><path d="M8 5 V-8 L11 -7"/><circle cx="5" cy="5" r="3"/>',
+  },
+  plus: { viewBox: '-12 -12 24 24', stroke: 2.2, body: '<path d="M0 -8 V8"/><path d="M-8 0 H8"/>' },
+  pencil: { viewBox: '-12 -12 24 24', stroke: 2, body: '<path d="M-8 8 L-7 3 L5 -9 L9 -5 L-3 7 Z"/><path d="M2 -6 L6 -2"/>' },
+  close: { viewBox: '-12 -12 24 24', stroke: 2.2, body: '<path d="M-7 -7 L7 7"/><path d="M7 -7 L-7 7"/>' },
 };
 
 /** @param {string} name @param {{ label?: string }} [options] @returns {SVGSVGElement} */

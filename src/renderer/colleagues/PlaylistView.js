@@ -16,12 +16,14 @@ const KIND_LABELS = {
   recents: 'Recientes',
   queue: 'Cola',
   mix: 'Para ti',
+  list: 'Lista',
 };
 const EMPTY_MESSAGES = {
   library: 'Tu biblioteca está vacía. Sube canciones a tu bucket y pulsa «Actualizar biblioteca» en la barra lateral.',
   favorites: 'Aún no tienes favoritos. Pulsa el corazón de cualquier canción para guardarla aquí.',
   recents: 'Todavía no has escuchado nada.',
   queue: 'La cola está vacía.',
+  list: 'Esta lista está vacía. Pulsa «+» en cualquier canción (o «Añadir a una lista» en Reproduciendo) para añadirla.',
 };
 /** Colecciones cuya portada es la carátula de sus pistas; el resto usa una generada. */
 const TRACK_COVER_KINDS = new Set(['album', 'artist']);
@@ -29,7 +31,9 @@ const TRACK_COVER_KINDS = new Set(['album', 'artist']);
 /**
  * Pantalla 03 · Playlist: cabecera (portada, título, autor, estadísticas),
  * aleatorio + play y la lista de pistas de cualquier colección.
- * Emite: navigate-back, play-collection, toggle-shuffle, track-selected, toggle-favorite.
+ * En una lista del usuario, además: "Editar lista" y quitar canciones.
+ * Emite: navigate-back, play-collection, toggle-shuffle, track-selected, toggle-favorite, choose-list,
+ * edit-list, remove-from-list.
  */
 export class PlaylistView extends Colleague {
   #source = null;
@@ -40,6 +44,7 @@ export class PlaylistView extends Colleague {
   #stats;
   #shuffle;
   #play;
+  #edit;
   #list;
   #empty;
 
@@ -58,9 +63,13 @@ export class PlaylistView extends Colleague {
     this.#play.addEventListener('click', () => {
       if (this.#source) this.notify(EVENTS.PLAY_COLLECTION, this.#source);
     });
+    this.#edit = h('button', { type: 'button', class: 'button button--secondary collection-actions__edit', hidden: true }, icon('pencil'), 'Editar lista');
+    this.#edit.addEventListener('click', () => this.notify(EVENTS.EDIT_LIST, this.#source.id));
     this.#list = new TrackList({
       onPlay: (path) => this.notify(EVENTS.TRACK_SELECTED, { source: this.#source, path }),
       onToggleFavorite: (path) => this.notify(EVENTS.TOGGLE_FAVORITE, path),
+      onAddToList: (path) => this.notify(EVENTS.CHOOSE_LIST, path),
+      onRemove: (path) => this.notify(EVENTS.REMOVE_FROM_LIST, { id: this.#source.id, path }),
     });
     this.#empty = h('p', { class: 'hint', hidden: true });
 
@@ -79,7 +88,7 @@ export class PlaylistView extends Colleague {
           this.#stats,
         ),
       ),
-      h('div', { class: 'collection-actions' }, this.#shuffle, this.#play),
+      h('div', { class: 'collection-actions' }, this.#edit, this.#shuffle, this.#play),
       this.#list.element,
       this.#empty,
     );
@@ -95,7 +104,9 @@ export class PlaylistView extends Colleague {
     this.#title.textContent = title;
     this.#byline.textContent = byline;
     this.#stats.textContent = collectionStats(tracks);
-    this.#list.render(tracks, state);
+    const isList = source.kind === 'list';
+    this.#edit.hidden = !isList;
+    this.#list.render(tracks, { ...state, removable: isList });
     this.#empty.hidden = tracks.length > 0;
     this.#empty.textContent = EMPTY_MESSAGES[source.kind] ?? 'No hay canciones aquí.';
     this.#play.disabled = tracks.length === 0;
