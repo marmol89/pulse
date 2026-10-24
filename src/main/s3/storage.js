@@ -1,6 +1,17 @@
 import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { isAudioFile } from '../library/tracks.js';
 
+// Los errores ya llegan a quien llama, y una subida fallida (un stream no se reintenta) se cuenta en
+// el resultado: el SDK no necesita avisar por consola de ninguna de las dos cosas.
+const SDK_LOGGER = {
+  debug() {},
+  info() {},
+  warn: (message, ...rest) => {
+    if (!String(message).includes('non-retryable streaming request')) console.warn('[s3]', message, ...rest);
+  },
+  error() {}, // los errores llegan igualmente a quien llama
+};
+
 /**
  * Acceso al bucket de música (S3 o compatible, como MinIO): leer y subir canciones; nunca borra.
  * Estilo path ("https://servidor/bucket/clave"), que es lo que esperan MinIO y similares.
@@ -17,6 +28,7 @@ export function createS3Storage({ endpoint, accessKeyId, secretAccessKey, bucket
     // Sin sumas CRC32 opcionales: los servicios compatibles (MinIO antiguos, etc.) no siempre las entienden.
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
+    logger: SDK_LOGGER,
   });
 
   return {
