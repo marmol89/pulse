@@ -28,22 +28,33 @@ export function id3Size(bytes) {
  * Descarga solo el principio del objeto (más si la etiqueta ID3 es grande) y lo analiza.
  * Las etiquetas guardadas al final de archivos grandes no se leen: se usa el nombre.
  */
-async function parseStart(storage, { key, size }) {
-  let bytes = await storage.readStart(key, Math.max(1, Math.min(HEAD_BYTES, size)));
+async function readHead(storage, { key, size }) {
+  const bytes = await storage.readStart(key, Math.max(1, Math.min(HEAD_BYTES, size)));
   const tag = id3Size(bytes);
-  if (tag > bytes.length && tag <= MAX_TAG_BYTES) bytes = await storage.readStart(key, Math.min(tag + 64 * 1024, size));
+  return tag > bytes.length && tag <= MAX_TAG_BYTES ? storage.readStart(key, Math.min(tag + 64 * 1024, size)) : bytes;
+}
+
+function parseHead(bytes, { key, size }) {
   return parseBuffer(bytes, { mimeType: mimeFor(key), size }, { duration: false, skipPostHeaders: true });
 }
 
-/** Registro de un objeto del bucket. Si no se pueden leer sus etiquetas, se usa el nombre. */
+async function parseStart(storage, object) {
+  return parseHead(await readHead(storage, object), object);
+}
+
+/**
+ * Registro de un objeto del bucket. Si sus etiquetas no se pueden interpretar, se usa el nombre;
+ * si falla la descarga (red, S3), el error se propaga para reintentarlo en otra sincronización.
+ */
 export async function readRemoteRecord(storage, object) {
   const record = baseRecord(trackId(storage.bucket, object.key), path.posix.basename(object.key), {
     key: object.key,
     etag: object.etag,
     size: object.size,
   });
+  const bytes = await readHead(storage, object);
   try {
-    return recordFromMetadata(record, await parseStart(storage, object));
+    return recordFromMetadata(record, await parseHead(bytes, object));
   } catch {
     return record;
   }

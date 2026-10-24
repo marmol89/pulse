@@ -27,7 +27,8 @@ export function createLibrarySync({ store, getStorage, onChange, readRecord = re
       .all()
       .map((record) => record.path)
       .filter((id) => !present.has(id));
-    const records = await mapLimit(pending, CONCURRENCY, (object) => readRecord(storage, object));
+    // Si un objeto no se puede descargar ahora (red, S3), no se guarda: se reintenta en la próxima.
+    const records = (await mapLimit(pending, CONCURRENCY, (object) => readRecord(storage, object).catch(() => null))).filter(Boolean);
     store.remove(removed);
     store.add(records);
     if (removed.length + records.length > 0) await store.save();

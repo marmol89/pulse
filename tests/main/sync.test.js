@@ -75,6 +75,33 @@ describe('library/sync', () => {
     assert.deepEqual(removed.sort(), ['C:\\Música\\vieja.mp3', 's3://otro/x.mp3']);
   });
 
+  test('si una canción no se puede descargar ahora, no se guarda a medias: se reintenta', async () => {
+    let failures = 1;
+    const flaky = createLibrarySync({
+      store,
+      getStorage: () => storage,
+      onChange: () => {},
+      readRecord: async (s3Storage, object) => {
+        if (object.key === 'pop/b.wav' && failures-- > 0) throw new Error('ECONNRESET');
+        const { readRemoteRecord } = await import('../../src/main/library/remote.js');
+        return readRemoteRecord(s3Storage, object);
+      },
+    });
+
+    const first = await flaky.sync();
+    assert.deepEqual(first.added.map((t) => t.title), ['Luces de Neón']);
+    assert.equal(store.has('s3://musica/pop/b.wav'), false);
+
+    const second = await flaky.sync();
+    assert.deepEqual(second.added.map((t) => t.title), ['Ola Azul']);
+  });
+
+  test('un error de red al leer etiquetas se propaga (no se confunde con "sin etiquetas")', async () => {
+    const { readRemoteRecord } = await import('../../src/main/library/remote.js');
+    const broken = { bucket: 'musica', readStart: async () => Promise.reject(new Error('ECONNRESET')) };
+    await assert.rejects(readRemoteRecord(broken, { key: 'a.mp3', size: 10, etag: '"x"' }), /ECONNRESET/);
+  });
+
   test('verify() confirma las que siguen y quita las borradas', async () => {
     await sync.sync();
     s3.remove('musica', 'pop/b.wav');
