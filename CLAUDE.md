@@ -16,6 +16,7 @@ La skill `iniciar-proyecto` es la fuente de las reglas de abajo: tenla presente 
 | `npm run dist:win` / `npm run dist:linux` | Instaladores en `dist/` (NSIS / AppImage + deb). Lento: solo cuando se pida. El `.deb`/AppImage, mejor desde Linux, WSL o CI |
 | `npm run android:apk` | `www/` → `cap sync` → Gradle → `dist/Pulse-X.Y.Z-debug.apk` (necesita `JAVA_HOME` y `ANDROID_HOME`) |
 | `npm run android:release` | Lo mismo firmado → `dist/Pulse-X.Y.Z.apk`, con la keystore de `PULSE_KEYSTORE`, `PULSE_KEYSTORE_PASSWORD`, `PULSE_KEY_ALIAS` y `PULSE_KEY_PASSWORD` |
+| `npm run android:bundle` | App Bundle firmado con esa keystore → `dist/Pulse-X.Y.Z.aab`: lo que se sube a Google Play |
 | `npm run android:build` / `android:run` | Solo `www/` + `cap sync` / compilar y abrir en el emulador o móvil por USB |
 | `npm run test:e2e:android` | Prueba de humo del **APK ya instalado** (`adb install -r dist/Pulse-*-debug.apk` antes) en el emulador contra el S3 falso; capturas `android-*.png` |
 
