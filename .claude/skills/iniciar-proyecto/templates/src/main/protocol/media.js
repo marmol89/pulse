@@ -5,7 +5,7 @@ import { respondToMedia } from './responses.js';
 /** Debe llamarse antes de que la app esté lista. */
 export function registerMediaScheme() {
   protocol.registerSchemesAsPrivileged([
-    { scheme: MEDIA_SCHEME, privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true } },
+    { scheme: MEDIA_SCHEME, privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true, corsEnabled: true } },
   ]);
 }
 
