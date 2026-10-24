@@ -1,6 +1,7 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createS3Storage, describeS3Error } from '../../../src/main/s3/storage.js';
+import { Readable } from 'node:stream';
+import { createS3Storage, describeS3Error, describeUploadError } from '../../../src/main/s3/storage.js';
 import { startFakeS3 } from '../../helpers/fakeS3.js';
 
 describe('s3/storage', () => {
@@ -56,6 +57,39 @@ describe('s3/storage', () => {
     assert.equal(await storage.exists('rock/Kora - Selva.ogg'), true);
     assert.equal(await storage.exists('rock/no-esta.ogg'), false);
     storage.destroy();
+  });
+
+  test('stat() da el tamaño o null', async () => {
+    const storage = createS3Storage(s3.config);
+    assert.deepEqual(await storage.stat('rock/Kora - Selva.ogg'), { size: 2 });
+    assert.equal(await storage.stat('rock/no-esta.ogg'), null);
+    storage.destroy();
+  });
+
+  test('upload() sube un Buffer o un stream (sin cuerpo aws-chunked)', async () => {
+    const storage = createS3Storage(s3.config);
+    await storage.upload('subidas/uno.mp3', Buffer.from('hola'), { size: 4, contentType: 'audio/mpeg' });
+    await storage.upload('subidas/dos.mp3', Readable.from([Buffer.from('mundo')]), { size: 5, contentType: 'audio/mpeg' });
+    assert.equal(s3.get('musica', 'subidas/uno.mp3').toString(), 'hola');
+    assert.equal(s3.get('musica', 'subidas/dos.mp3').toString(), 'mundo');
+    assert.equal(storage.prefix, '');
+    storage.destroy();
+  });
+
+  test('sin permiso de escritura, el error lo explica', async () => {
+    const storage = createS3Storage(s3.config);
+    s3.setReadOnly(true);
+    try {
+      const error = await storage.upload('subidas/tres.mp3', Buffer.from('x'), { size: 1 }).catch((e) => e);
+      assert.equal(describeUploadError(error), 'Tus claves no tienen permiso para subir canciones a este bucket');
+    } finally {
+      s3.setReadOnly(false);
+      storage.destroy();
+    }
+    const wrongKey = createS3Storage({ ...s3.config, accessKeyId: 'otra' });
+    const keyError = await wrongKey.upload('x.mp3', Buffer.from('x'), { size: 1 }).catch((e) => e);
+    assert.equal(describeUploadError(keyError), 'Las claves no son válidas o no tienen permiso para leer el bucket');
+    wrongKey.destroy();
   });
 
   test('listBuckets() y errores en español (claves incorrectas, bucket inexistente, sin servidor)', async () => {

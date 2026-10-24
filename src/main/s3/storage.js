@@ -1,8 +1,8 @@
-import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { isAudioFile } from '../library/tracks.js';
 
 /**
- * Acceso de solo lectura al bucket de música (S3 o compatible, como MinIO).
+ * Acceso al bucket de música (S3 o compatible, como MinIO): leer y subir canciones; nunca borra.
  * Estilo path ("https://servidor/bucket/clave"), que es lo que esperan MinIO y similares.
  *
  * @typedef {{ endpoint: string, accessKeyId: string, secretAccessKey: string, bucket: string, prefix?: string, region?: string }} S3Config
@@ -14,10 +14,14 @@ export function createS3Storage({ endpoint, accessKeyId, secretAccessKey, bucket
     forcePathStyle: true,
     credentials: { accessKeyId, secretAccessKey },
     maxAttempts: 2,
+    // Sin sumas CRC32 opcionales: los servicios compatibles (MinIO antiguos, etc.) no siempre las entienden.
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
   });
 
   return {
     bucket,
+    prefix,
 
     async listBuckets() {
       const { Buckets = [] } = await client.send(new ListBucketsCommand({}));
@@ -55,21 +59,40 @@ export function createS3Storage({ endpoint, accessKeyId, secretAccessKey, bucket
       };
     },
 
-    /** ¿Sigue el objeto en el bucket? */
-    async exists(key) {
+    /** Tamaño del objeto, o null si no está en el bucket. */
+    async stat(key) {
       try {
-        await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-        return true;
+        const { ContentLength } = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+        return { size: ContentLength ?? 0 };
       } catch (error) {
-        if (error?.$metadata?.httpStatusCode === 404 || error?.name === 'NotFound') return false;
+        if (error?.$metadata?.httpStatusCode === 404 || error?.name === 'NotFound') return null;
         throw error;
       }
+    },
+
+    /** ¿Sigue el objeto en el bucket? */
+    async exists(key) {
+      return (await this.stat(key)) !== null;
+    },
+
+    /** Sube un objeto (`body`: Buffer o stream de Node, con su tamaño exacto en `size`). */
+    async upload(key, body, { size, contentType }) {
+      await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentLength: size, ContentType: contentType }));
     },
 
     destroy() {
       client.destroy();
     },
   };
+}
+
+/** Mensaje en español para un error al subir: sin permiso de escritura, o el de describeS3Error. */
+export function describeUploadError(error) {
+  const code = error?.Code ?? error?.name ?? '';
+  if (code === 'AccessDenied' || (error?.$metadata?.httpStatusCode === 403 && code !== 'InvalidAccessKeyId' && code !== 'SignatureDoesNotMatch')) {
+    return 'Tus claves no tienen permiso para subir canciones a este bucket';
+  }
+  return describeS3Error(error);
 }
 
 /** Mensaje en español para un error de conexión con S3. */
