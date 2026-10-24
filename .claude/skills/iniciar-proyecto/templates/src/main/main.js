@@ -6,6 +6,7 @@ import { createLibraryStore } from './library/store.js';
 import { readRecordCover } from './library/tracks.js';
 import { readRemoteCover } from './library/remote.js';
 import { createLibrarySync } from './library/sync.js';
+import { createUploader } from './library/upload.js';
 import { objectResponse } from './protocol/responses.js';
 import { createConnectionStore } from './s3/connection.js';
 import { createS3Service } from './s3/service.js';
@@ -57,6 +58,12 @@ async function start() {
     },
   });
 
+  const uploader = createUploader({
+    getStorage: () => s3.storage(),
+    afterUpload: () => librarySync.sync(),
+    onProgress: (progress) => broadcast('library:upload-progress', progress),
+  });
+
   handleMediaProtocol({
     isAllowed: (id) => store.has(id),
     readCover: (id) => readRecordCover(store.get(id), (record) => readRemoteCover(s3.storage(), record)),
@@ -66,7 +73,7 @@ async function start() {
       return storage && key ? objectResponse(storage, key, range) : new Response('Sin conexión con el almacenamiento', { status: 503 });
     },
   });
-  registerLibraryIpc({ store, s3, librarySync });
+  registerLibraryIpc({ store, s3, librarySync, uploader });
   registerMetadataIpc({ store, queue });
   if (app.isPackaged) Menu.setApplicationMenu(null);
 

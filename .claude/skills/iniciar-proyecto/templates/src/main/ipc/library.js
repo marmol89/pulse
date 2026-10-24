@@ -1,12 +1,12 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron';
 import { readFile } from 'node:fs/promises';
-import { toTrack } from '../library/tracks.js';
+import { AUDIO_EXTENSIONS, toTrack } from '../library/tracks.js';
 
 /**
  * Canales IPC de la biblioteca (que vive en el bucket S3) y de la conexión.
  * El renderer solo llega a ellos a través de window.api; la clave secreta nunca vuelve a la ventana.
  */
-export function registerLibraryIpc({ store, s3, librarySync }) {
+export function registerLibraryIpc({ store, s3, librarySync, uploader }) {
   ipcMain.handle('library:load', () => store.all().map(toTrack));
 
   // Los cambios llegan a la ventana por 'library:changed'; aquí solo se devuelve el resumen.
@@ -16,6 +16,19 @@ export function registerLibraryIpc({ store, s3, librarySync }) {
   });
 
   ipcMain.handle('library:verify', (_event, id) => (typeof id === 'string' ? librarySync.verify(id) : false));
+
+  // Subir canciones del ordenador al bucket (el progreso llega por 'library:upload-progress').
+  ipcMain.handle('library:choose-uploads', async (event) => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), {
+      title: 'Subir canciones a tu bucket',
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'Audio', extensions: AUDIO_EXTENSIONS }],
+    });
+    return canceled || filePaths.length === 0 ? null : uploader.upload(filePaths);
+  });
+
+  // Archivos y carpetas arrastrados a la ventana (las rutas se validan en el uploader).
+  ipcMain.handle('library:upload', (_event, paths) => uploader.upload(paths));
 
   ipcMain.handle('connection:get', () => s3.summary());
 

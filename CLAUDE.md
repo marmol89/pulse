@@ -1,7 +1,7 @@
 # Pulse — reproductor de música (Electron + patrón Mediator)
 
 Reproductor nativo para **Windows y Linux** en JavaScript puro (sin frameworks de UI). **La música viene de un bucket S3**
-(o compatible, como MinIO); no hay archivos locales. Diseño de referencia:
+(o compatible, como MinIO); las canciones del ordenador se suben al bucket. Diseño de referencia:
 `app-musica-figma.svg` (móvil) y su adaptación a escritorio en `.claude/skills/iniciar-proyecto/reference/diseno.md`.
 La skill `iniciar-proyecto` es la fuente de las reglas de abajo: tenla presente antes de tocar código.
 
@@ -22,10 +22,11 @@ Electron 45 descarga su binario la primera vez que se usa; para forzarlo: `node 
 ```
 src/main/        proceso main (NO forma parte del mediator)
   main.js        ventana, instancia única, sin navegación, --lang=es
-  s3/           storage.js (SDK, solo lectura), connection.js (conexión cifrada con safeStorage), service.js
+  s3/           storage.js (SDK: leer y subir, nunca borra), connection.js (conexión cifrada con safeStorage), service.js
   protocol/      media://track|cover/<id>: audio desde S3 con rangos, solo pistas de la biblioteca (403 si no)
   library/       remote.js (id s3://bucket/clave, etiquetas leyendo el principio del objeto), sync.js
-                 (biblioteca = bucket), tracks.js (registro ↔ pista), store.js (library.json en userData)
+                 (biblioteca = bucket), upload.js (subir archivos y carpetas), tracks.js (registro ↔ pista),
+                 store.js (library.json en userData)
   online/        datos de internet: matching, itunes, lrclib, http, enricher, queue (ver abajo)
   ipc/           library.js (library:*, connection:*) y metadata.js (metadata:*); los usa el preload
 src/preload/preload.cjs   window.api (contextBridge, sandbox)
@@ -63,8 +64,12 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   (como mucho cada 15 s) y con "Actualizar biblioteca". Nuevo, cambiado (ETag) o borrado → `library-changed`.
 - Las etiquetas se leen descargando solo los primeros 512 KB (más si la etiqueta ID3 es grande). Las que están
   al final de archivos grandes no se leen; con "Datos de internet" se completan desde el nombre del archivo.
+- **Subir canciones**: botón "Subir canciones" (diálogo del main) o arrastrar archivos/carpetas a la ventana
+  (`webUtils.getPathForFile` en el preload). `upload.js` sube de una en una bajo la carpeta de la conexión
+  (una carpeta conserva su nombre: "Disco/01.mp3"), **nunca sobrescribe** (mismo archivo → se salta; otro con
+  ese nombre → "Nombre (2).mp3") y sincroniza al terminar. Claves sin permiso de escritura → mensaje claro.
 - Si una canción falla al sonar se comprueba en el bucket (`library:verify`); si ya no está, se quita.
-- Los tests nunca usan el S3 real: `tests/helpers/fakeS3.js` es un servidor S3 mínimo (listar, rangos, 403…).
+- Los tests nunca usan el S3 real: `tests/helpers/fakeS3.js` es un servidor S3 mínimo (listar, rangos, subidas, 403, solo lectura…).
 
 ## Datos de internet (carátula, álbum, año, género, pista y letra)
 

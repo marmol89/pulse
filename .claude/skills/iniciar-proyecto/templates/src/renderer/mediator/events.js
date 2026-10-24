@@ -38,6 +38,11 @@ export const EVENTS = Object.freeze({
   SYNC_LIBRARY: 'sync-library', // () — "Actualizar biblioteca"
   LIBRARY_CHANGED: 'library-changed', // ({ removed: id[], added: Track[] }) — cambios en el bucket
 
+  // Subir canciones del ordenador al bucket
+  UPLOAD_SONGS: 'upload-songs', // () — "Subir canciones": elegirlas en un diálogo
+  FILES_DROPPED: 'files-dropped', // (File[]) — archivos o carpetas arrastrados a la ventana
+  UPLOAD_PROGRESS: 'upload-progress', // ({ current, total, name }) — subiendo la canción current de total
+
   // Conexión S3
   OPEN_CONNECTION: 'open-connection', // ()
   SAVE_CONNECTION: 'save-connection', // ({ endpoint, accessKeyId, secretAccessKey, bucket, prefix })

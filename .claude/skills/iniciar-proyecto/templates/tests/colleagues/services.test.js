@@ -47,6 +47,27 @@ describe('LibraryService', () => {
     assert.deepEqual(mediator.events, [[EVENTS.LIBRARY_CHANGED, { removed: ['/borrada.mp3'], added: [] }]]);
   });
 
+  test('subir: el diálogo, lo arrastrado (solo lo que viene del disco) y el progreso', async () => {
+    let push;
+    const calls = [];
+    const api = {
+      chooseUploads: async () => null,
+      pathForFile: (file) => file.path ?? '',
+      uploadPaths: async (paths) => calls.push(paths) && { ok: true, total: 1, uploaded: 1, skipped: 0, failed: [] },
+      onUploadProgress: (callback) => (push = callback),
+    };
+    const library = new LibraryService(api);
+    const mediator = recordingMediator();
+    library.setMediator(mediator);
+
+    assert.equal(await library.chooseAndUpload(), null);
+    assert.equal((await library.uploadFiles([{ path: 'C:/Música/a.mp3' }, { name: 'sin ruta' }])).uploaded, 1);
+    push({ current: 1, total: 1, name: 'a.mp3' });
+
+    assert.deepEqual(calls, [['C:/Música/a.mp3']]);
+    assert.deepEqual(mediator.events, [[EVENTS.UPLOAD_PROGRESS, { current: 1, total: 1, name: 'a.mp3' }]]);
+  });
+
   test('las pistas completadas en segundo plano llegan al mediator como tracks-updated', () => {
     let push;
     const library = new LibraryService({ onTracksUpdated: (callback) => (push = callback) });

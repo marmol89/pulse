@@ -4,7 +4,8 @@ import { EVENTS } from '../mediator/events.js';
 /**
  * Único colega que habla con el proceso main (window.api, expuesto por el preload).
  * La música vive en un bucket S3; la clave secreta nunca llega a la ventana.
- * Emite: tracks-updated (datos de internet en segundo plano) y library-changed (cambios en el bucket).
+ * Emite: tracks-updated (datos de internet en segundo plano), library-changed (cambios en el bucket)
+ * y upload-progress (subida de canciones en curso).
  */
 export class LibraryService extends Colleague {
   #api;
@@ -14,6 +15,7 @@ export class LibraryService extends Colleague {
     this.#api = api;
     api.onTracksUpdated?.((tracks) => this.notify(EVENTS.TRACKS_UPDATED, tracks));
     api.onLibraryChanged?.((change) => this.notify(EVENTS.LIBRARY_CHANGED, change));
+    api.onUploadProgress?.((progress) => this.notify(EVENTS.UPLOAD_PROGRESS, progress));
   }
 
   /** Biblioteca guardada (la última sincronización con el bucket). */
@@ -32,6 +34,26 @@ export class LibraryService extends Colleague {
   /** ¿Sigue la pista en el bucket? Si no, el proceso main la quita de la biblioteca. */
   verify(id) {
     return this.#api.verifyTrack(id);
+  }
+
+  /**
+   * Elige canciones del ordenador y las sube al bucket (después llegan como library-changed).
+   * @typedef {{ ok: true, total: number, uploaded: number, skipped: number, failed: Array<{ name: string, error: string }> }
+   *   | { ok: false, error: string, needsConnection?: boolean }} UploadResult
+   * @returns {Promise<UploadResult | null>} null si se cancela el diálogo
+   */
+  chooseAndUpload() {
+    return this.#api.chooseUploads();
+  }
+
+  /**
+   * Sube archivos o carpetas arrastrados a la ventana. Los que no vienen del disco se ignoran.
+   * @param {File[]} files
+   * @returns {Promise<UploadResult>}
+   */
+  uploadFiles(files) {
+    const paths = files.map((file) => this.#api.pathForFile(file)).filter(Boolean);
+    return this.#api.uploadPaths(paths);
   }
 
   /** Conexión guardada sin la clave secreta ({ endpoint, accessKeyId, bucket, prefix }) o null. */

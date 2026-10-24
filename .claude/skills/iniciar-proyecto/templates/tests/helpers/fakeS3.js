@@ -3,12 +3,14 @@ import { createHash } from 'node:crypto';
 
 /**
  * Servidor S3 mínimo (estilo path, como MinIO) para tests y e2e sin red ni credenciales reales.
- * Entiende: ListBuckets, ListObjectsV2 (con paginación), HeadObject y GetObject con Range.
- * Las peticiones firmadas con otra clave de acceso reciben 403 InvalidAccessKeyId.
+ * Entiende: ListBuckets, ListObjectsV2 (con paginación), HeadObject, GetObject con Range y PutObject.
+ * Las peticiones firmadas con otra clave de acceso reciben 403 InvalidAccessKeyId; con `readOnly`,
+ * las subidas reciben 403 AccessDenied (claves sin permiso de escritura).
  */
-export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = { musica: {} }, pageSize = 1000 } = {}) {
+export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = { musica: {} }, pageSize = 1000, readOnly = false } = {}) {
   const data = new Map(Object.entries(buckets).map(([name, objects]) => [name, new Map(Object.entries(objects).map(([key, body]) => [key, Buffer.from(body)]))]));
   const requests = [];
+  const state = { readOnly };
 
   const server = createServer((req, res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -25,6 +27,7 @@ export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = {
     const bucket = data.get(bucketName);
     if (!bucket) return xml(res, 404, `<Error><Code>NoSuchBucket</Code><Message>No existe</Message></Error>`);
     if (!key) return list(res, bucketName, bucket, url.searchParams, pageSize);
+    if (req.method === 'PUT') return put(req, res, bucket, key, state.readOnly);
     const body = bucket.get(key);
     if (!body) {
       if (req.method === 'HEAD') return res.writeHead(404).end();
@@ -42,11 +45,34 @@ export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = {
     put(bucketName, key, body) {
       data.get(bucketName).set(key, Buffer.from(body));
     },
+    /** Contenido de un objeto (Buffer) o undefined. */
+    get(bucketName, key) {
+      return data.get(bucketName).get(key);
+    },
+    setReadOnly(value) {
+      state.readOnly = value;
+    },
     remove(bucketName, key) {
       data.get(bucketName).delete(key);
     },
     close: () => new Promise((resolve) => server.close(resolve)),
   };
+}
+
+async function put(req, res, bucket, key, readOnly) {
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  if (readOnly) return xml(res, 403, `<Error><Code>AccessDenied</Code><Message>Acceso denegado</Message></Error>`);
+  // Un S3 compatible antiguo no entiende el cuerpo "aws-chunked" con sumas CRC: el cliente no debe usarlo.
+  if (String(req.headers['content-encoding'] ?? '').includes('aws-chunked')) {
+    return xml(res, 501, `<Error><Code>NotImplemented</Code><Message>aws-chunked</Message></Error>`);
+  }
+  const body = Buffer.concat(chunks);
+  if (req.headers['content-length'] && Number(req.headers['content-length']) !== body.length) {
+    return xml(res, 400, `<Error><Code>IncompleteBody</Code><Message>Tamaño incorrecto</Message></Error>`);
+  }
+  bucket.set(key, body);
+  res.writeHead(200, { ETag: etag(body) }).end();
 }
 
 function etag(body) {
