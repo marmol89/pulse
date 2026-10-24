@@ -2,20 +2,23 @@ import { app, BrowserWindow, Menu, net, safeStorage } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { registerMediaScheme, handleMediaProtocol } from './protocol/media.js';
-import { createLibraryStore } from './library/store.js';
-import { readRecordCover } from './library/tracks.js';
-import { readRemoteCover } from './library/remote.js';
-import { createLibrarySync } from './library/sync.js';
-import { createUploader } from './library/upload.js';
-import { createMetadataStore } from './library/metadata.js';
+import { createLibraryStore } from '../backend/library/store.js';
+import { readRecordCover } from '../backend/library/tracks.js';
+import { readRemoteCover } from '../backend/library/remote.js';
+import { createLibrarySync } from '../backend/library/sync.js';
+import { createUploader } from '../backend/library/upload.js';
+import { collectPaths } from './library/collect.js';
+import { createMetadataStore } from '../backend/library/metadata.js';
 import { objectResponse } from './protocol/responses.js';
-import { createConnectionStore } from './s3/connection.js';
-import { createS3Service } from './s3/service.js';
-import { createHttp } from './online/http.js';
-import { createEnricher } from './online/enricher.js';
-import { createEnrichmentQueue } from './online/queue.js';
+import { mediaTrack } from './protocol/urls.js';
+import { createConnectionStore } from '../backend/s3/connection.js';
+import { createS3Service } from '../backend/s3/service.js';
+import { createHttp } from '../backend/online/http.js';
+import { createEnricher } from '../backend/online/enricher.js';
+import { createEnrichmentQueue } from '../backend/online/queue.js';
 import { registerLibraryIpc } from './ipc/library.js';
 import { registerMetadataIpc } from './ipc/metadata.js';
+import { createNodeFiles } from './files.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BACKGROUND = '#0E0E12'; // --color-bg del diseño: sin destello blanco al abrir
@@ -32,22 +35,22 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 async function start() {
-  const userData = app.getPath('userData');
+  // Archivos de la app en userData: library.json, s3.json y covers/.
+  const files = createNodeFiles(app.getPath('userData'));
   // library.json es la caché local; la copia compartida va a metadatos/ del bucket tras cada guardado.
   let metadata = null;
-  const store = createLibraryStore(path.join(userData, 'library.json'), { onSave: () => metadata?.schedulePush() });
+  const store = createLibraryStore(files, { onSave: () => metadata?.schedulePush() });
   await store.load();
 
   // Datos de internet: net.fetch usa la red de Chromium (respeta el proxy del sistema).
   const http = createHttp((url, init) => net.fetch(url, init), {
     userAgent: `Pulse/${app.getVersion()} (reproductor de música de escritorio)`,
   });
-  const coversDir = path.join(userData, 'covers');
-  const enricher = createEnricher({ http, coversDir });
-  const queue = createEnrichmentQueue({ store, enricher, onUpdated: (tracks) => broadcast('library:tracks-updated', tracks) });
+  const enricher = createEnricher({ http, files });
+  const queue = createEnrichmentQueue({ store, enricher, toTrack: mediaTrack, onUpdated: (tracks) => broadcast('library:tracks-updated', tracks) });
 
   // La música vive en un bucket S3. La clave secreta se cifra con el almacén seguro del sistema.
-  const connections = createConnectionStore(path.join(userData, 's3.json'), {
+  const connections = createConnectionStore(files, {
     encrypt: async (text) => (await safeStorage.encryptStringAsync(text)).toString('base64'),
     decrypt: async (text) => {
       const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(Buffer.from(text, 'base64'));
@@ -56,11 +59,12 @@ async function start() {
   });
   const s3 = createS3Service({ connections });
   await s3.load();
-  metadata = createMetadataStore({ getStorage: () => s3.storage(), getRecords: () => store.all(), coversDir });
+  metadata = createMetadataStore({ getStorage: () => s3.storage(), getRecords: () => store.all(), files });
   metadata.schedulePush(); // lo que ya hay en este equipo también llega al bucket
   const librarySync = createLibrarySync({
     store,
     getStorage: () => s3.storage(),
+    toTrack: mediaTrack,
     pullMetadata: () => metadata.pull(),
     onChange: (change) => {
       broadcast('library:changed', change);
@@ -71,6 +75,7 @@ async function start() {
 
   const uploader = createUploader({
     getStorage: () => s3.storage(),
+    collect: collectPaths, // archivos y carpetas del ordenador
     afterUpload: () => librarySync.sync(),
     onProgress: (progress) => broadcast('library:upload-progress', progress),
   });

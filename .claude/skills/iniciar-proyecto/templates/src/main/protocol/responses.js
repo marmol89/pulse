@@ -1,21 +1,5 @@
-import path from 'node:path';
+import { mimeFor } from '../../backend/library/tracks.js';
 import { parseMediaUrl } from './urls.js';
-
-const MIME_TYPES = {
-  '.mp3': 'audio/mpeg',
-  '.flac': 'audio/flac',
-  '.ogg': 'audio/ogg',
-  '.oga': 'audio/ogg',
-  '.opus': 'audio/ogg',
-  '.wav': 'audio/wav',
-  '.m4a': 'audio/mp4',
-  '.aac': 'audio/aac',
-  '.webm': 'audio/webm',
-};
-
-export function mimeFor(filePath) {
-  return MIME_TYPES[path.extname(filePath).toLowerCase()] ?? 'application/octet-stream';
-}
 
 /**
  * Responde con un objeto del bucket (o el rango pedido), como espera el <audio> para poder saltar.
