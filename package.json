@@ -38,7 +38,11 @@
         "deb"
       ],
       "category": "Audio",
-      "executableName": "pulse"
+      "executableName": "pulse",
+      "artifactName": "pulse-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "artifactName": "Pulse-Setup-${version}.${ext}"
     }
   },
   "devDependencies": {
