@@ -2,10 +2,10 @@
  * Prueba de humo de la app real (Electron) con playwright-core:
  * levanta un S3 falso con WAV etiquetados, conecta la app desde su formulario,
  * recorre las pantallas, comprueba reproducción desde el bucket, saltos, favoritos,
- * cambios en el bucket y guarda capturas en tests/e2e/output/. Nunca usa tu S3 real.
+ * cambios en el bucket, subir canciones del ordenador y guarda capturas en tests/e2e/output/. Nunca usa tu S3 real.
  * Uso: npm run test:e2e   (abre la ventana unos segundos; el audio va silenciado)
  */
-import { mkdtemp, mkdir, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -173,6 +173,46 @@ try {
   await page.click('.nav__item:has-text("Actualizar biblioteca")');
   await page.waitForFunction(() => document.querySelector('.toast')?.textContent === '1 canción nueva');
   check(true, '"Actualizar biblioteca" trae la canción subida al bucket');
+
+  // Subir canciones del ordenador: el diálogo de archivos del proceso main se sustituye por uno falso.
+  const upload = path.join(work, 'Para subir', 'Brisa.wav');
+  await mkdir(path.dirname(upload), { recursive: true });
+  await writeFile(upload, createWav({ seconds: 3, tags: { title: 'Brisa', artist: 'Marea Sur', album: 'Mareas', genre: 'Lo-fi chill' } }));
+  const fakeDialog = (filePaths) =>
+    app.evaluate(({ dialog }, paths) => {
+      dialog.showOpenDialog = async () => ({ canceled: false, filePaths: paths });
+    }, filePaths);
+  await fakeDialog([upload]);
+  await page.click('.nav__item:has-text("Subir canciones")');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === '1 canción subida', null, { timeout: 10000 });
+  check(s3.get('musica', 'Brisa.wav')?.length > 0, '"Subir canciones" sube el archivo elegido al bucket');
+  await page.click('.nav__item:has-text("Biblioteca")');
+  await page.waitForSelector('.view--collection .track-row:has-text("Brisa")');
+  check(true, 'la canción subida aparece en la biblioteca con sus etiquetas');
+
+  await page.click('.nav__item:has-text("Subir canciones")');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === '1 ya estaba en el bucket');
+  check(true, 'subir otra vez el mismo archivo no lo duplica');
+
+  // Soltar en la ventana: un File creado en la página no tiene ruta en disco, así que no hay nada que subir.
+  await page.evaluate(() => {
+    const data = new DataTransfer();
+    data.items.add(new File(['x'], 'nota.txt'));
+    window.dispatchEvent(new DragEvent('dragenter', { dataTransfer: data }));
+    window.dispatchEvent(new DragEvent('drop', { dataTransfer: data, cancelable: true }));
+  });
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'No hay canciones de audio en lo que has elegido');
+  check(!(await page.locator('.app.is-dropping').count()), 'soltar archivos en la ventana llega a la subida y quita el aviso de soltar');
+
+  s3.setReadOnly(true);
+  const denied = path.join(work, 'Para subir', 'Sin permiso.wav');
+  await writeFile(denied, createWav({ seconds: 1 }));
+  await fakeDialog([denied]);
+  await page.click('.nav__item:has-text("Subir canciones")');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent.includes('no tienen permiso para subir'));
+  check((await page.getAttribute('.toast', 'data-tone')) === 'error', 'con claves de solo lectura explica que no hay permiso para subir');
+  s3.setReadOnly(false);
+  await shot('09-subir-sin-permiso');
 
   check(logs.length === 0, `sin errores de consola${logs.length ? `:\n  ${logs.join('\n  ')}` : ''}`);
 
