@@ -59,6 +59,17 @@ export const EVENTS = Object.freeze({
   // Favoritos
   TOGGLE_FAVORITE: 'toggle-favorite', // (path?) — sin path, la pista actual
 
+  // Listas de canciones del usuario (en el bucket, compartidas con todos los Pulse conectados a él)
+  LISTS_CHANGED: 'lists-changed', // (List[]) — llegaron cambios de otro equipo
+  NEW_LIST: 'new-list', // (paths?) — "Nueva lista": pedir el nombre (con esas canciones dentro)
+  CREATE_LIST: 'create-list', // ({ name, paths })
+  CHOOSE_LIST: 'choose-list', // (path?) — "Añadir a una lista": sin path, la pista actual
+  ADD_TO_LIST: 'add-to-list', // ({ id, paths })
+  REMOVE_FROM_LIST: 'remove-from-list', // ({ id, path })
+  EDIT_LIST: 'edit-list', // (id) — "Editar lista": renombrar o eliminar
+  RENAME_LIST: 'rename-list', // ({ id, name })
+  DELETE_LIST: 'delete-list', // (id)
+
   // Datos de internet (carátula, álbum, año, género, letra)
   SET_ONLINE_LOOKUP: 'set-online-lookup', // (activado)
   LOOKUP_TRACK: 'lookup-track', // (path) — búsqueda pedida por el usuario
