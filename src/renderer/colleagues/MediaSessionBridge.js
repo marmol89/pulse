@@ -21,7 +21,8 @@ export class MediaSessionBridge extends Colleague {
     super();
     this.#session = session ?? null;
     this.#Metadata = Metadata ?? null;
-    this.#fetch = fetchFn;
+    // Sin `this`: el fetch del navegador llamado como método de otro objeto lanza "Illegal invocation".
+    this.#fetch = (url) => fetchFn(url);
     if (!this.#session) return;
 
     const actions = {
