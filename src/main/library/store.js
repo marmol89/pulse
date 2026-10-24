@@ -44,6 +44,10 @@ export function createLibraryStore(file) {
       for (const record of list) records.set(record.path, record);
     },
 
+    remove(paths) {
+      for (const filePath of paths) records.delete(filePath);
+    },
+
     /** Las escrituras se encadenan para que dos importaciones seguidas no se pisen. */
     save() {
       saving = saving.then(write, write);

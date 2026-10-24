@@ -146,6 +146,13 @@ describe('library/store', () => {
     assert.equal(JSON.parse(await readFile(file, 'utf8')).version, 1);
   });
 
+  test('remove() olvida registros', () => {
+    const store = createLibraryStore(path.join(dir, 'remove.json'));
+    store.add([{ path: '/m/a.mp3' }, { path: '/m/b.mp3' }]);
+    store.remove(['/m/a.mp3', '/m/no-existe.mp3']);
+    assert.deepEqual(store.all(), [{ path: '/m/b.mp3' }]);
+  });
+
   test('un JSON corrupto no impide arrancar: empieza vacía y avisa', async (t) => {
     const warn = t.mock.method(console, 'warn', () => {});
     const file = path.join(dir, 'corrupto.json');

@@ -2,6 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { createEnrichmentQueue } from '../../../src/main/online/queue.js';
 import { TransientError } from '../../../src/main/online/http.js';
+import { memoryStore } from '../../helpers/memoryStore.js';
 
 /** Reloj manual: los temporizadores solo avanzan con next(). */
 function manualClock() {
@@ -33,22 +34,6 @@ function manualClock() {
       return true;
     },
     settle,
-  };
-}
-
-function memoryStore(records) {
-  const map = new Map(records.map((record) => [record.path, record]));
-  return {
-    saves: 0,
-    all: () => [...map.values()],
-    get: (path) => map.get(path) ?? null,
-    has: (path) => map.has(path),
-    add(list) {
-      for (const record of list) map.set(record.path, record);
-    },
-    async save() {
-      this.saves += 1;
-    },
   };
 }
 
