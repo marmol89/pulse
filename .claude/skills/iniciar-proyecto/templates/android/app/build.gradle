@@ -22,12 +22,26 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    // dist/Pulse-X.Y.Z-debug.apk (lo copia scripts/android-apk.mjs)
+    // dist/Pulse-X.Y.Z-debug.apk y dist/Pulse-X.Y.Z.apk (los copia scripts/android-apk.mjs)
     applicationVariants.all { variant ->
-        variant.outputs.all { outputFileName = "Pulse-${appVersion}-${variant.buildType.name}.apk" }
+        def suffix = variant.buildType.name == 'release' ? '' : "-${variant.buildType.name}"
+        variant.outputs.all { outputFileName = "Pulse-${appVersion}${suffix}.apk" }
+    }
+    // La keystore de release nunca va al repo: llega por variables de entorno (en CI, desde los secretos).
+    def keystore = System.getenv('PULSE_KEYSTORE')
+    signingConfigs {
+        if (keystore) {
+            release {
+                storeFile file(keystore)
+                storePassword System.getenv('PULSE_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('PULSE_KEY_ALIAS')
+                keyPassword System.getenv('PULSE_KEY_PASSWORD')
+            }
+        }
     }
     buildTypes {
         release {
+            if (keystore) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

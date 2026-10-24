@@ -65,13 +65,14 @@ Cada versión publicada en [**Releases**](https://github.com/marmol89/pulse/rele
 |---|---|
 | Windows | `Pulse-Setup-X.Y.Z.exe` (instalador) |
 | Linux | `pulse-X.Y.Z-x86_64.AppImage` (portable) o `pulse-X.Y.Z-amd64.deb` (Debian/Ubuntu) |
-| Android | `Pulse-X.Y.Z-debug.apk` |
+| Android | `Pulse-X.Y.Z.apk` |
 
 > [!NOTE]
 > Los instaladores no están firmados: Windows SmartScreen puede avisar la primera vez («Más información» →
 > «Ejecutar de todas formas»). En Linux, al AppImage hay que darle permiso de ejecución (`chmod +x`).
 > En Android, descarga el APK en el móvil y ábrelo: te pedirá permitir «instalar apps de origen desconocido».
-> Es una compilación *debug*: para actualizar, instala la nueva encima.
+> Para actualizar, instala la nueva encima. Si tenías una versión *debug* (`-debug.apk`), desinstálala antes
+> una vez: la firma es distinta y Android no deja instalar encima.
 
 ## 🚀 Inicio rápido
 
