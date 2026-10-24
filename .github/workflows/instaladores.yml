@@ -76,6 +76,8 @@ jobs:
     env:
       # Keystore de firma en base64 (secreto del repo). Sin ella sale el APK debug.
       KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      # JSON de la cuenta de servicio de Google Cloud con permiso de publicar en Play Console.
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -122,6 +124,22 @@ jobs:
           gh release upload "${{ inputs.etiqueta }}" dist/*.apk dist/*.aab --clobber
         env:
           GH_TOKEN: ${{ github.token }}
+
+      # Solo al publicar una versión, y con la keystore (Play rechaza el debug) y la cuenta de servicio.
+      - name: Notas de la versión para Google Play
+        if: inputs.etiqueta && env.KEYSTORE_BASE64 != '' && env.PLAY_SERVICE_ACCOUNT_JSON != ''
+        run: node scripts/notas-play.mjs
+
+      - name: Subir a la prueba interna de Google Play
+        if: inputs.etiqueta && env.KEYSTORE_BASE64 != '' && env.PLAY_SERVICE_ACCOUNT_JSON != ''
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.marmol89.pulse
+          releaseFiles: dist/*.aab
+          track: internal
+          status: completed
+          whatsNewDirectory: dist/whatsnew
 
       - name: Guardar como artefacto
         if: ${{ !inputs.etiqueta }}
