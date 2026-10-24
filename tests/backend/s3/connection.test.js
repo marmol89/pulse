@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { createConnectionStore, normalizeConfig, parseCredentials, resolveConnection } from '../../../src/main/s3/connection.js';
-import { createS3Storage } from '../../../src/main/s3/storage.js';
+import { createConnectionStore, normalizeConfig, parseCredentials, resolveConnection } from '../../../src/backend/s3/connection.js';
+import { createS3Storage } from '../../../src/backend/s3/storage.js';
 import { startFakeS3 } from '../../helpers/fakeS3.js';
 
 /** "Cifrado" reversible y visible para comprobar que la clave no se guarda en claro. */

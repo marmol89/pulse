@@ -1,6 +1,6 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron';
 import { readFile } from 'node:fs/promises';
-import { AUDIO_EXTENSIONS, toTrack } from '../library/tracks.js';
+import { AUDIO_EXTENSIONS, toTrack } from '../../backend/library/tracks.js';
 
 /**
  * Canales IPC de la biblioteca (que vive en el bucket S3) y de la conexión.

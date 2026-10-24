@@ -1,10 +1,27 @@
 import path from 'node:path';
 import { selectCover } from 'music-metadata';
-import { mediaUrl } from '../protocol/urls.js';
+import { mediaUrl } from '../../main/protocol/urls.js';
 
 export const AUDIO_EXTENSIONS = ['mp3', 'flac', 'ogg', 'oga', 'opus', 'wav', 'm4a', 'aac', 'webm'];
 const AUDIO_EXTENSION_SET = new Set(AUDIO_EXTENSIONS.map((extension) => `.${extension}`));
 export const UNKNOWN_ARTIST = 'Artista desconocido';
+
+const MIME_TYPES = {
+  '.mp3': 'audio/mpeg',
+  '.flac': 'audio/flac',
+  '.ogg': 'audio/ogg',
+  '.oga': 'audio/ogg',
+  '.opus': 'audio/ogg',
+  '.wav': 'audio/wav',
+  '.m4a': 'audio/mp4',
+  '.aac': 'audio/aac',
+  '.webm': 'audio/webm',
+};
+
+/** Tipo MIME de un archivo de audio por su extensión. */
+export function mimeFor(filePath) {
+  return MIME_TYPES[path.posix.extname(String(filePath).replace(/\\/g, '/')).toLowerCase()] ?? 'application/octet-stream';
+}
 
 /** Extensión de audio admitida y no es un archivo "._" de macOS. Vale para rutas y claves de S3. */
 export function isAudioFile(name) {

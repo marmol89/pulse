@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { createEnricher, needsInfo } from '../../../src/main/online/enricher.js';
-import { createHttp, TransientError } from '../../../src/main/online/http.js';
+import { createEnricher, needsInfo } from '../../../src/backend/online/enricher.js';
+import { createHttp, TransientError } from '../../../src/backend/online/http.js';
 import { fakeFetch, jsonResponse, imageResponse, itunesResult, lrclibResult, deezerResult } from '../../helpers/fakeFetch.js';
 
 const ITUNES = 'https://itunes.apple.com/search';

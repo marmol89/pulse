@@ -1,9 +1,9 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHttp, TransientError } from '../../../src/main/online/http.js';
-import { searchItunes, itunesSearchUrl } from '../../../src/main/online/itunes.js';
-import { findLyrics } from '../../../src/main/online/lrclib.js';
-import { searchDeezer, deezerSearchUrl } from '../../../src/main/online/deezer.js';
+import { createHttp, TransientError } from '../../../src/backend/online/http.js';
+import { searchItunes, itunesSearchUrl } from '../../../src/backend/online/itunes.js';
+import { findLyrics } from '../../../src/backend/online/lrclib.js';
+import { searchDeezer, deezerSearchUrl } from '../../../src/backend/online/deezer.js';
 import { fakeFetch, jsonResponse, imageResponse, itunesResult, lrclibResult, deezerResult } from '../../helpers/fakeFetch.js';
 
 const USER_AGENT = 'Pulse/test';

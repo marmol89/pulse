@@ -1,8 +1,7 @@
 import { createReadStream } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { isAudioFile } from './tracks.js';
-import { mimeFor } from '../protocol/responses.js';
+import { isAudioFile, mimeFor } from './tracks.js';
 import { describeUploadError } from '../s3/storage.js';
 
 const MAX_RENAMES = 50; // "Canción (2).mp3" … "Canción (50).mp3"

@@ -1,7 +1,7 @@
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { createLibrarySync } from '../../src/main/library/sync.js';
-import { createS3Storage } from '../../src/main/s3/storage.js';
+import { createLibrarySync } from '../../src/backend/library/sync.js';
+import { createS3Storage } from '../../src/backend/s3/storage.js';
 import { startFakeS3 } from '../helpers/fakeS3.js';
 import { memoryStore } from '../helpers/memoryStore.js';
 import { createWav } from '../helpers/audio.js';
@@ -83,7 +83,7 @@ describe('library/sync', () => {
       onChange: () => {},
       readRecord: async (s3Storage, object) => {
         if (object.key === 'pop/b.wav' && failures-- > 0) throw new Error('ECONNRESET');
-        const { readRemoteRecord } = await import('../../src/main/library/remote.js');
+        const { readRemoteRecord } = await import('../../src/backend/library/remote.js');
         return readRemoteRecord(s3Storage, object);
       },
     });
@@ -97,7 +97,7 @@ describe('library/sync', () => {
   });
 
   test('un error de red al leer etiquetas se propaga (no se confunde con "sin etiquetas")', async () => {
-    const { readRemoteRecord } = await import('../../src/main/library/remote.js');
+    const { readRemoteRecord } = await import('../../src/backend/library/remote.js');
     const broken = { bucket: 'musica', readStart: async () => Promise.reject(new Error('ECONNRESET')) };
     await assert.rejects(readRemoteRecord(broken, { key: 'a.mp3', size: 10, etag: '"x"' }), /ECONNRESET/);
   });
@@ -114,7 +114,7 @@ describe('library/sync', () => {
       pullMetadata: async () => fromOtherPc,
       readRecord: async (s3Storage, object) => {
         reads.push(object.key);
-        const { readRemoteRecord } = await import('../../src/main/library/remote.js');
+        const { readRemoteRecord } = await import('../../src/backend/library/remote.js');
         return readRemoteRecord(s3Storage, object);
       },
     });

@@ -1,6 +1,6 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createS3Service } from '../../../src/main/s3/service.js';
+import { createS3Service } from '../../../src/backend/s3/service.js';
 import { startFakeS3 } from '../../helpers/fakeS3.js';
 
 /** Almacén de conexión en memoria (el real cifra en disco; se prueba en connection.test.js). */

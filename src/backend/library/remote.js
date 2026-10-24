@@ -1,7 +1,6 @@
 import path from 'node:path';
 import { parseBuffer } from 'music-metadata';
-import { baseRecord, pictureFrom, recordFromMetadata } from './tracks.js';
-import { mimeFor } from '../protocol/responses.js';
+import { baseRecord, mimeFor, pictureFrom, recordFromMetadata } from './tracks.js';
 
 const HEAD_BYTES = 512 * 1024; // casi siempre basta para las etiquetas del principio
 const MAX_TAG_BYTES = 16 * 1024 * 1024; // una etiqueta ID3 con carátulas enormes

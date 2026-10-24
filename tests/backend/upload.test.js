@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { assertAbsolutePaths, collectUploads, createUploader } from '../../src/main/library/upload.js';
-import { createS3Storage } from '../../src/main/s3/storage.js';
+import { assertAbsolutePaths, collectUploads, createUploader } from '../../src/backend/library/upload.js';
+import { createS3Storage } from '../../src/backend/s3/storage.js';
 import { startFakeS3 } from '../helpers/fakeS3.js';
 
 describe('library/upload', () => {

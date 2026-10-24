@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { createMetadataStore, lookupStamp } from '../../src/main/library/metadata.js';
-import { createS3Storage } from '../../src/main/s3/storage.js';
+import { createMetadataStore, lookupStamp } from '../../src/backend/library/metadata.js';
+import { createS3Storage } from '../../src/backend/s3/storage.js';
 import { startFakeS3 } from '../helpers/fakeS3.js';
 
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2]);

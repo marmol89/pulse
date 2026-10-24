@@ -10,7 +10,7 @@ import {
   queriesFromRecord,
   pickBestOf,
   pickBest,
-} from '../../../src/main/online/matching.js';
+} from '../../../src/backend/online/matching.js';
 
 const candidate = (fields) => ({ title: '', artist: '', duration: 0, ...fields });
 

@@ -1,7 +1,7 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
-import { createS3Storage, describeS3Error, describeUploadError } from '../../../src/main/s3/storage.js';
+import { createS3Storage, describeS3Error, describeUploadError } from '../../../src/backend/s3/storage.js';
 import { startFakeS3 } from '../../helpers/fakeS3.js';
 
 describe('s3/storage', () => {

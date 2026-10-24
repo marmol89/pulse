@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { createEnrichmentQueue } from '../../../src/main/online/queue.js';
-import { TransientError } from '../../../src/main/online/http.js';
+import { createEnrichmentQueue } from '../../../src/backend/online/queue.js';
+import { TransientError } from '../../../src/backend/online/http.js';
 import { memoryStore } from '../../helpers/memoryStore.js';
 
 /** Reloj manual: los temporizadores solo avanzan con next(). */
