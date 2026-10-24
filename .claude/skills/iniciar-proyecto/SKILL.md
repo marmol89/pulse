@@ -269,6 +269,11 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
    - capturas con `animations: 'disabled'` en `tests/e2e/output/` y **compáralas con el diseño**.
 3. **No** ejecutes `npm run dist` salvo que lo pidan (lento). `dist:win` → NSIS; `dist:linux` → AppImage + deb
    (mejor desde Linux, WSL o CI).
+4. Publicación (si el repo está en GitHub): `.github/workflows/versiones.yml` con release-please
+   (`release-please-config.json` con `release-type: node`, `include-component-in-tag: false`, `initial-version: 0.1.0`
+   y secciones del changelog en español; `.release-please-manifest.json` vacío) y `instaladores.yml`
+   (`workflow_call` + `workflow_dispatch`: Windows y Linux, `npm ci`, `npm test`,
+   `electron-builder --publish never` y `gh release upload`). En el repo, Actions necesita permiso para crear PR.
 
 ## Paso 6 — Cierre
 
@@ -279,6 +284,8 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
 
 ## Problemas reales ya resueltos (no los repitas)
 
+- Una release creada con `GITHUB_TOKEN` no dispara `on: release` → los instaladores se compilan en el mismo
+  flujo de release-please (`release_created`), llamando a `instaladores.yml` como workflow reutilizable.
 - `node --test tests/` con un directorio falla en Node 24 → usar el glob `"tests/**/*.test.js"`.
 - `<audio>` necesita rangos para saltar → `responses.js` pide a S3 el rango (`GetObject` con `Range`) y responde 206/416.
 - Un `notify()` que esperaba a cada handler bloqueaba `app-ready` si listar dispositivos tardaba → concurrente.
