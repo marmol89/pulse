@@ -10,6 +10,7 @@ import recents from './handlers/recents.js';
 import online from './handlers/online.js';
 import changes from './handlers/changes.js';
 import connection from './handlers/connection.js';
+import uploads from './handlers/uploads.js';
 import errors from './handlers/errors.js';
 
 /**
@@ -41,6 +42,7 @@ export class PlayerMediator extends Mediator {
       .use(online)
       .use(changes)
       .use(connection)
+      .use(uploads)
       .use(errors);
   }
 
