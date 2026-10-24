@@ -87,8 +87,10 @@ export function createListStore({ files, getStorage, onChange = () => {}, now = 
     const storage = getStorage();
     if (!storage) throw new TypeError('Conecta tu bucket para usar las listas');
     if (scopeOf(storage) !== scope) {
+      const hadLists = visible().length > 0;
       scope = scopeOf(storage);
       lists = [];
+      if (hadLists) onChange([]); // la ventana deja de enseñar las de la conexión anterior
     }
     return storage;
   }

@@ -160,12 +160,15 @@ describe('library/lists', () => {
     const files = memoryFiles();
     let storage = createS3Storage(s3.config);
     storages.push(storage);
-    const lists = createListStore({ files, getStorage: () => storage, timers: IDLE_TIMERS });
+    const changes = [];
+    const lists = createListStore({ files, getStorage: () => storage, onChange: (all) => changes.push(all), timers: IDLE_TIMERS });
     await lists.create('De la raíz');
     await lists.sync();
     storage = createS3Storage({ ...s3.config, prefix: 'pop/' });
     storages.push(storage);
     assert.deepEqual(lists.all(), []);
+    await lists.sync();
+    assert.deepEqual(changes, [[]], 'avisa de que las de la conexión anterior ya no están');
     await lists.create('De pop');
     await lists.sync();
     assert.equal(JSON.parse(s3.get('musica', `pop/${REMOTE}`).toString()).lists[0].name, 'De pop');
