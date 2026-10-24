@@ -2,7 +2,7 @@
  * Prueba de humo de la app real (Electron) con playwright-core:
  * levanta un S3 falso con WAV etiquetados, conecta la app desde su formulario,
  * recorre las pantallas, comprueba reproducción desde el bucket, saltos, favoritos,
- * cambios en el bucket, subir canciones del ordenador y guarda capturas en tests/e2e/output/. Nunca usa tu S3 real.
+ * cambios en el bucket, subir canciones del ordenador, la copia en metadatos/ y guarda capturas en tests/e2e/output/. Nunca usa tu S3 real.
  * Uso: npm run test:e2e   (abre la ventana unos segundos; el audio va silenciado)
  */
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
@@ -203,6 +203,22 @@ try {
   });
   await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'No hay canciones de audio en lo que has elegido');
   check(!(await page.locator('.app.is-dropping').count()), 'soltar archivos en la ventana llega a la subida y quita el aviso de soltar');
+
+  // Los metadatos se copian al bucket, en metadatos/biblioteca.json (unos segundos después de guardarse).
+  const savedMetadata = async () => {
+    for (let i = 0; i < 40; i += 1) {
+      const body = s3.get('musica', 'metadatos/biblioteca.json');
+      const tracks = body ? JSON.parse(body.toString()).tracks : [];
+      if (tracks.some((track) => track.title === 'Brisa')) return tracks;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    return [];
+  };
+  const metadataTracks = await savedMetadata();
+  check(
+    metadataTracks.length === FIXTURES.length + 2 && metadataTracks.find((track) => track.title === 'Luces de Neón')?.album === 'Neón',
+    `los metadatos se guardan en metadatos/biblioteca.json del bucket (${metadataTracks.length} canciones)`,
+  );
 
   s3.setReadOnly(true);
   const denied = path.join(work, 'Para subir', 'Sin permiso.wav');
