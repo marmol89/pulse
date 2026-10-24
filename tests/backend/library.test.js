@@ -1,8 +1,5 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
 import { isAudioFile, baseRecord, readRecordCover, toTrack } from '../../src/backend/library/tracks.js';
 import { trackId, parseTrackId, id3Size, readRemoteRecord, readRemoteCover } from '../../src/backend/library/remote.js';
 import { createLibraryStore } from '../../src/backend/library/store.js';
@@ -10,14 +7,7 @@ import { createS3Storage } from '../../src/backend/s3/storage.js';
 import { startFakeS3 } from '../helpers/fakeS3.js';
 import { createWav } from '../helpers/audio.js';
 import { encodePng, paint } from '../../scripts/lib/png.js';
-
-let dir;
-
-before(async () => {
-  dir = await mkdtemp(path.join(tmpdir(), 'pulse-library-'));
-});
-
-after(() => rm(dir, { recursive: true, force: true }));
+import { memoryFiles } from '../helpers/memoryFiles.js';
 
 describe('library/tracks', () => {
   test('isAudioFile() filtra por extensión (rutas o claves de S3) e ignora los "._" de macOS', () => {
@@ -127,27 +117,28 @@ describe('library/remote', () => {
 
 describe('library/store', () => {
   test('persiste los registros y los recupera en otra instancia', async () => {
-    const file = path.join(dir, 'datos', 'library.json');
-    const store = createLibraryStore(file);
+    const files = memoryFiles();
+    const store = createLibraryStore(files);
     await store.load();
     store.add([{ path: '/m/a.mp3', title: 'A' }]);
     await Promise.all([store.save(), store.save()]);
 
-    const reopened = createLibraryStore(file);
+    const reopened = createLibraryStore(files);
     await reopened.load();
 
     assert.equal(reopened.has('/m/a.mp3'), true);
     assert.deepEqual(reopened.get('/m/a.mp3'), { path: '/m/a.mp3', title: 'A' });
     assert.equal(reopened.get('/m/otra.mp3'), null);
     assert.deepEqual(reopened.all(), [{ path: '/m/a.mp3', title: 'A' }]);
-    assert.equal(JSON.parse(await readFile(file, 'utf8')).version, 1);
+    assert.equal(JSON.parse(files.text('library.json')).version, 1);
   });
 
   test('las carátulas guardadas con su ruta pasan a guardarse por nombre; onSave avisa de cada guardado', async () => {
-    const file = path.join(dir, 'antigua.json');
-    await writeFile(file, JSON.stringify({ version: 1, tracks: [{ path: 's3://m/a.mp3', coverFile: path.join(dir, 'covers', 'abc.jpg') }, { path: 's3://m/b.mp3' }] }));
+    const files = memoryFiles({
+      'library.json': JSON.stringify({ version: 1, tracks: [{ path: 's3://m/a.mp3', coverFile: '/home/ana/.config/Pulse/covers/abc.jpg' }, { path: 's3://m/b.mp3' }] }),
+    });
     let saved = 0;
-    const store = createLibraryStore(file, { onSave: () => (saved += 1) });
+    const store = createLibraryStore(files, { onSave: () => (saved += 1) });
     await store.load();
     assert.deepEqual(store.get('s3://m/a.mp3'), { path: 's3://m/a.mp3', coverName: 'abc.jpg' });
     assert.deepEqual(store.get('s3://m/b.mp3'), { path: 's3://m/b.mp3' });
@@ -156,7 +147,7 @@ describe('library/store', () => {
   });
 
   test('remove() olvida registros', () => {
-    const store = createLibraryStore(path.join(dir, 'remove.json'));
+    const store = createLibraryStore(memoryFiles());
     store.add([{ path: '/m/a.mp3' }, { path: '/m/b.mp3' }]);
     store.remove(['/m/a.mp3', '/m/no-existe.mp3']);
     assert.deepEqual(store.all(), [{ path: '/m/b.mp3' }]);
@@ -164,9 +155,7 @@ describe('library/store', () => {
 
   test('un JSON corrupto no impide arrancar: empieza vacía y avisa', async (t) => {
     const warn = t.mock.method(console, 'warn', () => {});
-    const file = path.join(dir, 'corrupto.json');
-    await writeFile(file, '{ no es json');
-    const store = createLibraryStore(file);
+    const store = createLibraryStore(memoryFiles({ 'library.json': '{ no es json' }));
 
     await store.load();
 

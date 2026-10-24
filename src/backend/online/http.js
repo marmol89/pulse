@@ -39,7 +39,7 @@ export function createHttp(fetch, { userAgent, timeout = TIMEOUT_MS }) {
       const response = await request(url, 'image/*');
       const type = response.headers.get('content-type') ?? '';
       if (!response.ok || !type.startsWith('image/')) return null;
-      const data = Buffer.from(await response.arrayBuffer());
+      const data = new Uint8Array(await response.arrayBuffer());
       return data.length > 0 && data.length <= maxBytes ? { type, data } : null;
     },
   };

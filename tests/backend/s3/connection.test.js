@@ -1,11 +1,9 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
 import { createConnectionStore, normalizeConfig, parseCredentials, resolveConnection } from '../../../src/backend/s3/connection.js';
 import { createS3Storage } from '../../../src/backend/s3/storage.js';
 import { startFakeS3 } from '../../helpers/fakeS3.js';
+import { memoryFiles } from '../../helpers/memoryFiles.js';
 
 /** "Cifrado" reversible y visible para comprobar que la clave no se guarda en claro. */
 const fakeCrypto = {
@@ -15,42 +13,37 @@ const fakeCrypto = {
 const valid = { endpoint: 'https://minio.ejemplo.com/', accessKeyId: ' clave ', secretAccessKey: 'secreto', bucket: 'musica', prefix: '/pop/' };
 
 describe('s3/connection', () => {
-  let dir;
-  before(async () => {
-    dir = await mkdtemp(path.join(tmpdir(), 'pulse-s3-'));
-  });
-  after(() => rm(dir, { recursive: true, force: true }));
-
   test('guarda la conexión con la clave secreta cifrada y la recupera', async () => {
-    const file = path.join(dir, 's3.json');
-    const store = createConnectionStore(file, fakeCrypto);
+    const files = memoryFiles();
+    const store = createConnectionStore(files, fakeCrypto);
     await store.save(normalizeConfig(valid));
 
-    const onDisk = await readFile(file, 'utf8');
+    const onDisk = files.text('s3.json');
     assert.equal(onDisk.includes('secreto'), false, 'la clave secreta no se guarda en claro');
 
-    const reopened = createConnectionStore(file, fakeCrypto);
+    const reopened = createConnectionStore(files, fakeCrypto);
     await reopened.load();
     assert.deepEqual(reopened.get(), { endpoint: 'https://minio.ejemplo.com', accessKeyId: 'clave', secretAccessKey: 'secreto', bucket: 'musica', prefix: 'pop/' });
     assert.deepEqual(reopened.summary(), { endpoint: 'https://minio.ejemplo.com', accessKeyId: 'clave', bucket: 'musica', prefix: 'pop/' });
 
     await reopened.clear();
     assert.equal(reopened.summary(), null);
+    assert.equal(files.text('s3.json'), undefined);
   });
 
   test('si el sistema cambió su clave, vuelve a cifrar el secreto al cargar', async () => {
-    const file = path.join(dir, 'rotada.json');
-    await createConnectionStore(file, { ...fakeCrypto, encrypt: async (text) => `antiguo:${Buffer.from(text).toString('base64')}` }).save(normalizeConfig(valid));
-    const rotated = createConnectionStore(file, { ...fakeCrypto, decrypt: async (text) => ({ ...(await fakeCrypto.decrypt(text)), reencrypt: true }) });
+    const files = memoryFiles();
+    await createConnectionStore(files, { ...fakeCrypto, encrypt: async (text) => `antiguo:${Buffer.from(text).toString('base64')}` }).save(normalizeConfig(valid));
+    const rotated = createConnectionStore(files, { ...fakeCrypto, decrypt: async (text) => ({ ...(await fakeCrypto.decrypt(text)), reencrypt: true }) });
 
     await rotated.load();
 
     assert.equal(rotated.get().secretAccessKey, 'secreto');
-    assert.match(JSON.parse(await readFile(file, 'utf8')).secretAccessKey, /^cifrado:/);
+    assert.match(JSON.parse(files.text('s3.json')).secretAccessKey, /^cifrado:/);
   });
 
   test('sin conexión guardada no hay resumen', async () => {
-    const store = createConnectionStore(path.join(dir, 'no-existe.json'), fakeCrypto);
+    const store = createConnectionStore(memoryFiles(), fakeCrypto);
     await store.load();
     assert.equal(store.get(), null);
   });

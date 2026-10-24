@@ -41,7 +41,7 @@ describe('online/http', () => {
       'https://img.test/ok': () => imageResponse(),
       'https://img.test/html': () => new Response('<html>', { headers: { 'Content-Type': 'text/html' } }),
     });
-    assert.deepEqual(await http.image('https://img.test/ok', 1000), { type: 'image/jpeg', data: Buffer.from([0xff, 0xd8, 0xff, 0xe0]) });
+    assert.deepEqual(await http.image('https://img.test/ok', 1000), { type: 'image/jpeg', data: Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]) });
     assert.equal(await http.image('https://img.test/ok', 2), null);
     assert.equal(await http.image('https://img.test/html', 1000), null);
   });

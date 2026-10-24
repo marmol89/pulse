@@ -1,4 +1,4 @@
-import path from 'node:path';
+import { basename, extname } from '../paths.js';
 import { UNKNOWN_ARTIST } from '../library/tracks.js';
 
 /**
@@ -105,7 +105,7 @@ export function parseFileName(fileName) {
 
 /** El título vino del nombre del archivo (no había etiquetas). */
 export function isTitleFromFile(record) {
-  return record.titleFromFile ?? record.title === path.basename(record.path, path.extname(record.path));
+  return record.titleFromFile ?? record.title === basename(record.path, extname(record.path));
 }
 
 /**

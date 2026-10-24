@@ -16,6 +16,7 @@ import { createEnricher } from '../backend/online/enricher.js';
 import { createEnrichmentQueue } from '../backend/online/queue.js';
 import { registerLibraryIpc } from './ipc/library.js';
 import { registerMetadataIpc } from './ipc/metadata.js';
+import { createNodeFiles } from './files.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BACKGROUND = '#0E0E12'; // --color-bg del diseño: sin destello blanco al abrir
@@ -32,22 +33,22 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 async function start() {
-  const userData = app.getPath('userData');
+  // Archivos de la app en userData: library.json, s3.json y covers/.
+  const files = createNodeFiles(app.getPath('userData'));
   // library.json es la caché local; la copia compartida va a metadatos/ del bucket tras cada guardado.
   let metadata = null;
-  const store = createLibraryStore(path.join(userData, 'library.json'), { onSave: () => metadata?.schedulePush() });
+  const store = createLibraryStore(files, { onSave: () => metadata?.schedulePush() });
   await store.load();
 
   // Datos de internet: net.fetch usa la red de Chromium (respeta el proxy del sistema).
   const http = createHttp((url, init) => net.fetch(url, init), {
     userAgent: `Pulse/${app.getVersion()} (reproductor de música de escritorio)`,
   });
-  const coversDir = path.join(userData, 'covers');
-  const enricher = createEnricher({ http, coversDir });
+  const enricher = createEnricher({ http, files });
   const queue = createEnrichmentQueue({ store, enricher, onUpdated: (tracks) => broadcast('library:tracks-updated', tracks) });
 
   // La música vive en un bucket S3. La clave secreta se cifra con el almacén seguro del sistema.
-  const connections = createConnectionStore(path.join(userData, 's3.json'), {
+  const connections = createConnectionStore(files, {
     encrypt: async (text) => (await safeStorage.encryptStringAsync(text)).toString('base64'),
     decrypt: async (text) => {
       const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(Buffer.from(text, 'base64'));
@@ -56,7 +57,7 @@ async function start() {
   });
   const s3 = createS3Service({ connections });
   await s3.load();
-  metadata = createMetadataStore({ getStorage: () => s3.storage(), getRecords: () => store.all(), coversDir });
+  metadata = createMetadataStore({ getStorage: () => s3.storage(), getRecords: () => store.all(), files });
   metadata.schedulePush(); // lo que ya hay en este equipo también llega al bucket
   const librarySync = createLibrarySync({
     store,

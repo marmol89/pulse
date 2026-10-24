@@ -1,4 +1,4 @@
-import path from 'node:path';
+import { basename } from '../paths.js';
 import { parseBuffer } from 'music-metadata';
 import { baseRecord, mimeFor, pictureFrom, recordFromMetadata } from './tracks.js';
 
@@ -46,7 +46,7 @@ async function parseStart(storage, object) {
  * si falla la descarga (red, S3), el error se propaga para reintentarlo en otra sincronización.
  */
 export async function readRemoteRecord(storage, object) {
-  const record = baseRecord(trackId(storage.bucket, object.key), path.posix.basename(object.key), {
+  const record = baseRecord(trackId(storage.bucket, object.key), basename(object.key), {
     key: object.key,
     etag: object.etag,
     size: object.size,

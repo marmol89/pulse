@@ -1,4 +1,4 @@
-import path from 'node:path';
+import { basename, extname } from '../paths.js';
 import { selectCover } from 'music-metadata';
 import { mediaUrl } from '../../main/protocol/urls.js';
 
@@ -20,20 +20,20 @@ const MIME_TYPES = {
 
 /** Tipo MIME de un archivo de audio por su extensión. */
 export function mimeFor(filePath) {
-  return MIME_TYPES[path.posix.extname(String(filePath).replace(/\\/g, '/')).toLowerCase()] ?? 'application/octet-stream';
+  return MIME_TYPES[extname(filePath).toLowerCase()] ?? 'application/octet-stream';
 }
 
 /** Extensión de audio admitida y no es un archivo "._" de macOS. Vale para rutas y claves de S3. */
 export function isAudioFile(name) {
-  const base = path.posix.basename(String(name).replace(/\\/g, '/'));
-  return !base.startsWith('._') && AUDIO_EXTENSION_SET.has(path.posix.extname(base).toLowerCase());
+  const base = basename(name);
+  return !base.startsWith('._') && AUDIO_EXTENSION_SET.has(extname(base).toLowerCase());
 }
 
 /** Registro mínimo de una pista: el título sale del nombre del archivo. */
 export function baseRecord(id, fileName, fields = {}) {
   return {
     path: id,
-    title: path.posix.basename(fileName, path.posix.extname(fileName)),
+    title: basename(fileName, extname(fileName)),
     titleFromFile: true,
     artist: UNKNOWN_ARTIST,
     albumArtist: '',
@@ -96,7 +96,7 @@ function coverUrl(record, hasCover, coverName) {
 
 /**
  * Carátula de un registro: la incrustada (con `readEmbedded`) o, si no tiene, la descargada de internet
- * (`readCover(coverName)` → Buffer o null: de la caché local o de metadatos/caratulas/ en el bucket).
+ * (`readCover(coverName)` → Uint8Array o null: de la caché local o de metadatos/caratulas/ en el bucket).
  */
 export async function readRecordCover(record, { readEmbedded, readCover }) {
   if (!record) return null;

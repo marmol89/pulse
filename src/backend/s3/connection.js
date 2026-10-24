@@ -1,32 +1,32 @@
-import { readFile, writeFile, rename, rm, mkdir } from 'node:fs/promises';
-import path from 'node:path';
+export const CONNECTION_FILE = 's3.json';
 
 /**
- * Conexión S3 guardada en userData. La clave secreta se cifra con el almacén seguro del
- * sistema (safeStorage: DPAPI en Windows, llavero en Linux) y nunca sale del proceso main.
+ * Conexión S3 guardada en s3.json (en los archivos de la app: `files`). La clave secreta se cifra
+ * con el almacén seguro del sistema (safeStorage en escritorio, Keystore en Android) y nunca
+ * llega a la interfaz.
  *
  * @param {{ encrypt: (text: string) => Promise<string>, decrypt: (text: string) => Promise<{ text: string, reencrypt?: boolean }> }} crypto
  *   `reencrypt`: el sistema cambió su clave y conviene volver a cifrar el secreto.
  */
-export function createConnectionStore(file, { encrypt, decrypt }) {
+export function createConnectionStore(files, { encrypt, decrypt }) {
   let config = null;
 
   async function write(next) {
-    await mkdir(path.dirname(file), { recursive: true });
-    const temporary = `${file}.tmp`;
-    await writeFile(temporary, JSON.stringify({ ...next, secretAccessKey: await encrypt(next.secretAccessKey) }));
-    await rename(temporary, file);
+    await files.write(CONNECTION_FILE, JSON.stringify({ ...next, secretAccessKey: await encrypt(next.secretAccessKey) }));
   }
 
   return {
     async load() {
+      config = null;
       try {
-        const saved = JSON.parse(await readFile(file, 'utf8'));
-        const { text, reencrypt } = await decrypt(saved.secretAccessKey);
-        config = { ...saved, secretAccessKey: text };
+        const text = await files.readText(CONNECTION_FILE);
+        if (text === null) return;
+        const saved = JSON.parse(text);
+        const { text: secret, reencrypt } = await decrypt(saved.secretAccessKey);
+        config = { ...saved, secretAccessKey: secret };
         if (reencrypt) await write(config).catch((error) => console.warn('[s3] no se pudo volver a cifrar la clave', error));
       } catch (error) {
-        if (error.code !== 'ENOENT') console.warn('[s3] no se pudo leer la conexión guardada', error);
+        console.warn('[s3] no se pudo leer la conexión guardada', error);
         config = null;
       }
     },
@@ -48,7 +48,7 @@ export function createConnectionStore(file, { encrypt, decrypt }) {
     },
 
     async clear() {
-      await rm(file, { force: true });
+      await files.remove(CONNECTION_FILE);
       config = null;
     },
   };

@@ -64,7 +64,7 @@ export function createS3Storage({ endpoint, accessKeyId, secretAccessKey, bucket
     async read(key) {
       try {
         const { Body } = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-        return Buffer.from(await Body.transformToByteArray());
+        return Body.transformToByteArray();
       } catch (error) {
         if (error?.$metadata?.httpStatusCode === 404 || error?.name === 'NoSuchKey') return null;
         throw error;
@@ -98,7 +98,7 @@ export function createS3Storage({ endpoint, accessKeyId, secretAccessKey, bucket
       return (await this.stat(key)) !== null;
     },
 
-    /** Sube un objeto (`body`: Buffer o stream de Node, con su tamaño exacto en `size`). */
+    /** Sube un objeto (`body`: Uint8Array, Blob o stream, con su tamaño exacto en `size`). */
     async upload(key, body, { size, contentType }) {
       await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentLength: size, ContentType: contentType }));
     },

@@ -1,37 +1,35 @@
-import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
-import path from 'node:path';
+import { basename } from '../paths.js';
 
 const VERSION = 1;
+export const LIBRARY_FILE = 'library.json';
 
 /** Las carátulas de internet se guardaban con su ruta en este equipo; ahora, por nombre. */
 function migrate({ coverFile, ...record }) {
-  return coverFile && !record.coverName ? { ...record, coverName: path.basename(coverFile) } : record;
+  return coverFile && !record.coverName ? { ...record, coverName: basename(coverFile) } : record;
 }
 
 /**
- * Biblioteca persistida en un JSON (en userData). También sirve como lista de
- * rutas permitidas para el protocolo media://. `onSave` se llama tras cada guardado
+ * Biblioteca persistida en library.json (en los archivos de la app: `files`). También sirve como
+ * lista de pistas permitidas para el protocolo media://. `onSave` se llama tras cada guardado
  * (lo usa la copia en metadatos/ del bucket).
  */
-export function createLibraryStore(file, { onSave = () => {} } = {}) {
+export function createLibraryStore(files, { onSave = () => {} } = {}) {
   const records = new Map();
   let saving = Promise.resolve();
 
   async function write() {
-    await mkdir(path.dirname(file), { recursive: true });
-    const temporary = `${file}.tmp`;
-    await writeFile(temporary, JSON.stringify({ version: VERSION, tracks: [...records.values()] }));
-    await rename(temporary, file); // escritura atómica: nunca queda un JSON a medias
+    await files.write(LIBRARY_FILE, JSON.stringify({ version: VERSION, tracks: [...records.values()] }));
     onSave();
   }
 
   return {
     async load() {
       try {
-        const data = JSON.parse(await readFile(file, 'utf8'));
-        for (const record of data.tracks ?? []) if (record?.path) records.set(record.path, migrate(record));
+        const text = await files.readText(LIBRARY_FILE);
+        if (text === null) return;
+        for (const record of JSON.parse(text).tracks ?? []) if (record?.path) records.set(record.path, migrate(record));
       } catch (error) {
-        if (error.code !== 'ENOENT') console.warn('[library] no se pudo leer la biblioteca, se empieza vacía', error);
+        console.warn('[library] no se pudo leer la biblioteca, se empieza vacía', error);
       }
     },
 

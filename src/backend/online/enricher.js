@@ -1,6 +1,4 @@
-import { createHash } from 'node:crypto';
-import { access, mkdir, writeFile } from 'node:fs/promises';
-import path from 'node:path';
+import { coverFile } from '../paths.js';
 import { UNKNOWN_ARTIST } from '../library/tracks.js';
 import { TransientError } from './http.js';
 import { searchItunes } from './itunes.js';
@@ -30,7 +28,7 @@ export function needsInfo(record) {
  * canción (datos y carátula, sin género ni año) y LRCLIB (letra).
  * Nunca pisa las etiquetas del archivo: solo rellena lo que falta.
  */
-export function createEnricher({ http, coversDir, now = Date.now }) {
+export function createEnricher({ http, files, now = Date.now }) {
   return {
     /**
      * @returns {Promise<{ record: object, changed: boolean }>}
@@ -80,13 +78,11 @@ export function createEnricher({ http, coversDir, now = Date.now }) {
    */
   async function saveCover(url) {
     if (!url) return null;
-    const name = `${createHash('sha1').update(url).digest('hex')}.jpg`;
-    const file = path.join(coversDir, name);
-    if (await exists(file)) return name;
+    const name = `${await sha1(url)}.jpg`;
+    if (await files.exists(coverFile(name))) return name;
     const image = await orFallback(() => http.image(url, MAX_COVER_BYTES), null);
     if (!image) return null;
-    await mkdir(coversDir, { recursive: true });
-    await writeFile(file, image.data);
+    await files.write(coverFile(name), image.data);
     return name;
   }
 }
@@ -121,9 +117,8 @@ async function orFallback(task, fallback) {
   }
 }
 
-function exists(file) {
-  return access(file).then(
-    () => true,
-    () => false,
-  );
+/** SHA-1 en hexadecimal con Web Crypto (está en Node y en el WebView). */
+async function sha1(text) {
+  const digest = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }

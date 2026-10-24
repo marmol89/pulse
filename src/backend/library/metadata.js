@@ -1,5 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import path from 'node:path';
+import { basename, coverFile } from '../paths.js';
 import { parseTrackId } from './remote.js';
 import { describeUploadError } from '../s3/storage.js';
 
@@ -23,7 +22,7 @@ export function lookupStamp(record) {
  * Así otro equipo conectado al mismo bucket no tiene que releer cada archivo ni volver a buscar en internet.
  * La copia local (library.json y covers/) sigue siendo la caché para arrancar al momento y sin conexión.
  */
-export function createMetadataStore({ getStorage, getRecords, coversDir, delay = PUSH_DELAY_MS, maxWait = MAX_PUSH_WAIT_MS, retry = RETRY_MS }) {
+export function createMetadataStore({ getStorage, getRecords, files, delay = PUSH_DELAY_MS, maxWait = MAX_PUSH_WAIT_MS, retry = RETRY_MS }) {
   const uploadedCovers = new Set(); // "bucket/clave" ya presentes en el bucket
   let timer = null;
   let firstPendingAt = 0;
@@ -48,7 +47,7 @@ export function createMetadataStore({ getStorage, getRecords, coversDir, delay =
       const id = `${storage.bucket}/${coverKey(storage, name)}`;
       if (uploadedCovers.has(id)) continue;
       if (!(await storage.stat(coverKey(storage, name)))) {
-        const data = await readFile(path.join(coversDir, name)).catch(() => null);
+        const data = await files.read(coverFile(name)).catch(() => null);
         if (!data) continue; // ni en este equipo: se subirá quien la tenga
         await storage.upload(coverKey(storage, name), data, { size: data.length, contentType: 'image/jpeg' });
       }
@@ -68,7 +67,8 @@ export function createMetadataStore({ getStorage, getRecords, coversDir, delay =
       await uploadCovers(storage, records);
       const body = JSON.stringify({ version: VERSION, tracks: records });
       if (body === lastBody) return;
-      await storage.upload(key(storage, LIBRARY_FILE), Buffer.from(body), { size: Buffer.byteLength(body), contentType: 'application/json' });
+      const bytes = new TextEncoder().encode(body);
+      await storage.upload(key(storage, LIBRARY_FILE), bytes, { size: bytes.length, contentType: 'application/json' });
       lastBody = body;
       lastWarning = '';
     } catch (error) {
@@ -99,7 +99,7 @@ export function createMetadataStore({ getStorage, getRecords, coversDir, delay =
       try {
         const data = await storage.read(key(storage, LIBRARY_FILE));
         if (!data) return [];
-        const tracks = JSON.parse(data.toString('utf8')).tracks ?? [];
+        const tracks = JSON.parse(new TextDecoder().decode(data)).tracks ?? [];
         return tracks.filter((record) => record?.path && parseTrackId(record.path)?.bucket === storage.bucket);
       } catch (error) {
         warn('no se pudieron leer los metadatos del bucket', error);
@@ -123,14 +123,12 @@ export function createMetadataStore({ getStorage, getRecords, coversDir, delay =
 
     /** Carátula de internet por nombre: de la caché local o, si no está, del bucket (y se guarda en la caché). */
     async readCover(name) {
-      const file = path.join(coversDir, path.basename(name));
-      const cached = await readFile(file).catch(() => null);
+      const cached = await files.read(coverFile(name)).catch(() => null);
       if (cached) return cached;
       const storage = getStorage();
-      const data = storage ? await storage.read(coverKey(storage, path.basename(name))) : null;
+      const data = storage ? await storage.read(coverKey(storage, basename(name))) : null;
       if (!data) return null;
-      await mkdir(coversDir, { recursive: true });
-      await writeFile(file, data);
+      await files.write(coverFile(name), data);
       return data;
     },
   };
