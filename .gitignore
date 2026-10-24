@@ -11,3 +11,7 @@ tests/e2e/output/
 
 # Android: www/ se genera con scripts/build-android.mjs
 www/
+
+# Keystore de firma de Android: nunca al repo (va en los secretos de Actions)
+*.jks
+*.keystore
