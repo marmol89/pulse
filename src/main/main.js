@@ -9,6 +9,7 @@ import { createLibrarySync } from '../backend/library/sync.js';
 import { createUploader } from '../backend/library/upload.js';
 import { collectPaths } from './library/collect.js';
 import { createMetadataStore } from '../backend/library/metadata.js';
+import { createListStore } from '../backend/library/lists.js';
 import { objectResponse } from './protocol/responses.js';
 import { mediaTrack } from './protocol/urls.js';
 import { createConnectionStore } from '../backend/s3/connection.js';
@@ -18,6 +19,7 @@ import { createEnricher } from '../backend/online/enricher.js';
 import { createEnrichmentQueue } from '../backend/online/queue.js';
 import { registerLibraryIpc } from './ipc/library.js';
 import { registerMetadataIpc } from './ipc/metadata.js';
+import { registerListsIpc } from './ipc/lists.js';
 import { createNodeFiles } from './files.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -61,6 +63,9 @@ async function start() {
   await s3.load();
   metadata = createMetadataStore({ getStorage: () => s3.storage(), getRecords: () => store.all(), files });
   metadata.schedulePush(); // lo que ya hay en este equipo también llega al bucket
+  // Listas de canciones: lists.json aquí y metadatos/listas.json en el bucket, compartidas con los demás equipos.
+  const lists = createListStore({ files, getStorage: () => s3.storage(), onChange: (all) => broadcast('lists:changed', all) });
+  await lists.load();
   const librarySync = createLibrarySync({
     store,
     getStorage: () => s3.storage(),
@@ -93,18 +98,23 @@ async function start() {
       return storage && key ? objectResponse(storage, key, range) : new Response('Sin conexión con el almacenamiento', { status: 503 });
     },
   });
-  registerLibraryIpc({ store, s3, librarySync, uploader });
+  registerLibraryIpc({ store, s3, librarySync, uploader, lists });
   registerMetadataIpc({ store, queue });
+  registerListsIpc({ lists });
   if (app.isPackaged) Menu.setApplicationMenu(null);
 
-  // Cambios hechos en el bucket desde fuera: al arrancar y al volver a la ventana.
-  createWindow().webContents.once('did-finish-load', () => librarySync.syncSoon());
-  app.on('browser-window-focus', () => librarySync.syncSoon());
-  // No cerrar con metadatos sin subir al bucket.
+  // Cambios hechos en el bucket desde fuera (canciones y listas): al arrancar y al volver a la ventana.
+  const syncSoon = () => {
+    librarySync.syncSoon();
+    lists.syncSoon();
+  };
+  createWindow().webContents.once('did-finish-load', syncSoon);
+  app.on('browser-window-focus', syncSoon);
+  // No cerrar con metadatos o listas sin subir al bucket.
   app.on('before-quit', (event) => {
-    if (!metadata.hasPending()) return;
+    if (!metadata.hasPending() && !lists.hasPending()) return;
     event.preventDefault();
-    metadata.flush().finally(() => app.quit());
+    Promise.all([metadata.hasPending() && metadata.flush(), lists.hasPending() && lists.sync()]).finally(() => app.quit());
   });
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

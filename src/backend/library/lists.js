@@ -40,6 +40,20 @@ function cleanPaths(paths) {
   return Array.isArray(paths) ? [...new Set(paths.filter((path) => typeof path === 'string' && path.startsWith('s3://')))] : [];
 }
 
+/**
+ * Resultado de una operación para la interfaz: { ok: true, lists, id? } o, si el usuario pidió algo que no
+ * se puede (nombre vacío, lista borrada, sin conexión), { ok: false, error } con el mensaje en español.
+ */
+export async function listResult(task) {
+  try {
+    const value = await task();
+    return { ok: true, ...(Array.isArray(value) ? { lists: value } : value) };
+  } catch (error) {
+    if (error instanceof TypeError) return { ok: false, error: error.message };
+    throw error;
+  }
+}
+
 const valid = (list) => typeof list?.id === 'string' && typeof list.updatedAt === 'number' && (list.deleted || (typeof list.name === 'string' && Array.isArray(list.tracks)));
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 

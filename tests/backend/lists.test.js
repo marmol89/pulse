@@ -1,6 +1,6 @@
 import { test, describe, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { createListStore, mergeLists, LISTS_FILE } from '../../src/backend/library/lists.js';
+import { createListStore, mergeLists, listResult, LISTS_FILE } from '../../src/backend/library/lists.js';
 import { createS3Storage } from '../../src/backend/s3/storage.js';
 import { startFakeS3 } from '../helpers/fakeS3.js';
 import { memoryFiles } from '../helpers/memoryFiles.js';
@@ -190,5 +190,14 @@ describe('mergeLists', () => {
     ];
     assert.deepEqual(mergeLists(a, b).map((list) => list.name), ['nueva', 'a']);
     assert.equal(mergeLists(a, [{ ...b[0], updatedAt: 6 }])[0].name, 'b');
+  });
+});
+
+describe('listResult', () => {
+  test('devuelve { ok, lists, id? } o, con un error del usuario, { ok: false, error }', async () => {
+    assert.deepEqual(await listResult(async () => []), { ok: true, lists: [] });
+    assert.deepEqual(await listResult(async () => ({ id: '1', lists: [] })), { ok: true, id: '1', lists: [] });
+    assert.deepEqual(await listResult(async () => { throw new TypeError('Ponle un nombre a la lista'); }), { ok: false, error: 'Ponle un nombre a la lista' });
+    await assert.rejects(listResult(async () => { throw new Error('fallo interno'); }), /fallo interno/);
   });
 });

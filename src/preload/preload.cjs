@@ -31,6 +31,20 @@ contextBridge.exposeInMainWorld('api', {
   saveConnection: (input) => ipcRenderer.invoke('connection:save', input),
   importCredentials: () => ipcRenderer.invoke('connection:import'),
 
+  // Listas de canciones (compartidas por todos los Pulse del mismo bucket). Devuelven { ok, lists, id? } o { ok: false, error }.
+  getLists: () => ipcRenderer.invoke('lists:get'),
+  createList: (name, paths) => ipcRenderer.invoke('lists:create', name, paths),
+  renameList: (id, name) => ipcRenderer.invoke('lists:rename', id, name),
+  addToList: (id, paths) => ipcRenderer.invoke('lists:add', id, paths),
+  removeFromList: (id, path) => ipcRenderer.invoke('lists:remove-track', id, path),
+  deleteList: (id) => ipcRenderer.invoke('lists:delete', id),
+  /** Listas cambiadas desde otro equipo. Devuelve la función para dejar de escuchar. */
+  onListsChanged: (callback) => {
+    const listener = (_event, lists) => callback(lists);
+    ipcRenderer.on('lists:changed', listener);
+    return () => ipcRenderer.removeListener('lists:changed', listener);
+  },
+
   // Datos de internet (carátulas, álbum, año, género, letra)
   lookupTrack: (id, options) => ipcRenderer.invoke('metadata:lookup', id, options),
   setOnlineLookup: (enabled) => ipcRenderer.invoke('metadata:set-enabled', enabled),
