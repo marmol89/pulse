@@ -1,6 +1,7 @@
 # Pulse — reproductor de música (Electron + patrón Mediator)
 
-Reproductor nativo para **Windows y Linux** en JavaScript puro (sin frameworks de UI). Diseño de referencia:
+Reproductor nativo para **Windows y Linux** en JavaScript puro (sin frameworks de UI). **La música viene de un bucket S3**
+(o compatible, como MinIO); no hay archivos locales. Diseño de referencia:
 `app-musica-figma.svg` (móvil) y su adaptación a escritorio en `.claude/skills/iniciar-proyecto/reference/diseno.md`.
 La skill `iniciar-proyecto` es la fuente de las reglas de abajo: tenla presente antes de tocar código.
 
@@ -10,7 +11,7 @@ La skill `iniciar-proyecto` es la fuente de las reglas de abajo: tenla presente 
 |---|---|
 | `npm start` | Arranca la app en desarrollo |
 | `npm test` | Tests unitarios (`node:test`, Node ≥ 22) |
-| `npm run test:e2e` | Prueba de humo de la app real (playwright-core): abre la ventana unos segundos, audio silenciado, capturas en `tests/e2e/output/` |
+| `npm run test:e2e` | Prueba de humo de la app real (playwright-core) contra un **S3 falso** (`tests/helpers/fakeS3.js`): abre la ventana unos segundos, audio silenciado, capturas en `tests/e2e/output/` |
 | `npm run icons` | Regenera `src/assets/icon.png` |
 | `npm run dist:win` / `npm run dist:linux` | Instaladores en `dist/` (NSIS / AppImage + deb). Lento: solo cuando se pida. El `.deb`/AppImage, mejor desde Linux, WSL o CI |
 
@@ -21,10 +22,12 @@ Electron 45 descarga su binario la primera vez que se usa; para forzarlo: `node 
 ```
 src/main/        proceso main (NO forma parte del mediator)
   main.js        ventana, instancia única, sin navegación, --lang=es
-  protocol/      media://track|cover/<ruta>: rangos HTTP, solo rutas de la biblioteca (403 si no)
-  library/       tracks.js (escaneo + metadatos), store.js (library.json en userData), importer.js
+  s3/           storage.js (SDK, solo lectura), connection.js (conexión cifrada con safeStorage), service.js
+  protocol/      media://track|cover/<id>: audio desde S3 con rangos, solo pistas de la biblioteca (403 si no)
+  library/       remote.js (id s3://bucket/clave, etiquetas leyendo el principio del objeto), sync.js
+                 (biblioteca = bucket), tracks.js (registro ↔ pista), store.js (library.json en userData)
   online/        datos de internet: matching, itunes, lrclib, http, enricher, queue (ver abajo)
-  ipc/           library.js (library:*) y metadata.js (metadata:*); los usa el preload
+  ipc/           library.js (library:*, connection:*) y metadata.js (metadata:*); los usa el preload
 src/preload/preload.cjs   window.api (contextBridge, sandbox)
 src/renderer/
   app.js         raíz de composición: crea colegas → PlayerMediator → app-ready
@@ -32,11 +35,11 @@ src/renderer/
   mediator/      PlayerMediator (solo compone), events.js, actions.js, handlers/ (uno por caso de uso)
   colleagues/    modelos (Catalog, Playlist, Favorites, Recents, Settings), servicios (AudioEngine,
                  LibraryService, MediaSessionBridge) y vistas (Router, HomeView, PlaylistView,
-                 SearchView, NowPlayingView, ControlsView, ToastView, KeyboardShortcuts)
+                 SearchView, NowPlayingView, ControlsView, ToastView, ConnectionView, KeyboardShortcuts)
   ui/            piezas de UI sin estado de negocio (dom, icons, cover, format, trackList, transport)
   lib/           utilidades puras (storage, text)
   styles/        tokens.css (único sitio con valores), layout.css, components.css
-tests/           unitarios por carpeta + helpers/ (fakeContext, WAV con ID3, FakeAudio) + e2e/
+tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con ID3, FakeAudio) + e2e/
 ```
 
 ## Reglas del patrón (obligatorias; varias las comprueba `tests/mediator/rules.test.js`)
@@ -49,6 +52,19 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, WAV con ID3, Fak
 6. La lógica de un solo colega va dentro de él (aleatorio/repetir en `Playlist`, búsqueda y agrupación en `Catalog`, volumen en `AudioEngine`). Las vistas pintan y emiten; su único estado es de UI (filtro de chips, letra desplegada…).
 7. `Mediator.notify()` inicia los handlers en orden, no deja que uno lento bloquee a otro y aísla sus errores.
 8. Seguridad: `contextIsolation`, `sandbox`, sin `nodeIntegration`, CSP de `index.html`. Nada de `innerHTML` con datos de archivos: usa `h()` de `ui/dom.js`.
+
+## Música en S3
+
+- La conexión (servidor, claves, bucket, carpeta) se configura en la app ("Conexión S3" en la sidebar, o el
+  formulario que se abre la primera vez) o importando un `credentials.json` (formato MinIO o estilo AWS).
+- **Las claves no van en el repo ni en el instalador.** Se guardan en `userData/s3.json` con la clave secreta
+  cifrada (`safeStorage`: DPAPI en Windows, llavero en Linux) y la clave secreta nunca vuelve a la ventana.
+- La biblioteca es el contenido del bucket (`sync.js`): se sincroniza al arrancar, al volver a la ventana
+  (como mucho cada 15 s) y con "Actualizar biblioteca". Nuevo, cambiado (ETag) o borrado → `library-changed`.
+- Las etiquetas se leen descargando solo los primeros 512 KB (más si la etiqueta ID3 es grande). Las que están
+  al final de archivos grandes no se leen; con "Datos de internet" se completan desde el nombre del archivo.
+- Si una canción falla al sonar se comprueba en el bucket (`library:verify`); si ya no está, se quita.
+- Los tests nunca usan el S3 real: `tests/helpers/fakeS3.js` es un servidor S3 mínimo (listar, rangos, 403…).
 
 ## Datos de internet (carátula, álbum, año, género, pista y letra)
 
