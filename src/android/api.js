@@ -6,6 +6,7 @@ import { parseTrackId, readRemoteCover } from '../backend/library/remote.js';
 import { createLibrarySync } from '../backend/library/sync.js';
 import { createUploader } from '../backend/library/upload.js';
 import { createMetadataStore } from '../backend/library/metadata.js';
+import { createListStore, listResult } from '../backend/library/lists.js';
 import { createConnectionStore } from '../backend/s3/connection.js';
 import { createS3Service } from '../backend/s3/service.js';
 import { createS3Storage } from '../backend/s3/storage.js';
@@ -46,7 +47,7 @@ export function collectFiles(files) {
  *   `prepare`: lo que hay que resolver antes de arrancar (carpeta de las carátulas, prefijo del Keystore)
  */
 export function createAndroidApi(deps) {
-  const listeners = { changed: new Set(), updated: new Set(), progress: new Set() };
+  const listeners = { changed: new Set(), updated: new Set(), progress: new Set(), lists: new Set() };
   const emit = (kind, payload) => {
     for (const listener of listeners[kind]) listener(payload);
   };
@@ -65,8 +66,8 @@ export function createAndroidApi(deps) {
 
     // Biblioteca (en el bucket S3)
     loadLibrary: call(({ store, present, trackOf }) => present(store.all().map(trackOf))),
-    syncLibrary: call(async ({ librarySync }) => {
-      const { added, removed } = await librarySync.sync();
+    syncLibrary: call(async ({ librarySync, lists }) => {
+      const [{ added, removed }] = await Promise.all([librarySync.sync(), lists.sync()]);
       return { added: added.length, removed: removed.length };
     }),
     verifyTrack: call(({ librarySync }, id) => (typeof id === 'string' ? librarySync.verify(id) : false)),
@@ -87,6 +88,15 @@ export function createAndroidApi(deps) {
       const [file] = (await pickFiles(deps.document, { accept: '.json,application/json' })) ?? [];
       return file ? s3.importCredentials(await file.text()) : null;
     }),
+
+    // Listas de canciones (compartidas por todos los Pulse del mismo bucket)
+    getLists: call(({ lists }) => lists.all()),
+    createList: call(({ lists }, name, paths) => listResult(() => lists.create(name, Array.isArray(paths) ? paths : []))),
+    renameList: call(({ lists }, id, name) => listResult(() => lists.rename(String(id), name))),
+    addToList: call(({ lists }, id, paths) => listResult(() => lists.add(String(id), Array.isArray(paths) ? paths : []))),
+    removeFromList: call(({ lists }, id, path) => listResult(() => lists.removeTrack(String(id), String(path)))),
+    deleteList: call(({ lists }, id) => listResult(() => lists.remove(String(id)))),
+    onListsChanged: subscribe('lists'),
 
     // Datos de internet
     lookupTrack: call(async ({ store, queue, present }, id, options = {}) => {
@@ -114,6 +124,8 @@ async function start({ files, crypto, http, coverUrl, userAgent, App, prepare, p
   await s3.load();
   metadata = createMetadataStore({ getStorage: () => s3.storage(), getRecords: () => store.all(), files });
   metadata.schedulePush(); // lo que ya hay en el móvil también llega al bucket
+  const lists = createListStore({ files, getStorage: () => s3.storage(), onChange: (all) => emit('lists', all), timers });
+  await lists.load();
 
   const covers = createCoverCache({
     files,
@@ -159,10 +171,18 @@ async function start({ files, crypto, http, coverUrl, userAgent, App, prepare, p
     onProgress: (progress) => emit('progress', progress),
   });
 
-  // Cambios hechos en el bucket desde fuera: al arrancar y al volver a la app. Al salir, los metadatos.
-  librarySync.syncSoon();
-  App?.addListener('resume', () => librarySync.syncSoon());
-  App?.addListener('pause', () => metadata.flush());
+  // Cambios hechos en el bucket desde fuera (canciones y listas): al arrancar y al volver a la app.
+  // Al salir, se sube lo pendiente.
+  const syncSoon = () => {
+    librarySync.syncSoon();
+    lists.syncSoon();
+  };
+  syncSoon();
+  App?.addListener('resume', syncSoon);
+  App?.addListener('pause', () => {
+    metadata.flush();
+    if (lists.hasPending()) lists.sync();
+  });
 
-  return { store, s3, librarySync, uploader, queue, covers, metadata, present, trackOf };
+  return { store, s3, librarySync, uploader, queue, covers, metadata, lists, present, trackOf };
 }
