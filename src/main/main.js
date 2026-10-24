@@ -9,6 +9,7 @@ import { createLibrarySync } from '../backend/library/sync.js';
 import { createUploader } from '../backend/library/upload.js';
 import { createMetadataStore } from '../backend/library/metadata.js';
 import { objectResponse } from './protocol/responses.js';
+import { mediaTrack } from './protocol/urls.js';
 import { createConnectionStore } from '../backend/s3/connection.js';
 import { createS3Service } from '../backend/s3/service.js';
 import { createHttp } from '../backend/online/http.js';
@@ -45,7 +46,7 @@ async function start() {
     userAgent: `Pulse/${app.getVersion()} (reproductor de música de escritorio)`,
   });
   const enricher = createEnricher({ http, files });
-  const queue = createEnrichmentQueue({ store, enricher, onUpdated: (tracks) => broadcast('library:tracks-updated', tracks) });
+  const queue = createEnrichmentQueue({ store, enricher, toTrack: mediaTrack, onUpdated: (tracks) => broadcast('library:tracks-updated', tracks) });
 
   // La música vive en un bucket S3. La clave secreta se cifra con el almacén seguro del sistema.
   const connections = createConnectionStore(files, {
@@ -62,6 +63,7 @@ async function start() {
   const librarySync = createLibrarySync({
     store,
     getStorage: () => s3.storage(),
+    toTrack: mediaTrack,
     pullMetadata: () => metadata.pull(),
     onChange: (change) => {
       broadcast('library:changed', change);

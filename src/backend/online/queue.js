@@ -1,4 +1,3 @@
-import { toTrack } from '../library/tracks.js';
 import { TransientError } from './http.js';
 import { needsInfo } from './enricher.js';
 
@@ -10,11 +9,12 @@ const FLUSH_DELAY_MS = 3000; // agrupa los cambios antes de avisar a la ventana
 /**
  * Completa la biblioteca con datos de internet en segundo plano, una pista cada vez,
  * y atiende al momento las búsquedas de la pista que suena o que pide el usuario.
- * Todas las búsquedas van en fila: nunca hay dos a la vez.
+ * Todas las búsquedas van en fila: nunca hay dos a la vez. `toTrack`: registro → pista para la interfaz.
  */
 export function createEnrichmentQueue({
   store,
   enricher,
+  toTrack,
   onUpdated,
   timers = globalThis,
   now = Date.now,

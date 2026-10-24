@@ -1,6 +1,7 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { isAudioFile, baseRecord, readRecordCover, toTrack } from '../../src/backend/library/tracks.js';
+import { mediaTrack } from '../../src/main/protocol/urls.js';
 import { trackId, parseTrackId, id3Size, readRemoteRecord, readRemoteCover } from '../../src/backend/library/remote.js';
 import { createLibraryStore } from '../../src/backend/library/store.js';
 import { createS3Storage } from '../../src/backend/s3/storage.js';
@@ -25,17 +26,23 @@ describe('library/tracks', () => {
     assert.equal(record.key, 'pop/Tussi - Arcángel.mp3');
   });
 
-  test('toTrack() añade las URLs media://, la carátula solo si existe y oculta los campos internos', () => {
-    const track = toTrack({ path: 's3://m/a.mp3', key: 'a.mp3', etag: '"x"', size: 3, title: 'A', hasCover: true });
+  test('toTrack() pide las URLs a la plataforma (la de la carátula, solo si la tiene) y oculta los campos internos', () => {
+    const urls = { track: (record) => `audio:${record.key}`, cover: (record) => `img:${record.path}` };
+    assert.deepEqual(
+      [toTrack({ path: 's3://m/a.mp3', key: 'a.mp3', hasCover: true }, urls).url, toTrack({ path: 's3://m/a.mp3', key: 'a.mp3', hasCover: true }, urls).cover],
+      ['audio:a.mp3', 'img:s3://m/a.mp3'],
+    );
+    assert.equal(toTrack({ path: 's3://m/b.mp3', hasCover: false }, urls).cover, null);
+
+    const track = mediaTrack({ path: 's3://m/a.mp3', key: 'a.mp3', etag: '"x"', size: 3, title: 'A', hasCover: true });
     assert.equal(track.url, 'media://track/s3%3A%2F%2Fm%2Fa.mp3');
     assert.equal(track.cover, 'media://cover/s3%3A%2F%2Fm%2Fa.mp3');
     for (const field of ['hasCover', 'key', 'etag', 'size']) assert.equal(field in track, false);
     assert.equal(track.online, null);
-    assert.equal(toTrack({ path: 's3://m/b.mp3', hasCover: false }).cover, null);
   });
 
   test('toTrack() versiona la carátula descargada de internet', () => {
-    const track = toTrack({ path: 's3://m/a.mp3', hasCover: false, coverName: 'x.jpg', titleFromFile: false, online: { checkedAt: 42, status: 'found' } });
+    const track = mediaTrack({ path: 's3://m/a.mp3', hasCover: false, coverName: 'x.jpg', titleFromFile: false, online: { checkedAt: 42, status: 'found' } });
     assert.equal(track.cover, 'media://cover/s3%3A%2F%2Fm%2Fa.mp3?v=42');
     assert.equal('coverName' in track, false);
     assert.equal('titleFromFile' in track, false);

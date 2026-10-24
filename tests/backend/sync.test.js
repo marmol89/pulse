@@ -1,6 +1,7 @@
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createLibrarySync } from '../../src/backend/library/sync.js';
+import { mediaTrack } from '../../src/main/protocol/urls.js';
 import { createS3Storage } from '../../src/backend/s3/storage.js';
 import { startFakeS3 } from '../helpers/fakeS3.js';
 import { memoryStore } from '../helpers/memoryStore.js';
@@ -31,7 +32,7 @@ describe('library/sync', () => {
     store = memoryStore();
     changes = [];
     clock = { time: 0 };
-    sync = createLibrarySync({ store, getStorage: () => storage, onChange: (change) => changes.push(change), now: () => clock.time });
+    sync = createLibrarySync({ toTrack: mediaTrack, store, getStorage: () => storage, onChange: (change) => changes.push(change), now: () => clock.time });
   });
 
   test('la primera sincronización añade el audio del bucket con sus etiquetas', async () => {
@@ -77,7 +78,7 @@ describe('library/sync', () => {
 
   test('si una canción no se puede descargar ahora, no se guarda a medias: se reintenta', async () => {
     let failures = 1;
-    const flaky = createLibrarySync({
+    const flaky = createLibrarySync({ toTrack: mediaTrack,
       store,
       getStorage: () => storage,
       onChange: () => {},
@@ -107,7 +108,7 @@ describe('library/sync', () => {
     const fromOtherPc = store.all().map((record) => ({ ...record, album: 'Neón', online: { checkedAt: 7, status: 'found' } }));
     s3.put('musica', 'pop/b.wav', wav('Ola Azul (otra mezcla)', 'Marea Sur')); // b cambió después: su metadato ya no vale
     const reads = [];
-    const fresh = createLibrarySync({
+    const fresh = createLibrarySync({ toTrack: mediaTrack,
       store: memoryStore(),
       getStorage: () => storage,
       onChange: (change) => changes.push(change),
@@ -138,7 +139,7 @@ describe('library/sync', () => {
       { path: 's3://musica/ya-no-esta.wav', etag: '"x"' }, // borrado del bucket: se ignora
     ];
     const updated = [];
-    const withMetadata = createLibrarySync({ store, getStorage: () => storage, onChange: (change) => changes.push(change), onUpdated: (tracks) => updated.push(tracks), pullMetadata: async () => remote });
+    const withMetadata = createLibrarySync({ toTrack: mediaTrack, store, getStorage: () => storage, onChange: (change) => changes.push(change), onUpdated: (tracks) => updated.push(tracks), pullMetadata: async () => remote });
     const saves = store.saves;
 
     const change = await withMetadata.sync();
@@ -172,7 +173,7 @@ describe('library/sync', () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
     assert.equal(changes.length, 2);
 
-    const disconnected = createLibrarySync({ store: memoryStore(), getStorage: () => null, onChange() {} });
+    const disconnected = createLibrarySync({ toTrack: mediaTrack, store: memoryStore(), getStorage: () => null, onChange() {} });
     assert.deepEqual(await disconnected.sync(), { removed: [], added: [] });
   });
 });

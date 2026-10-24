@@ -1,4 +1,3 @@
-import { toTrack } from './tracks.js';
 import { parseTrackId, readRemoteRecord, trackId } from './remote.js';
 import { lookupStamp } from './metadata.js';
 
@@ -10,10 +9,12 @@ const CONCURRENCY = 4; // pistas leídas a la vez
  * cambiado (otro ETag) y quita lo borrado. Avisa de los cambios con `onChange`.
  * Antes de leer archivos usa los metadatos guardados en el bucket (`pullMetadata`): lo que ya
  * está ahí no se vuelve a leer, y los datos de internet más recientes llegan con `onUpdated`.
+ * `toTrack` convierte un registro en la pista que ve la interfaz (con las URLs de cada plataforma).
  */
 export function createLibrarySync({
   store,
   getStorage,
+  toTrack,
   onChange,
   onUpdated = () => {},
   pullMetadata = async () => [],

@@ -1,6 +1,5 @@
 import { basename, extname } from '../paths.js';
 import { selectCover } from 'music-metadata';
-import { mediaUrl } from '../../main/protocol/urls.js';
 
 export const AUDIO_EXTENSIONS = ['mp3', 'flac', 'ogg', 'oga', 'opus', 'wav', 'm4a', 'aac', 'webm'];
 const AUDIO_EXTENSION_SET = new Set(AUDIO_EXTENSIONS.map((extension) => `.${extension}`));
@@ -76,22 +75,26 @@ export function pictureFrom(common) {
   return cover ? { format: imageMime(cover.format), data: cover.data } : null;
 }
 
-/** Registro persistido → pista para el renderer (con URLs media://). */
-export function toTrack({ hasCover, coverName, titleFromFile, key, etag, size, ...record }) {
+/**
+ * Registro persistido → pista para la interfaz. Las URLs del audio y de la carátula las pone
+ * cada plataforma (`urls`: media:// en Electron, URL firmada y archivo local en Android);
+ * `urls.cover` solo se pide si la pista tiene carátula (incrustada o de internet).
+ * @param {{ track: (record) => string, cover: (record) => string }} urls
+ */
+export function toTrack(record, urls) {
+  const { hasCover, coverName, titleFromFile, key, etag, size, ...fields } = record;
   return {
-    ...record,
-    trackCount: record.trackCount ?? 0,
-    online: record.online ?? null,
-    url: mediaUrl('track', record.path),
-    cover: coverUrl(record, hasCover, coverName),
+    ...fields,
+    trackCount: fields.trackCount ?? 0,
+    online: fields.online ?? null,
+    url: urls.track(record),
+    cover: hasCover || coverName ? urls.cover(record) : null,
   };
 }
 
-function coverUrl(record, hasCover, coverName) {
-  if (hasCover) return mediaUrl('cover', record.path);
-  // La de internet lleva versión: si se vuelve a buscar, la vista no usa la de la caché.
-  if (coverName) return `${mediaUrl('cover', record.path)}?v=${record.online?.checkedAt ?? 0}`;
-  return null;
+/** Versión de la carátula de internet: si se vuelve a buscar, la vista no usa la de la caché. */
+export function coverVersion(record) {
+  return record.hasCover ? '' : `?v=${record.online?.checkedAt ?? 0}`;
 }
 
 /**

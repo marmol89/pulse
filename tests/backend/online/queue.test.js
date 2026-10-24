@@ -2,6 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { createEnrichmentQueue } from '../../../src/backend/online/queue.js';
 import { TransientError } from '../../../src/backend/online/http.js';
+import { mediaTrack } from '../../../src/main/protocol/urls.js';
 import { memoryStore } from '../../helpers/memoryStore.js';
 
 /** Reloj manual: los temporizadores solo avanzan con next(). */
@@ -51,7 +52,7 @@ function setup({ records = [incomplete('/a.mp3'), incomplete('/b.mp3')], enrich 
       return enrich(record, options);
     },
   };
-  const queue = createEnrichmentQueue({ store, enricher, onUpdated: (tracks) => updates.push(tracks), timers: clock.timers, now: clock.now, interval: 3500, startDelay: 10_000, retryDelay: 60_000, flushDelay: 3000 });
+  const queue = createEnrichmentQueue({ store, enricher, toTrack: mediaTrack, onUpdated: (tracks) => updates.push(tracks), timers: clock.timers, now: clock.now, interval: 3500, startDelay: 10_000, retryDelay: 60_000, flushDelay: 3000 });
   return { clock, store, calls, updates, queue };
 }
 
