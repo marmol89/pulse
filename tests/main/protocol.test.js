@@ -82,6 +82,7 @@ describe('protocol/responses', () => {
       assert.equal(response.status, 200);
       assert.equal(response.headers.get('content-type'), 'image/png');
       assert.deepEqual(new Uint8Array(await response.arrayBuffer()), png);
+      assert.equal(response.headers.get('access-control-allow-origin'), '*', 'la lee fetch desde la página file://');
 
       const withoutCover = { isAllowed: () => true, readCover: async () => null };
       assert.equal((await respondToMedia(mediaUrl('cover', id), null, withoutCover)).status, 404);
