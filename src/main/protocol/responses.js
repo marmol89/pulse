@@ -24,7 +24,8 @@ export async function objectResponse(storage, key, rangeHeader) {
 export function pictureResponse(picture) {
   if (!picture) return new Response('Sin carátula', { status: 404 });
   return new Response(picture.data, {
-    headers: { 'Content-Type': picture.format, 'Cache-Control': 'max-age=86400' },
+    // La lee con fetch MediaSessionBridge (la página es file://, otro origen) para los controles del sistema.
+    headers: { 'Content-Type': picture.format, 'Cache-Control': 'max-age=86400', 'Access-Control-Allow-Origin': '*' },
   });
 }
 

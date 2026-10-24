@@ -1,4 +1,4 @@
-import { Capacitor, CapacitorHttp } from '@capacitor/core';
+import { Capacitor, CapacitorHttp, registerPlugin } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { App } from '@capacitor/app';
 import { SecureStorage } from '@aparajita/capacitor-secure-storage';
@@ -6,6 +6,7 @@ import { createAndroidApi } from './api.js';
 import { createCapacitorFiles } from './files.js';
 import { createKeystoreCrypto } from './secret.js';
 import { handleBackButton } from './backButton.js';
+import { NativeMediaMetadata, createNativeMediaSession } from './mediaSession.js';
 
 /**
  * Punto de entrada de Android (scripts/build-android.mjs lo empaqueta en www/api.js, que se carga
@@ -30,3 +31,11 @@ window.api = createAndroidApi({
 });
 
 App.addListener('backButton', () => handleBackButton(document, { minimize: () => App.minimizeApp() }));
+
+// Controles del sistema y audio en segundo plano: el plugin nativo de android/app (PlaybackPlugin.java).
+// El WebView no trae la Media Session API; MediaSessionBridge usa estas como las del navegador.
+window.MediaMetadata ??= NativeMediaMetadata;
+Object.defineProperty(navigator, 'mediaSession', {
+  configurable: true,
+  value: createNativeMediaSession({ plugin: registerPlugin('PulsePlayback'), fetch: globalThis.fetch.bind(globalThis) }),
+});

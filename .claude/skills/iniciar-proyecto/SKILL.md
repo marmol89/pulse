@@ -81,6 +81,7 @@ src/android/                       T  window.api de Android con los mismos méto
   nativeHttp.js                       CapacitorHttp (sin CORS) como fetch y como requestHandler del SDK de S3
   files.js · secret.js · covers.js    Filesystem (sin provocar rechazos) · secreto en el Keystore · carátulas en el móvil
   picker.js · backButton.js           elegir archivos (<input type=file>) · botón atrás de Android
+  mediaSession.js                     navigator.mediaSession + MediaMetadata sobre el plugin nativo PulsePlayback
 capacitor.config.json · android/   T* cap add android y luego copiar los archivos de templates/android/ (Paso 5b)
 src/assets/icon.png                T* lo genera `npm run icons` (scripts/generate-icon.mjs)
 src/renderer/
@@ -306,7 +307,8 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
    parchear fetch, SystemBars) y ejecuta `node scripts/build-android.mjs && npx cap add android`. Después copia
    encima los archivos de `templates/android/` (`build.gradle` lee la versión de package.json y nombra el APK
    `Pulse-X.Y.Z-debug.apk` (o `Pulse-X.Y.Z.apk` el de release, firmado si hay `PULSE_KEYSTORE` y sus claves en el
-   entorno); el manifest con `allowBackup=false` y `usesCleartextTraffic`; fondo oscuro sin
+   entorno); el manifest con `allowBackup=false`, `usesCleartextTraffic` y el servicio `mediaPlayback`; `MainActivity`
+   registra `PlaybackPlugin` y `PlaybackService` mantiene el audio en segundo plano; fondo oscuro sin
    destello blanco). Los comentarios XML no pueden llevar `--`.
 2. Entorno: JDK 21 (`JAVA_HOME`) y SDK de Android (`ANDROID_HOME`: cmdline-tools, platform-tools,
    platforms;android-36, build-tools;36.0.0, emulator y una imagen x86_64). Solo para el usuario, sin admin.
@@ -334,7 +336,12 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
 - `<audio>` necesita rangos para saltar → `responses.js` pide a S3 el rango (`GetObject` con `Range`) y responde 206/416.
 - Un `notify()` que esperaba a cada handler bloqueaba `app-ready` si listar dispositivos tardaba → concurrente.
 - La Media Session API rechaza carátulas `media://` → `MediaSessionBridge` las convierte en `blob:`
-  (y la CSP necesita `connect-src media:`).
+  (y la CSP necesita `connect-src media:`, el esquema `corsEnabled` y la respuesta con `Access-Control-Allow-Origin`,
+  porque la página es `file://`). Guardar `fetch` en un campo y llamarlo como `this.#fetch()` lanza
+  "Illegal invocation": envolverlo en una función.
+- Android silencia el audio del WebView en segundo plano sin un servicio en primer plano ("AudioHardening" en
+  logcat), y el WebView no trae `navigator.mediaSession` ni `MediaMetadata` → `PlaybackService` + `PlaybackPlugin`
+  (templates/android) y `src/android/mediaSession.js` instalado en `main.js`.
 - Chromium deja "Default - …" en inglés y añade ids USB; existe una salida virtual "communications" →
   `formatDeviceLabel()` y filtrarla en `AudioEngine.outputDevices()`.
 - Con la ventana de prueba tapada, Windows no pinta frames y las transiciones quedan a medias en las

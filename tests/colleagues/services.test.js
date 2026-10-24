@@ -169,6 +169,16 @@ describe('MediaSessionBridge', () => {
     assert.equal(session.metadata.title, 'Selva');
   });
 
+  test('show() llama a fetch sin `this`, como el del navegador exige (si no: "Illegal invocation")', async () => {
+    const strictFetch = fakeFetch();
+    const { session, bridge } = setup(function (url) {
+      if (this !== undefined && this !== globalThis) throw new TypeError("Failed to execute 'fetch' on 'Window': Illegal invocation");
+      return strictFetch(url);
+    });
+    await bridge.show(track('/a.mp3', { title: 'A', cover: 'media://cover/a' }));
+    assert.match(session.metadata.artwork[0]?.src ?? '', /^blob:/);
+  });
+
   test('show() descarta la carátula de una pista que ya no suena', async () => {
     const { session, bridge } = setup(fakeFetch({ delay: 20 }));
     const first = bridge.show(track('/a.mp3', { title: 'A', cover: 'media://cover/a' }));

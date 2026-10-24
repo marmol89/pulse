@@ -89,6 +89,20 @@ try {
   check(true, 'Siguiente cambia de pista');
   check(s3.requests.some((request) => request.signedUrl && request.range), 'el <audio> pide rangos al bucket con la URL firmada');
 
+  // En segundo plano sigue sonando (servicio en primer plano): las pistas duran 10 s, así que pasa a la siguiente.
+  const before = await page.textContent('.player__title');
+  await device.shell('input keyevent KEYCODE_HOME');
+  await page.waitForFunction((previous) => document.querySelector('.player__title')?.textContent !== previous, before, { timeout: 20000 }).catch(() => {});
+  const after = await page.textContent('.player__title');
+  check(after !== before, `en segundo plano sigue sonando y pasa de pista ("${before}" → "${after}")`);
+  const session = (await device.shell('dumpsys media_session')).toString();
+  check(session.includes('package=com.marmol89.pulse') && session.includes(`description=${after}`), 'la pista que suena está en los controles del sistema (MediaSession)');
+  await device.shell('input keyevent KEYCODE_MEDIA_PAUSE');
+  await page.waitForSelector('.player button[aria-label="Reproducir"]', { timeout: 5000 }).catch(() => {});
+  check(await page.isVisible('.player button[aria-label="Reproducir"]'), 'la tecla de pausa de los auriculares pausa');
+  await device.shell(`monkey -p ${PACKAGE} -c android.intent.category.LAUNCHER 1`);
+  await page.click('.player button[aria-label="Reproducir"]');
+
   await page.click('.player__cover');
   await page.waitForSelector('.now-playing.is-open');
   await page.waitForTimeout(400);
