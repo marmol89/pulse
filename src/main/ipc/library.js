@@ -1,39 +1,33 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron';
-import { AUDIO_EXTENSIONS, toTrack } from '../library/tracks.js';
-import { importPaths } from '../library/importer.js';
-import { isMissing } from '../library/availability.js';
+import { readFile } from 'node:fs/promises';
+import { toTrack } from '../library/tracks.js';
 
 /**
- * Canales IPC de la biblioteca. El renderer solo llega a ellos a través de window.api (preload).
- * `onImported` avisa de que hay pistas nuevas (p. ej. para completarlas con datos de internet);
- * `verifyTrack` comprueba si el archivo de una pista sigue en el disco.
+ * Canales IPC de la biblioteca (que vive en el bucket S3) y de la conexión.
+ * El renderer solo llega a ellos a través de window.api; la clave secreta nunca vuelve a la ventana.
  */
-export function registerLibraryIpc(store, { onImported = () => {}, verifyTrack = async () => true } = {}) {
-  // Las pistas cuyo archivo falta no se muestran; vuelven solas si el archivo reaparece.
-  ipcMain.handle('library:load', () => store.all().filter((record) => !isMissing(record)).map(toTrack));
+export function registerLibraryIpc({ store, s3, librarySync }) {
+  ipcMain.handle('library:load', () => store.all().map(toTrack));
 
-  ipcMain.handle('library:verify', (_event, filePath) => (typeof filePath === 'string' ? verifyTrack(filePath) : false));
-
-  ipcMain.handle('library:choose-files', async (event) => {
-    const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), {
-      title: 'Añadir archivos',
-      properties: ['openFile', 'multiSelections'],
-      filters: [{ name: 'Audio', extensions: AUDIO_EXTENSIONS }],
-    });
-    return canceled ? [] : filePaths;
+  // Los cambios llegan a la ventana por 'library:changed'; aquí solo se devuelve el resumen.
+  ipcMain.handle('library:sync', async () => {
+    const { added, removed } = await librarySync.sync();
+    return { added: added.length, removed: removed.length };
   });
 
-  ipcMain.handle('library:choose-folder', async (event) => {
-    const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), {
-      title: 'Añadir carpeta',
-      properties: ['openDirectory'],
-    });
-    return canceled ? null : (filePaths[0] ?? null);
-  });
+  ipcMain.handle('library:verify', (_event, id) => (typeof id === 'string' ? librarySync.verify(id) : false));
 
-  ipcMain.handle('library:import', async (_event, paths) => {
-    const tracks = await importPaths(store, paths);
-    if (tracks.length > 0) onImported();
-    return tracks;
+  ipcMain.handle('connection:get', () => s3.summary());
+
+  ipcMain.handle('connection:save', (_event, input) => s3.connect(input ?? {}));
+
+  ipcMain.handle('connection:import', async (event) => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), {
+      title: 'Elegir credentials.json',
+      properties: ['openFile'],
+      filters: [{ name: 'Credenciales', extensions: ['json'] }],
+    });
+    if (canceled || !filePaths[0]) return null;
+    return s3.importCredentials(await readFile(filePaths[0], 'utf8'));
   });
 }

@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 import { access, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { UNKNOWN_ARTIST } from '../library/tracks.js';
-import { isMissing } from '../library/availability.js';
 import { TransientError } from './http.js';
 import { searchItunes } from './itunes.js';
 import { findLyrics } from './lrclib.js';
@@ -10,9 +9,9 @@ import { isTitleFromFile, pickBest, queryFromRecord } from './matching.js';
 
 const MAX_COVER_BYTES = 5 * 1024 * 1024;
 
-/** A la pista le falta algo que internet puede aportar y todavía no se ha buscado (y su archivo existe). */
+/** A la pista le falta algo que internet puede aportar y todavía no se ha buscado. */
 export function needsInfo(record) {
-  if (isMissing(record) || record.online?.checkedAt) return false;
+  if (record.online?.checkedAt) return false;
   const hasCover = record.hasCover || Boolean(record.coverFile);
   return !hasCover || !record.album || !record.genre || !record.year || isTitleFromFile(record);
 }

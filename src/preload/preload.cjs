@@ -1,24 +1,26 @@
-const { contextBridge, ipcRenderer, webUtils } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 /** Única puerta del renderer al proceso main (contextIsolation + sandbox). */
 contextBridge.exposeInMainWorld('api', {
+  // Biblioteca (en el bucket S3)
   loadLibrary: () => ipcRenderer.invoke('library:load'),
-  chooseFiles: () => ipcRenderer.invoke('library:choose-files'),
-  chooseFolder: () => ipcRenderer.invoke('library:choose-folder'),
-  importPaths: (paths) => ipcRenderer.invoke('library:import', paths),
-  // Ruta real de un archivo arrastrado a la ventana (File.path ya no existe en Electron).
-  pathForFile: (file) => webUtils.getPathForFile(file),
-  /** ¿Sigue el archivo de la pista en el disco? */
-  verifyTrack: (path) => ipcRenderer.invoke('library:verify', path),
-  /** Archivos que desaparecen o vuelven con la app abierta. Devuelve la función para dejar de escuchar. */
+  syncLibrary: () => ipcRenderer.invoke('library:sync'),
+  /** ¿Sigue la pista en el bucket? */
+  verifyTrack: (id) => ipcRenderer.invoke('library:verify', id),
+  /** Pistas nuevas, cambiadas o borradas en el bucket. Devuelve la función para dejar de escuchar. */
   onLibraryChanged: (callback) => {
     const listener = (_event, change) => callback(change);
     ipcRenderer.on('library:changed', listener);
     return () => ipcRenderer.removeListener('library:changed', listener);
   },
 
+  // Conexión S3 (la clave secreta nunca vuelve a la ventana)
+  getConnection: () => ipcRenderer.invoke('connection:get'),
+  saveConnection: (input) => ipcRenderer.invoke('connection:save', input),
+  importCredentials: () => ipcRenderer.invoke('connection:import'),
+
   // Datos de internet (carátulas, álbum, año, género, letra)
-  lookupTrack: (path, options) => ipcRenderer.invoke('metadata:lookup', path, options),
+  lookupTrack: (id, options) => ipcRenderer.invoke('metadata:lookup', id, options),
   setOnlineLookup: (enabled) => ipcRenderer.invoke('metadata:set-enabled', enabled),
   /** Pistas completadas en segundo plano. Devuelve la función para dejar de escuchar. */
   onTracksUpdated: (callback) => {

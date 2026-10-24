@@ -1,18 +1,13 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import {
-  isAudioFile,
-  collectAudioFiles,
-  readTrackRecord,
-  readTrackRecords,
-  readCover,
-  readRecordCover,
-  toTrack,
-} from '../../src/main/library/tracks.js';
+import { isAudioFile, baseRecord, readRecordCover, toTrack } from '../../src/main/library/tracks.js';
+import { trackId, parseTrackId, id3Size, readRemoteRecord, readRemoteCover } from '../../src/main/library/remote.js';
 import { createLibraryStore } from '../../src/main/library/store.js';
+import { createS3Storage } from '../../src/main/s3/storage.js';
+import { startFakeS3 } from '../helpers/fakeS3.js';
 import { createWav } from '../helpers/audio.js';
 import { encodePng, paint } from '../../scripts/lib/png.js';
 
@@ -25,92 +20,35 @@ before(async () => {
 after(() => rm(dir, { recursive: true, force: true }));
 
 describe('library/tracks', () => {
-  test('isAudioFile() filtra por extensión e ignora los "._" de macOS', () => {
-    assert.equal(isAudioFile('/m/canción.MP3'), true);
-    assert.equal(isAudioFile('/m/portada.jpg'), false);
-    assert.equal(isAudioFile('/m/._canción.mp3'), false);
+  test('isAudioFile() filtra por extensión (rutas o claves de S3) e ignora los "._" de macOS', () => {
+    assert.equal(isAudioFile('pop/canción.MP3'), true);
+    assert.equal(isAudioFile('C:\\m\\a.flac'), true);
+    assert.equal(isAudioFile('pop/portada.jpg'), false);
+    assert.equal(isAudioFile('pop/._canción.mp3'), false);
   });
 
-  test('collectAudioFiles() recorre carpetas, mezcla archivos sueltos y ordena de forma natural', async () => {
-    const root = path.join(dir, 'coleccion');
-    await mkdir(path.join(root, 'disco', 'extra'), { recursive: true });
-    for (const name of ['disco/2.mp3', 'disco/10.mp3', 'disco/extra/b.flac', 'disco/notas.txt', 'suelto.wav']) {
-      await writeFile(path.join(root, name), '');
-    }
-
-    const files = await collectAudioFiles([path.join(root, 'disco'), path.join(root, 'suelto.wav'), path.join(root, 'no-existe')]);
-
-    assert.deepEqual(
-      files.map((file) => path.relative(root, file).split(path.sep).join('/')),
-      ['disco/2.mp3', 'disco/10.mp3', 'disco/extra/b.flac', 'suelto.wav'],
-    );
+  test('baseRecord() toma el título del nombre del archivo', () => {
+    const record = baseRecord('s3://m/pop/Tussi - Arcángel.mp3', 'Tussi - Arcángel.mp3', { key: 'pop/Tussi - Arcángel.mp3' });
+    assert.equal(record.title, 'Tussi - Arcángel');
+    assert.equal(record.titleFromFile, true);
+    assert.equal(record.artist, 'Artista desconocido');
+    assert.equal(record.key, 'pop/Tussi - Arcángel.mp3');
   });
 
-  test('readTrackRecord() lee etiquetas, letra, duración y si hay carátula', async () => {
-    const file = path.join(dir, 'neon.wav');
-    const cover = encodePng(2, 2, paint(2, 2, () => [124, 92, 255, 1]));
-    await writeFile(
-      file,
-      createWav({
-        seconds: 1,
-        tags: { title: 'Luces de Neón', artist: 'Aurora Vega', album: 'Neón', genre: 'Pop latino', track: '2/9', year: '2024', lyrics: 'Brillan', cover },
-      }),
-    );
-
-    const record = await readTrackRecord(file);
-
-    assert.deepEqual(
-      { ...record, duration: Math.round(record.duration) },
-      {
-        path: file,
-        title: 'Luces de Neón',
-        titleFromFile: false,
-        artist: 'Aurora Vega',
-        albumArtist: '',
-        album: 'Neón',
-        genre: 'Pop latino',
-        trackNo: 2,
-        trackCount: 9,
-        disc: 0,
-        year: 2024,
-        duration: 1,
-        lyrics: 'Brillan',
-        hasCover: true,
-      },
-    );
-    assert.deepEqual(await readCover(file), { format: 'image/png', data: new Uint8Array(cover) });
-  });
-
-  test('readTrackRecord() usa el nombre del archivo si no hay etiquetas o no es audio válido', async () => {
-    const untagged = path.join(dir, 'sin etiquetas.wav');
-    const broken = path.join(dir, 'roto.mp3');
-    await writeFile(untagged, createWav({ seconds: 0.2 }));
-    await writeFile(broken, 'esto no es audio');
-
-    const [a, b] = await readTrackRecords([untagged, broken]);
-
-    assert.equal(a.title, 'sin etiquetas');
-    assert.equal(a.titleFromFile, true);
-    assert.equal(a.artist, 'Artista desconocido');
-    assert.equal(b.title, 'roto');
-    assert.equal(await readCover(broken), null);
-  });
-
-  test('toTrack() añade las URLs media:// y la carátula solo si existe', () => {
-    const track = toTrack({ path: '/m/a.mp3', title: 'A', hasCover: true });
-    assert.equal(track.url, 'media://track/%2Fm%2Fa.mp3');
-    assert.equal(track.cover, 'media://cover/%2Fm%2Fa.mp3');
-    assert.equal('hasCover' in track, false);
+  test('toTrack() añade las URLs media://, la carátula solo si existe y oculta los campos internos', () => {
+    const track = toTrack({ path: 's3://m/a.mp3', key: 'a.mp3', etag: '"x"', size: 3, title: 'A', hasCover: true });
+    assert.equal(track.url, 'media://track/s3%3A%2F%2Fm%2Fa.mp3');
+    assert.equal(track.cover, 'media://cover/s3%3A%2F%2Fm%2Fa.mp3');
+    for (const field of ['hasCover', 'key', 'etag', 'size']) assert.equal(field in track, false);
     assert.equal(track.online, null);
-    assert.equal(toTrack({ path: '/m/b.mp3', hasCover: false }).cover, null);
+    assert.equal(toTrack({ path: 's3://m/b.mp3', hasCover: false }).cover, null);
   });
 
-  test('toTrack() versiona la carátula descargada y oculta los campos internos', () => {
-    const track = toTrack({ path: '/m/a.mp3', hasCover: false, coverFile: '/c/x.jpg', titleFromFile: false, online: { checkedAt: 42, status: 'found' } });
-    assert.equal(track.cover, 'media://cover/%2Fm%2Fa.mp3?v=42');
+  test('toTrack() versiona la carátula descargada de internet', () => {
+    const track = toTrack({ path: 's3://m/a.mp3', hasCover: false, coverFile: '/c/x.jpg', titleFromFile: false, online: { checkedAt: 42, status: 'found' } });
+    assert.equal(track.cover, 'media://cover/s3%3A%2F%2Fm%2Fa.mp3?v=42');
     assert.equal('coverFile' in track, false);
     assert.equal('titleFromFile' in track, false);
-    assert.deepEqual(track.online, { checkedAt: 42, status: 'found' });
   });
 
   test('readRecordCover() sirve la carátula incrustada o, si no hay, la descargada', async () => {
@@ -118,13 +56,73 @@ describe('library/tracks', () => {
     const jpg = path.join(dir, 'descargada.jpg');
     await writeFile(png, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
     await writeFile(jpg, Buffer.from([0xff, 0xd8, 0xff]));
+    const embedded = async () => ({ format: 'image/png', data: new Uint8Array([1]) });
+    const none = async () => null;
 
-    assert.equal((await readRecordCover({ path: '/m/a.mp3', hasCover: false, coverFile: png })).format, 'image/png');
-    assert.equal((await readRecordCover({ path: '/m/a.mp3', hasCover: false, coverFile: jpg })).format, 'image/jpeg');
-    assert.equal(await readRecordCover({ path: '/m/a.mp3', hasCover: false, coverFile: path.join(dir, 'borrada.jpg') }), null);
-    assert.equal(await readRecordCover({ path: '/m/a.mp3', hasCover: false }), null);
-    assert.equal(await readRecordCover(null), null);
-    assert.equal((await readRecordCover({ path: path.join(dir, 'neon.wav'), hasCover: true, coverFile: jpg })).format, 'image/png');
+    assert.equal((await readRecordCover({ hasCover: false, coverFile: png }, none)).format, 'image/png');
+    assert.equal((await readRecordCover({ hasCover: false, coverFile: jpg }, none)).format, 'image/jpeg');
+    assert.equal(await readRecordCover({ hasCover: false, coverFile: path.join(dir, 'borrada.jpg') }, none), null);
+    assert.equal(await readRecordCover({ hasCover: false }, none), null);
+    assert.equal(await readRecordCover(null, none), null);
+    assert.deepEqual(await readRecordCover({ hasCover: true, coverFile: jpg }, embedded), { format: 'image/png', data: new Uint8Array([1]) });
+    assert.equal((await readRecordCover({ hasCover: true, coverFile: jpg }, none)).format, 'image/jpeg', 'si falla la incrustada, la de internet');
+  });
+});
+
+describe('library/remote', () => {
+  let s3;
+  let storage;
+  const cover = encodePng(2, 2, paint(2, 2, () => [124, 92, 255, 1]));
+
+  before(async () => {
+    s3 = await startFakeS3({
+      buckets: {
+        musica: {
+          'pop/neon.wav': createWav({
+            seconds: 1,
+            tags: { title: 'Luces de Neón', artist: 'Aurora Vega', album: 'Neón', genre: 'Pop latino', track: '2/9', year: '2024', lyrics: 'Brillan', cover },
+          }),
+          'pop/Tussi - Arcángel.mp3': 'esto no es audio',
+        },
+      },
+    });
+    storage = createS3Storage(s3.config);
+  });
+
+  after(async () => {
+    storage.destroy();
+    await s3.close();
+  });
+
+  test('trackId() y parseTrackId() son inversas', () => {
+    assert.equal(trackId('musica', 'pop/a b.mp3'), 's3://musica/pop/a b.mp3');
+    assert.deepEqual(parseTrackId('s3://musica/pop/a b.mp3'), { bucket: 'musica', key: 'pop/a b.mp3' });
+    assert.equal(parseTrackId('C:\\a.mp3'), null);
+  });
+
+  test('id3Size() lee el tamaño de una etiqueta ID3v2 al principio', () => {
+    assert.equal(id3Size(Uint8Array.from([0x49, 0x44, 0x33, 3, 0, 0, 0, 0, 0x02, 0x01])), 10 + 257);
+    assert.equal(id3Size(Uint8Array.from([0xff, 0xfb, 0, 0, 0, 0, 0, 0, 0, 0])), 0);
+  });
+
+  test('readRemoteRecord() lee las etiquetas desde el bucket y guarda clave, ETag y tamaño', async () => {
+    const [object] = (await storage.listAudio()).filter((o) => o.key === 'pop/neon.wav');
+    const record = await readRemoteRecord(storage, object);
+    assert.deepEqual(
+      { title: record.title, artist: record.artist, album: record.album, genre: record.genre, trackNo: record.trackNo, trackCount: record.trackCount, year: record.year, lyrics: record.lyrics, hasCover: record.hasCover },
+      { title: 'Luces de Neón', artist: 'Aurora Vega', album: 'Neón', genre: 'Pop latino', trackNo: 2, trackCount: 9, year: 2024, lyrics: 'Brillan', hasCover: true },
+    );
+    assert.equal(record.path, 's3://musica/pop/neon.wav');
+    assert.equal(record.key, 'pop/neon.wav');
+    assert.equal(record.etag, object.etag);
+    assert.deepEqual(await readRemoteCover(storage, record), { format: 'image/png', data: new Uint8Array(cover) });
+  });
+
+  test('readRemoteRecord() usa el nombre del archivo si no puede leer las etiquetas', async () => {
+    const record = await readRemoteRecord(storage, { key: 'pop/Tussi - Arcángel.mp3', size: 16, etag: '"x"' });
+    assert.equal(record.title, 'Tussi - Arcángel');
+    assert.equal(record.titleFromFile, true);
+    assert.equal(await readRemoteCover(storage, record), null);
   });
 });
 
