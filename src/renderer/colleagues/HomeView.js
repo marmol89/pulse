@@ -199,8 +199,10 @@ export class HomeView extends Colleague {
 
   #welcome() {
     const connect = h('button', { type: 'button', class: 'button button--primary' }, icon('cloud'), 'Conectar mi bucket');
+    const upload = h('button', { type: 'button', class: 'button button--secondary' }, icon('upload'), 'Subir canciones');
     const refresh = h('button', { type: 'button', class: 'button button--secondary' }, icon('refresh'), 'Actualizar biblioteca');
     connect.addEventListener('click', () => this.notify(EVENTS.OPEN_CONNECTION));
+    upload.addEventListener('click', () => this.notify(EVENTS.UPLOAD_SONGS));
     refresh.addEventListener('click', () => this.notify(EVENTS.SYNC_LIBRARY));
     return h(
       'section',
@@ -210,9 +212,9 @@ export class HomeView extends Colleague {
       h(
         'p',
         { class: 'welcome-card__text' },
-        'Tu música vive en un bucket S3 (o compatible, como MinIO). Conéctalo para empezar o, si ya lo está, sube canciones y actualiza la biblioteca.',
+        'Tu música vive en un bucket S3 (o compatible, como MinIO). Conéctalo y sube canciones desde tu ordenador: con el botón o arrastrándolas a la ventana.',
       ),
-      h('div', { class: 'welcome-card__actions' }, connect, refresh),
+      h('div', { class: 'welcome-card__actions' }, connect, upload, refresh),
     );
   }
 }

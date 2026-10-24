@@ -117,6 +117,22 @@ svg {
   text-transform: uppercase;
 }
 
+/* Soltar canciones sobre la ventana para subirlas */
+.app.is-dropping::after {
+  content: 'Suelta para subir a tu bucket';
+  position: fixed;
+  inset: var(--space-3);
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--color-primary);
+  border-radius: var(--radius-card);
+  background: var(--color-scrim);
+  font-size: var(--fs-section);
+  font-weight: 700;
+  pointer-events: none;
+}
+
 .sidebar__hint {
   margin: auto 0 0;
   padding: 0 var(--space-3);

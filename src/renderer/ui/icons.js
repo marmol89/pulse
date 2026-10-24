@@ -45,6 +45,7 @@ const ICONS = {
     body: '<path d="M-3 6 V-8 L8 -10 V4"/><circle cx="-6" cy="6" r="3"/><circle cx="5" cy="4" r="3"/>',
   },
   cloud: { viewBox: '-12 -12 24 24', stroke: 2, body: '<path d="M-6.5 7 H6.5 A4.5 4.5 0 0 0 6 -2 A6.5 6.5 0 0 0 -6.2 -1 A4 4 0 0 0 -6.5 7 Z"/>' },
+  upload: { viewBox: '-12 -12 24 24', stroke: 2, body: '<path d="M0 5 V-8"/><path d="M-5 -3 L0 -8 L5 -3"/><path d="M-9 3 V8 H9 V3"/>' },
   refresh: { viewBox: '-12 -12 24 24', stroke: 2, body: '<path d="M8.5 -4 A9 9 0 1 0 9 3"/><path d="M9 -10 V-4 H3"/>' },
   pulse: { viewBox: '-12 -12 24 24', stroke: 2.2, body: '<path d="M-11 0 H-6 L-3 -7 L1 7 L4 -3 L6 0 H11"/>' },
 };

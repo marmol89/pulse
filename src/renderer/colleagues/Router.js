@@ -12,8 +12,8 @@ const OVERLAY_DURATION_MS = 260;
 
 /**
  * Esqueleto de la app: sidebar (la tab bar del diseño), qué vista se ve,
- * el overlay Reproduciendo y el estado de la conexión con el bucket.
- * Emite: navigate, open-connection, sync-library, set-online-lookup.
+ * el overlay Reproduciendo, el estado de la conexión con el bucket y soltar canciones en la ventana.
+ * Emite: navigate, open-connection, upload-songs, files-dropped, sync-library, set-online-lookup.
  */
 export class Router extends Colleague {
   #root;
@@ -26,6 +26,7 @@ export class Router extends Colleague {
   #previous = 'home';
   #returnFocus = null;
   #hideTimer = 0;
+  #dragDepth = 0;
 
   constructor(root) {
     super();
@@ -33,6 +34,7 @@ export class Router extends Colleague {
     this.#views = new Map([...root.querySelectorAll('[data-view]')].map((element) => [element.dataset.view, element]));
     this.#overlay = root.querySelector('[data-overlay]');
     this.#renderSidebar(root.querySelector('[data-sidebar]'));
+    this.#listenForDrops();
   }
 
   /** @param {'home'|'search'|'collection'} view @param {string|null} nav elemento de la sidebar a resaltar */
@@ -101,8 +103,10 @@ export class Router extends Colleague {
       icon('cloud'),
       h('span', { class: 'nav__text' }, 'Conexión S3', this.#connectionStatus),
     );
+    const upload = h('button', { type: 'button', class: 'nav__item' }, icon('upload'), 'Subir canciones');
     const refresh = h('button', { type: 'button', class: 'nav__item' }, icon('refresh'), 'Actualizar biblioteca');
     connection.addEventListener('click', () => this.notify(EVENTS.OPEN_CONNECTION));
+    upload.addEventListener('click', () => this.notify(EVENTS.UPLOAD_SONGS));
     refresh.addEventListener('click', () => this.notify(EVENTS.SYNC_LIBRARY));
     this.#onlineSwitch = h('input', { type: 'checkbox', role: 'switch', class: 'switch', checked: true });
     this.#onlineSwitch.addEventListener('change', () => this.notify(EVENTS.SET_ONLINE_LOOKUP, this.#onlineSwitch.checked));
@@ -116,8 +120,8 @@ export class Router extends Colleague {
     sidebar.replaceChildren(
       h('div', { class: 'brand' }, h('span', { class: 'brand__logo' }, icon('pulse')), 'Pulse'),
       nav,
-      h('div', { class: 'sidebar__section' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, refresh, onlineRow),
-      h('p', { class: 'sidebar__hint' }, 'Sube canciones a tu bucket y pulsa «Actualizar biblioteca».'),
+      h('div', { class: 'sidebar__section' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, onlineRow),
+      h('p', { class: 'sidebar__hint' }, 'También puedes arrastrar canciones o carpetas a la ventana para subirlas a tu bucket.'),
     );
     this.#setActiveNav('home');
   }
@@ -129,6 +133,32 @@ export class Router extends Colleague {
       if (active) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     }
+  }
+
+  /** Archivos o carpetas soltados en cualquier parte de la ventana: se suben al bucket. */
+  #listenForDrops() {
+    const hasFiles = (event) => event.dataTransfer?.types?.includes('Files');
+    window.addEventListener('dragenter', (event) => {
+      if (!hasFiles(event)) return;
+      event.preventDefault();
+      this.#dragDepth += 1;
+      this.#root.classList.add('is-dropping');
+    });
+    window.addEventListener('dragover', (event) => {
+      if (hasFiles(event)) event.preventDefault();
+    });
+    window.addEventListener('dragleave', (event) => {
+      if (!hasFiles(event)) return;
+      this.#dragDepth = Math.max(0, this.#dragDepth - 1);
+      if (this.#dragDepth === 0) this.#root.classList.remove('is-dropping');
+    });
+    window.addEventListener('drop', (event) => {
+      event.preventDefault(); // sin esto, Chromium abriría el archivo en la ventana
+      this.#dragDepth = 0;
+      this.#root.classList.remove('is-dropping');
+      const files = [...(event.dataTransfer?.files ?? [])];
+      if (files.length > 0) this.notify(EVENTS.FILES_DROPPED, files);
+    });
   }
 
   /** Con el overlay abierto, lo de detrás no recibe foco ni clics. */
