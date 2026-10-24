@@ -15,6 +15,7 @@ La skill `iniciar-proyecto` es la fuente de las reglas de abajo: tenla presente 
 | `npm run icons` | Regenera `src/assets/icon.png` |
 | `npm run dist:win` / `npm run dist:linux` | Instaladores en `dist/` (NSIS / AppImage + deb). Lento: solo cuando se pida. El `.deb`/AppImage, mejor desde Linux, WSL o CI |
 | `npm run android:apk` | `www/` → `cap sync` → Gradle → `dist/Pulse-X.Y.Z-debug.apk` (necesita `JAVA_HOME` y `ANDROID_HOME`) |
+| `npm run android:release` | Lo mismo firmado → `dist/Pulse-X.Y.Z.apk`, con la keystore de `PULSE_KEYSTORE`, `PULSE_KEYSTORE_PASSWORD`, `PULSE_KEY_ALIAS` y `PULSE_KEY_PASSWORD` |
 | `npm run android:build` / `android:run` | Solo `www/` + `cap sync` / compilar y abrir en el emulador o móvil por USB |
 | `npm run test:e2e:android` | Prueba de humo del **APK ya instalado** (`adb install -r dist/Pulse-*-debug.apk` antes) en el emulador contra el S3 falso; capturas `android-*.png` |
 
@@ -115,7 +116,9 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   controles, MediaSession (pantalla de bloqueo, auriculares) y wake lock solo mientras suena. El WebView no trae la
   Media Session API: `src/android/mediaSession.js` la imita y `MediaSessionBridge` no sabe de Android. Probado con la
   pantalla apagada y Doze forzado; el e2e comprueba que sigue sonando con la app en segundo plano.
-- El APK es debug (sin firma de release).
+- **Firma**: la keystore de release no va al repo (`*.jks` ignorado). En CI llega de los secretos
+  `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` y `ANDROID_KEY_PASSWORD`; sin ellos
+  sale el debug. Si se pierde la keystore, las versiones nuevas no se instalan encima: hay que guardar copia.
 
 ## Datos de internet (carátula, álbum, año, género, pista y letra)
 
@@ -145,7 +148,7 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   la PR "chore: versión X.Y.Z" con `CHANGELOG.md` y la versión de `package.json` (`feat` → menor, `fix` → parche;
   `docs`/`ci`/`chore`… no sacan versión). Solo la fusiona el admin. Al fusionarla: etiqueta `vX.Y.Z`, release y
   `instaladores.yml` compila en Windows (`Pulse-Setup-X.Y.Z.exe`), Linux (AppImage + `.deb`) y Android
-  (`Pulse-X.Y.Z-debug.apk`) y los adjunta.
+  (`Pulse-X.Y.Z.apk` firmado) y los adjunta.
 - **No toques a mano** la versión de `package.json`, `CHANGELOG.md` ni `.release-please-manifest.json`.
 - "Instaladores" se puede lanzar a mano en Actions: deja los instaladores como artefactos sin publicar nada.
 - `main` solo admite PR; `.github/CODEOWNERS` pide la revisión del admin (que puede fusionar sus propias PR).

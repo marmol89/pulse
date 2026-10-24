@@ -1,4 +1,5 @@
-# Compila los instaladores: .exe (NSIS) en Windows, AppImage y .deb en Linux, y el APK de Android (debug).
+# Compila los instaladores: .exe (NSIS) en Windows, AppImage y .deb en Linux, y el APK de Android
+# (firmado si están los secretos ANDROID_*; si no, debug).
 # - Desde "Versiones", al publicar una versión: los adjunta a su release de GitHub.
 # - A mano (pestaña Actions → "Instaladores" → Run workflow): los deja como artefactos del run, sin publicar nada.
 name: Instaladores
@@ -72,6 +73,9 @@ jobs:
   android:
     name: Android
     runs-on: ubuntu-latest
+    env:
+      # Keystore de firma en base64 (secreto del repo). Sin ella sale el APK debug.
+      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -93,7 +97,19 @@ jobs:
 
       - run: npm test
 
-      - name: Compilar el APK (debug)
+      - name: Compilar el APK firmado
+        if: env.KEYSTORE_BASE64 != ''
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/pulse.jks"
+          npm run android:release
+        env:
+          PULSE_KEYSTORE: ${{ runner.temp }}/pulse.jks
+          PULSE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          PULSE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          PULSE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Compilar el APK (debug, sin keystore)
+        if: env.KEYSTORE_BASE64 == ''
         run: npm run android:apk
 
       - name: Adjuntar a la release

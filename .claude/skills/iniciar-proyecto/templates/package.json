@@ -20,10 +20,11 @@
     "dist:linux": "electron-builder --linux",
     "android:build": "node scripts/build-android.mjs && cap sync android",
     "android:apk": "node scripts/android-apk.mjs",
+    "android:release": "node scripts/android-apk.mjs --release",
     "android:run": "node scripts/build-android.mjs && cap run android"
   },
   "build": {
-    "appId": "com.example.reproductormediator",
+    "appId": "com.marmol89.pulse",
     "productName": "Pulse",
     "icon": "src/assets/icon.png",
     "files": [

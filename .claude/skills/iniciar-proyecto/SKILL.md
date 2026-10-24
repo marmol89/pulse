@@ -306,7 +306,8 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
 1. Copia `capacitor.config.json` (appId, `webDir: www`, **`server.androidScheme: 'http'`**, CapacitorHttp sin
    parchear fetch, SystemBars) y ejecuta `node scripts/build-android.mjs && npx cap add android`. Después copia
    encima los archivos de `templates/android/` (`build.gradle` lee la versión de package.json y nombra el APK
-   `Pulse-X.Y.Z-debug.apk`; el manifest con `allowBackup=false`, `usesCleartextTraffic` y el servicio `mediaPlayback`; `MainActivity`
+   `Pulse-X.Y.Z-debug.apk` (o `Pulse-X.Y.Z.apk` el de release, firmado si hay `PULSE_KEYSTORE` y sus claves en el
+   entorno); el manifest con `allowBackup=false`, `usesCleartextTraffic` y el servicio `mediaPlayback`; `MainActivity`
    registra `PlaybackPlugin` y `PlaybackService` mantiene el audio en segundo plano; fondo oscuro sin
    destello blanco). Los comentarios XML no pueden llevar `--`.
 2. Entorno: JDK 21 (`JAVA_HOME`) y SDK de Android (`ANDROID_HOME`: cmdline-tools, platform-tools,
@@ -317,7 +318,8 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
    de escritorio (subir soltando un `File`, botón atrás con `adb shell input keyevent KEYCODE_BACK`, reabrir sin
    pedir conexión) y **cero errores de consola**. Revisa las capturas `android-*.png` frente al Figma móvil.
 4. CI: trabajo `android` en `instaladores.yml` (`setup-java` 21 temurin, `npm ci`, `npm test`,
-   `npm run android:apk` y adjuntar `dist/*.apk` o dejarlo como artefacto). El runner de Ubuntu ya trae el SDK.
+   `npm run android:release` con la keystore de los secretos `ANDROID_*`, o `npm run android:apk` si no están, y
+   adjuntar `dist/*.apk` o dejarlo como artefacto). `*.jks` y `*.keystore` en `.gitignore`. El runner de Ubuntu ya trae el SDK.
 
 ## Paso 6 — Cierre
 
