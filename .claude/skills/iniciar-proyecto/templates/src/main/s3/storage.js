@@ -60,6 +60,17 @@ export function createS3Storage({ endpoint, accessKeyId, secretAccessKey, bucket
       return Body.transformToByteArray();
     },
 
+    /** El objeto entero (para archivos pequeños: metadatos, carátulas), o null si no está en el bucket. */
+    async read(key) {
+      try {
+        const { Body } = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+        return Buffer.from(await Body.transformToByteArray());
+      } catch (error) {
+        if (error?.$metadata?.httpStatusCode === 404 || error?.name === 'NoSuchKey') return null;
+        throw error;
+      }
+    },
+
     /** El objeto (o un rango) como stream web, con las cabeceras para responder al <audio>. */
     async getObject(key, range) {
       const result = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key, Range: range || undefined }));

@@ -45,27 +45,26 @@ describe('library/tracks', () => {
   });
 
   test('toTrack() versiona la carátula descargada de internet', () => {
-    const track = toTrack({ path: 's3://m/a.mp3', hasCover: false, coverFile: '/c/x.jpg', titleFromFile: false, online: { checkedAt: 42, status: 'found' } });
+    const track = toTrack({ path: 's3://m/a.mp3', hasCover: false, coverName: 'x.jpg', titleFromFile: false, online: { checkedAt: 42, status: 'found' } });
     assert.equal(track.cover, 'media://cover/s3%3A%2F%2Fm%2Fa.mp3?v=42');
-    assert.equal('coverFile' in track, false);
+    assert.equal('coverName' in track, false);
     assert.equal('titleFromFile' in track, false);
   });
 
-  test('readRecordCover() sirve la carátula incrustada o, si no hay, la descargada', async () => {
-    const png = path.join(dir, 'descargada.png');
-    const jpg = path.join(dir, 'descargada.jpg');
-    await writeFile(png, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
-    await writeFile(jpg, Buffer.from([0xff, 0xd8, 0xff]));
-    const embedded = async () => ({ format: 'image/png', data: new Uint8Array([1]) });
-    const none = async () => null;
+  test('readRecordCover() sirve la carátula incrustada o, si no hay, la descargada (por nombre)', async () => {
+    const covers = { 'a.png': Buffer.from([0x89, 0x50, 0x4e, 0x47]), 'b.jpg': Buffer.from([0xff, 0xd8, 0xff]) };
+    const readCover = async (name) => covers[name] ?? null;
+    const embedded = { readEmbedded: async () => ({ format: 'image/png', data: new Uint8Array([1]) }), readCover };
+    const none = { readEmbedded: async () => null, readCover };
 
-    assert.equal((await readRecordCover({ hasCover: false, coverFile: png }, none)).format, 'image/png');
-    assert.equal((await readRecordCover({ hasCover: false, coverFile: jpg }, none)).format, 'image/jpeg');
-    assert.equal(await readRecordCover({ hasCover: false, coverFile: path.join(dir, 'borrada.jpg') }, none), null);
+    assert.equal((await readRecordCover({ hasCover: false, coverName: 'a.png' }, none)).format, 'image/png');
+    assert.equal((await readRecordCover({ hasCover: false, coverName: 'b.jpg' }, none)).format, 'image/jpeg');
+    assert.equal(await readRecordCover({ hasCover: false, coverName: 'borrada.jpg' }, none), null);
+    assert.equal(await readRecordCover({ hasCover: false, coverName: 'x.jpg' }, { ...none, readCover: async () => Promise.reject(new Error('red')) }), null);
     assert.equal(await readRecordCover({ hasCover: false }, none), null);
     assert.equal(await readRecordCover(null, none), null);
-    assert.deepEqual(await readRecordCover({ hasCover: true, coverFile: jpg }, embedded), { format: 'image/png', data: new Uint8Array([1]) });
-    assert.equal((await readRecordCover({ hasCover: true, coverFile: jpg }, none)).format, 'image/jpeg', 'si falla la incrustada, la de internet');
+    assert.deepEqual(await readRecordCover({ hasCover: true, coverName: 'b.jpg' }, embedded), { format: 'image/png', data: new Uint8Array([1]) });
+    assert.equal((await readRecordCover({ hasCover: true, coverName: 'b.jpg' }, none)).format, 'image/jpeg', 'si falla la incrustada, la de internet');
   });
 });
 
@@ -142,6 +141,18 @@ describe('library/store', () => {
     assert.equal(reopened.get('/m/otra.mp3'), null);
     assert.deepEqual(reopened.all(), [{ path: '/m/a.mp3', title: 'A' }]);
     assert.equal(JSON.parse(await readFile(file, 'utf8')).version, 1);
+  });
+
+  test('las carátulas guardadas con su ruta pasan a guardarse por nombre; onSave avisa de cada guardado', async () => {
+    const file = path.join(dir, 'antigua.json');
+    await writeFile(file, JSON.stringify({ version: 1, tracks: [{ path: 's3://m/a.mp3', coverFile: path.join(dir, 'covers', 'abc.jpg') }, { path: 's3://m/b.mp3' }] }));
+    let saved = 0;
+    const store = createLibraryStore(file, { onSave: () => (saved += 1) });
+    await store.load();
+    assert.deepEqual(store.get('s3://m/a.mp3'), { path: 's3://m/a.mp3', coverName: 'abc.jpg' });
+    assert.deepEqual(store.get('s3://m/b.mp3'), { path: 's3://m/b.mp3' });
+    await store.save();
+    assert.equal(saved, 1);
   });
 
   test('remove() olvida registros', () => {

@@ -7,6 +7,7 @@ import { readRecordCover } from './library/tracks.js';
 import { readRemoteCover } from './library/remote.js';
 import { createLibrarySync } from './library/sync.js';
 import { createUploader } from './library/upload.js';
+import { createMetadataStore } from './library/metadata.js';
 import { objectResponse } from './protocol/responses.js';
 import { createConnectionStore } from './s3/connection.js';
 import { createS3Service } from './s3/service.js';
@@ -32,14 +33,17 @@ if (!app.requestSingleInstanceLock()) {
 
 async function start() {
   const userData = app.getPath('userData');
-  const store = createLibraryStore(path.join(userData, 'library.json'));
+  // library.json es la caché local; la copia compartida va a metadatos/ del bucket tras cada guardado.
+  let metadata = null;
+  const store = createLibraryStore(path.join(userData, 'library.json'), { onSave: () => metadata?.schedulePush() });
   await store.load();
 
   // Datos de internet: net.fetch usa la red de Chromium (respeta el proxy del sistema).
   const http = createHttp((url, init) => net.fetch(url, init), {
     userAgent: `Pulse/${app.getVersion()} (reproductor de música de escritorio)`,
   });
-  const enricher = createEnricher({ http, coversDir: path.join(userData, 'covers') });
+  const coversDir = path.join(userData, 'covers');
+  const enricher = createEnricher({ http, coversDir });
   const queue = createEnrichmentQueue({ store, enricher, onUpdated: (tracks) => broadcast('library:tracks-updated', tracks) });
 
   // La música vive en un bucket S3. La clave secreta se cifra con el almacén seguro del sistema.
@@ -49,13 +53,17 @@ async function start() {
   });
   const s3 = createS3Service({ connections });
   await s3.load();
+  metadata = createMetadataStore({ getStorage: () => s3.storage(), getRecords: () => store.all(), coversDir });
+  metadata.schedulePush(); // lo que ya hay en este equipo también llega al bucket
   const librarySync = createLibrarySync({
     store,
     getStorage: () => s3.storage(),
+    pullMetadata: () => metadata.pull(),
     onChange: (change) => {
       broadcast('library:changed', change);
       if (change.added.length > 0) queue.wake();
     },
+    onUpdated: (tracks) => broadcast('library:tracks-updated', tracks),
   });
 
   const uploader = createUploader({
@@ -66,7 +74,11 @@ async function start() {
 
   handleMediaProtocol({
     isAllowed: (id) => store.has(id),
-    readCover: (id) => readRecordCover(store.get(id), (record) => readRemoteCover(s3.storage(), record)),
+    readCover: (id) =>
+      readRecordCover(store.get(id), {
+        readEmbedded: (record) => readRemoteCover(s3.storage(), record),
+        readCover: (name) => metadata.readCover(name),
+      }),
     openTrack: (id, range) => {
       const storage = s3.storage();
       const key = store.get(id)?.key;
@@ -80,6 +92,12 @@ async function start() {
   // Cambios hechos en el bucket desde fuera: al arrancar y al volver a la ventana.
   createWindow().webContents.once('did-finish-load', () => librarySync.syncSoon());
   app.on('browser-window-focus', () => librarySync.syncSoon());
+  // No cerrar con metadatos sin subir al bucket.
+  app.on('before-quit', (event) => {
+    if (!metadata.hasPending()) return;
+    event.preventDefault();
+    metadata.flush().finally(() => app.quit());
+  });
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

@@ -1,5 +1,6 @@
 import { toTrack } from './tracks.js';
 import { parseTrackId, readRemoteRecord, trackId } from './remote.js';
+import { lookupStamp } from './metadata.js';
 
 const MIN_INTERVAL_MS = 15_000; // como mucho una sincronización automática cada 15 s
 const CONCURRENCY = 4; // pistas leídas a la vez
@@ -7,21 +8,30 @@ const CONCURRENCY = 4; // pistas leídas a la vez
 /**
  * Mantiene la biblioteca igual que el bucket: añade lo nuevo, vuelve a leer lo que ha
  * cambiado (otro ETag) y quita lo borrado. Avisa de los cambios con `onChange`.
+ * Antes de leer archivos usa los metadatos guardados en el bucket (`pullMetadata`): lo que ya
+ * está ahí no se vuelve a leer, y los datos de internet más recientes llegan con `onUpdated`.
  */
-export function createLibrarySync({ store, getStorage, onChange, readRecord = readRemoteRecord, now = Date.now, minInterval = MIN_INTERVAL_MS }) {
+export function createLibrarySync({
+  store,
+  getStorage,
+  onChange,
+  onUpdated = () => {},
+  pullMetadata = async () => [],
+  readRecord = readRemoteRecord,
+  now = Date.now,
+  minInterval = MIN_INTERVAL_MS,
+}) {
   let running = null;
   let lastSyncAt = Number.NEGATIVE_INFINITY;
 
   async function run() {
     const storage = getStorage();
     if (!storage) return { removed: [], added: [] };
-    const present = new Set();
-    const pending = [];
-    for (const object of await storage.listAudio()) {
-      const id = trackId(storage.bucket, object.key);
-      present.add(id);
-      if (store.get(id)?.etag !== object.etag) pending.push(object);
-    }
+    const objects = new Map((await storage.listAudio()).map((object) => [trackId(storage.bucket, object.key), object]));
+    const present = new Set(objects.keys());
+    const { known, improved } = fromMetadata(await pullMetadata(), objects);
+    store.add([...known, ...improved]);
+    const pending = [...objects].filter(([id, object]) => store.get(id)?.etag !== object.etag).map(([, object]) => object);
     // También se quitan las de otro bucket (si cambió la conexión) o de versiones locales antiguas.
     const removed = store
       .all()
@@ -31,11 +41,29 @@ export function createLibrarySync({ store, getStorage, onChange, readRecord = re
     const records = (await mapLimit(pending, CONCURRENCY, (object) => readRecord(storage, object).catch(() => null))).filter(Boolean);
     store.remove(removed);
     store.add(records);
-    if (removed.length + records.length > 0) await store.save();
+    const added = [...known, ...records];
+    if (removed.length + added.length + improved.length > 0) await store.save();
     lastSyncAt = now();
-    const change = { removed, added: records.map(toTrack) };
-    if (removed.length + records.length > 0) onChange(change);
+    const change = { removed, added: added.map(toTrack) };
+    if (removed.length + added.length > 0) onChange(change);
+    if (improved.length > 0) onUpdated(improved.map(toTrack));
     return change;
+  }
+
+  /**
+   * De los metadatos del bucket, los que sirven: el objeto sigue igual (mismo ETag) y aquí no está
+   * (`known`, no hace falta leerlo) o está con datos de internet más antiguos (`improved`).
+   */
+  function fromMetadata(remote, objects) {
+    const known = [];
+    const improved = [];
+    for (const record of remote) {
+      if (objects.get(record.path)?.etag !== record.etag) continue; // borrado o cambiado: se lee
+      const local = store.get(record.path);
+      if (local?.etag !== record.etag) known.push(record);
+      else if (lookupStamp(record) > lookupStamp(local)) improved.push(record);
+    }
+    return { known, improved };
   }
 
   return {

@@ -10,8 +10,8 @@ reproduce la música de un **bucket S3** (o compatible, como MinIO), se parece a
 **Windows (NSIS)** y **Linux (AppImage + deb)**, con toda la coordinación de la UI en un **Mediator**
 que nunca se convierte en un *God Object*.
 
-`templates/` contiene **todo lo que no depende del diseño visual**, ya probado (298 tests): proceso main
-(**S3**: conexión cifrada, sincronización, audio con rangos y subir canciones; **datos de internet**: carátula, álbum, año, género, pista y letra), preload, núcleo del patrón,
+`templates/` contiene **todo lo que no depende del diseño visual**, ya probado (310 tests): proceso main
+(**S3**: conexión cifrada, sincronización, audio con rangos, subir canciones y metadatos/ en el bucket; **datos de internet**: carátula, álbum, año, género, pista y letra), preload, núcleo del patrón,
 mediator y handlers, modelos y servicios, tokens, `index.html`, scripts y tests.
 Lo visual (vistas, `ui/`, `layout.css`, `components.css`) se **genera** a partir del diseño (Paso 4).
 
@@ -57,7 +57,8 @@ src/main/                          T  proceso main (no forma parte del mediator)
   library/remote.js                   id "s3://bucket/clave"; etiquetas leyendo los primeros 512 KB del objeto
   library/sync.js                     biblioteca = bucket: añade, relee (ETag) y quita; verify(id)
   library/upload.js                   subir archivos y carpetas del ordenador (sin sobrescribir) y sincronizar
-  library/tracks.js · store.js        registro ↔ Track · library.json en userData (escritura atómica)
+  library/metadata.js                 copia de la biblioteca en metadatos/biblioteca.json + metadatos/caratulas/
+  library/tracks.js · store.js        registro ↔ Track · library.json en userData (caché local, escritura atómica, onSave)
   online/matching.js                  ¿es la misma canción? (título, artista, duración, otras versiones)
   online/itunes.js · deezer.js        iTunes Search y, si no la tiene, Deezer (datos + carátula), sin clave
   online/lrclib.js                    LRCLIB (letra), sin clave
@@ -204,6 +205,10 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
 - Sincronización (`sync.js`): al arrancar, al volver a la ventana (como mucho cada 15 s) y con "Actualizar
   biblioteca". Lo que falla al descargarse no se guarda a medias: se reintenta en la siguiente.
 - Si una pista falla al sonar, `library:verify` mira si sigue en el bucket; si no, se quita de todo.
+- **Metadatos en el bucket** (`metadata.js`): `metadatos/biblioteca.json` y `metadatos/caratulas/` bajo la carpeta de
+  la conexión. Las carátulas de internet se guardan **por nombre** (`coverName`), no por ruta del equipo. Subida a
+  los 5 s de cada guardado (máx. 60 s), al arrancar y antes de cerrar; reintento al minuto. `sync` lo lee antes
+  de leer archivos (mismo ETag → no se relee; búsqueda más reciente → `onUpdated`). library.json es solo caché.
 - Subir (`upload.js`): de una en una bajo la carpeta de la conexión; una carpeta arrastrada conserva su nombre en la
   clave. **Nunca sobrescribe**: mismo nombre y tamaño → se salta; otro archivo con ese nombre → "Nombre (2).mp3".
   Después sincroniza, y las canciones llegan como cualquier otra novedad del bucket.
@@ -300,6 +305,8 @@ album, genre, trackNo, trackCount, disc, year, duration, lyrics, online }` (lo c
   no entienden → `requestChecksumCalculation: 'WHEN_REQUIRED'` (el S3 falso rechaza "aws-chunked" para detectarlo).
 - Con un logger propio el SDK escribe en consola cada error (y "non-retryable streaming request" al fallar una
   subida con stream), aunque ya llegan a quien llama → logger silencioso salvo otros avisos.
+- Con el MinIO real una subida de metadatos recibió un 403 pasajero y no se reintentaba → reintento al minuto y
+  el aviso incluye el código del servidor (antes todo 403 parecía "sin permiso").
 - Prueba contra un S3/MinIO real: script aparte en el scratchpad (no en el repo) que lee las credenciales del
   archivo que indique el usuario sin imprimirlas.
 - Prueba de los datos de internet en vivo: un script aparte (no en el repo) con WAV sin etiquetas llamados
