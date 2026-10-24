@@ -38,6 +38,7 @@ export const EVENTS = Object.freeze({
   OPEN_FILES: 'open-files', // ()
   OPEN_FOLDER: 'open-folder', // ()
   FILES_DROPPED: 'files-dropped', // (File[])
+  LIBRARY_CHANGED: 'library-changed', // ({ removed: path[], restored: Track[] }) — archivos que desaparecen o vuelven
 
   // Vistas
   NAVIGATE: 'navigate', // ('home' | 'search' | 'library')

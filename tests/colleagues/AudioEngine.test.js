@@ -61,11 +61,24 @@ describe('AudioEngine', () => {
     audio.emit('error');
 
     assert.equal(engine.consecutiveErrors(), 2);
-    assert.deepEqual(events.at(-1), [EVENTS.ERROR, { message: 'Formato no compatible o archivo no encontrado' }]);
+    assert.deepEqual(events.at(-1), [EVENTS.ERROR, { message: 'No se puede reproducir este formato de audio' }]);
     assert.deepEqual(events.at(-2), [EVENTS.STATE_CHANGE, { playing: false }]);
 
     audio.emit('playing');
     assert.equal(engine.consecutiveErrors(), 0);
+  });
+
+  test('stop() para y olvida la pista: sin pista cargada y sin track-started pendiente', () => {
+    const { audio, engine, events } = setup();
+    engine.load('media://track/borrada');
+
+    engine.stop();
+    audio.emit('playing');
+
+    assert.equal(engine.hasTrack(), false);
+    assert.equal(engine.isPlaying(), false);
+    assert.equal(audio.src, '');
+    assert.equal(events.filter(([name]) => name === EVENTS.TRACK_STARTED).length, 0);
   });
 
   test('ended se reenvía al mediator', () => {

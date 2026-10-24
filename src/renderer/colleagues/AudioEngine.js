@@ -7,7 +7,7 @@ const ERROR_MESSAGES = {
   1: 'Se canceló la carga del audio',
   2: 'Error al leer el archivo',
   3: 'No se pudo decodificar el audio',
-  4: 'Formato no compatible o archivo no encontrado',
+  4: 'No se puede reproducir este formato de audio', // si el archivo falta, lo detecta handlers/errors.js
 };
 
 /**
@@ -78,6 +78,15 @@ export class AudioEngine extends Colleague {
 
   pause() {
     this.#audio.pause();
+  }
+
+  /** Deja de reproducir y olvida la pista (p. ej. porque su archivo ya no existe). */
+  stop() {
+    this.#audio.pause();
+    this.#audio.removeAttribute('src'); // vaciar src con '' provocaría un evento de error
+    this.#audio.load();
+    this.#hasTrack = false;
+    this.#awaitingStart = false;
   }
 
   toggle() {

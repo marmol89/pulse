@@ -3,7 +3,8 @@ import { EVENTS } from '../mediator/events.js';
 
 /**
  * Único colega que habla con el proceso main (window.api, expuesto por el preload).
- * Emite: tracks-updated (pistas completadas con datos de internet en segundo plano).
+ * Emite: tracks-updated (pistas completadas con datos de internet en segundo plano) y
+ * library-changed (archivos que desaparecen del disco o vuelven con la app abierta).
  */
 export class LibraryService extends Colleague {
   #api;
@@ -12,6 +13,12 @@ export class LibraryService extends Colleague {
     super();
     this.#api = api;
     api.onTracksUpdated?.((tracks) => this.notify(EVENTS.TRACKS_UPDATED, tracks));
+    api.onLibraryChanged?.((change) => this.notify(EVENTS.LIBRARY_CHANGED, change));
+  }
+
+  /** ¿Sigue el archivo en el disco? Si no, el proceso main deja de mostrar la pista. */
+  verify(path) {
+    return this.#api.verifyTrack(path);
   }
 
   /** Biblioteca guardada en disco. */

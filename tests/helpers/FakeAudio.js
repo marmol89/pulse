@@ -27,6 +27,15 @@ export class FakeAudio extends EventTarget {
     this.sinkId = id;
   }
 
+  removeAttribute(name) {
+    if (name === 'src') this.src = '';
+  }
+
+  load() {
+    this.currentTime = 0;
+    this.duration = Number.NaN;
+  }
+
   emit(type) {
     this.dispatchEvent(new Event(type));
   }

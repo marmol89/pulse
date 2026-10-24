@@ -34,6 +34,19 @@ describe('LibraryService', () => {
     assert.deepEqual(calls, [['lookup', '/a.mp3', { force: false }], ['lookup', '/a.mp3', { force: true }], ['enabled', false]]);
   });
 
+  test('verify() pregunta al proceso main y library-changed llega al mediator', async () => {
+    let push;
+    const library = new LibraryService({ verifyTrack: async (path) => path === '/esta.mp3', onLibraryChanged: (callback) => (push = callback) });
+    const mediator = recordingMediator();
+    library.setMediator(mediator);
+
+    assert.equal(await library.verify('/esta.mp3'), true);
+    assert.equal(await library.verify('/borrada.mp3'), false);
+    push({ removed: ['/borrada.mp3'], restored: [] });
+
+    assert.deepEqual(mediator.events, [[EVENTS.LIBRARY_CHANGED, { removed: ['/borrada.mp3'], restored: [] }]]);
+  });
+
   test('las pistas completadas en segundo plano llegan al mediator como tracks-updated', () => {
     let push;
     const library = new LibraryService({ onTracksUpdated: (callback) => (push = callback) });
@@ -159,6 +172,15 @@ describe('MediaSessionBridge', () => {
       { duration: 100, position: 10, playbackRate: 1 },
       { duration: 100, position: 100, playbackRate: 1 },
     ]);
+  });
+
+  test('clear() deja de mostrar la pista y descarta una carátula pendiente', async () => {
+    const { session, bridge } = setup(fakeFetch({ delay: 20 }));
+    const shown = bridge.show(track('/a.mp3', { title: 'A', cover: 'media://cover/a' }));
+    bridge.clear();
+    await shown;
+    assert.equal(session.metadata, null);
+    assert.equal(session.playbackState, 'none');
   });
 
   test('sin Media Session (o con acciones no admitidas) no falla', () => {

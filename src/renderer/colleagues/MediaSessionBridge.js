@@ -56,6 +56,15 @@ export class MediaSessionBridge extends Colleague {
     if (artwork && showId === this.#showCount) this.#session.metadata = new this.#Metadata({ ...metadata, artwork: [{ src: artwork }] });
   }
 
+  /** Ya no suena nada: el sistema deja de mostrar la pista (y se descarta una carátula pendiente). */
+  clear() {
+    this.#showCount += 1;
+    this.#playing = false;
+    if (!this.#session) return;
+    this.#session.metadata = null;
+    this.#session.playbackState = 'none';
+  }
+
   setPlaying(playing) {
     this.#playing = playing;
     if (this.#session) this.#session.playbackState = playing ? 'playing' : 'paused';
