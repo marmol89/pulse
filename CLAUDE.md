@@ -27,7 +27,7 @@ src/main/        proceso main (NO forma parte del mediator)
   library/       remote.js (id s3://bucket/clave, etiquetas leyendo el principio del objeto), sync.js
                  (biblioteca = bucket), upload.js (subir archivos y carpetas), tracks.js (registro ↔ pista),
                  store.js (library.json en userData)
-  online/        datos de internet: matching, itunes, lrclib, http, enricher, queue (ver abajo)
+  online/        datos de internet: matching, itunes, deezer, lrclib, http, enricher, queue (ver abajo)
   ipc/           library.js (library:*, connection:*) y metadata.js (metadata:*); los usa el preload
 src/preload/preload.cjs   window.api (contextBridge, sandbox)
 src/renderer/
@@ -73,13 +73,15 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
 
 ## Datos de internet (carátula, álbum, año, género, pista y letra)
 
-- Fuentes gratuitas y sin clave: **iTunes Search API** (datos y carátula 600×600, catálogo `ES`) y **LRCLIB**
-  (letra). Todo en el proceso main (`src/main/online/`) con `net.fetch`; el renderer no sale a internet.
+- Fuentes gratuitas y sin clave: **iTunes Search API** (datos y carátula 600×600, catálogo `ES`), **Deezer** si iTunes
+  no tiene la canción (datos sin género/año y carátula) y **LRCLIB** (letra). Todo en el proceso main (`src/main/online/`) con `net.fetch`; el renderer no sale a internet.
 - **Rellena huecos, nunca pisa etiquetas**: título y artista solo se toman de internet si el título venía del
-  nombre del archivo ("01. Artista - Título"). `matching.js` rechaza otras versiones (remix, directo, idiomas…),
+  nombre del archivo: se prueban "Artista - Título" y "Título - Artista" con una sola búsqueda por servicio. `matching.js` rechaza otras versiones (remix, directo, idiomas…),
   otros artistas y duraciones que no encajan: mejor no encontrar nada que poner datos equivocados.
 - La pista que empieza a sonar se completa al momento (letra incluida); el resto, en segundo plano
-  (`queue.js`: una pista cada 3,5 s, ~17/min, por debajo del límite de iTunes). Lo no encontrado se marca y no se repite.
+  (`queue.js`: una pista cada 3,5 s, ~17/min, por debajo del límite de iTunes). Lo no encontrado se marca y no se repite
+  (salvo una vez al subir `LOOKUP_VERSION` en `enricher.js`, cuando la búsqueda mejora). Si LRCLIB falla un
+  momento (da 503 a ratos), se guardan los datos y solo la letra queda pendiente.
 - Se guarda en `library.json` y las carátulas en `userData/covers/` (compartidas por álbum): funciona sin conexión.
 - **Privacidad**: envía título y artista a esos servicios. Interruptor "Datos de internet" en la sidebar
   (`Settings`, activado por defecto). "Buscar en internet" en Reproduciendo fuerza la búsqueda de una pista.
