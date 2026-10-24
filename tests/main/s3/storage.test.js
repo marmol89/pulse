@@ -59,6 +59,13 @@ describe('s3/storage', () => {
     storage.destroy();
   });
 
+  test('read() descarga un objeto entero o devuelve null si no está', async () => {
+    const storage = createS3Storage(s3.config);
+    assert.equal((await storage.read('rock/Kora - Selva.ogg')).toString(), 'zz');
+    assert.equal(await storage.read('rock/no-esta.ogg'), null);
+    storage.destroy();
+  });
+
   test('stat() da el tamaño o null', async () => {
     const storage = createS3Storage(s3.config);
     assert.deepEqual(await storage.stat('rock/Kora - Selva.ogg'), { size: 2 });
