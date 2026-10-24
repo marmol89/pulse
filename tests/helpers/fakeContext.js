@@ -52,7 +52,7 @@ export function fakeContext(overrides = {}) {
     favorites: new Favorites(storage),
     recents: new Recents(storage),
     settings: new Settings(storage),
-    library: spy({ load: [], chooseFiles: [], chooseFolder: null, import: [], pathsForFiles: [], lookup: null, verify: true }),
+    library: spy({ load: [], sync: { added: 0, removed: 0 }, verify: true, connection: null, importCredentials: null, lookup: null }),
     mediaSession: spy(),
     router: spy(),
     home: spy(),
@@ -61,6 +61,7 @@ export function fakeContext(overrides = {}) {
     nowPlaying: spy(),
     controls: spy(),
     toast: spy(),
+    connection: spy(),
     ...overrides,
   };
 }

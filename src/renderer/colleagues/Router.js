@@ -12,8 +12,8 @@ const OVERLAY_DURATION_MS = 260;
 
 /**
  * Esqueleto de la app: sidebar (la tab bar del diseño), qué vista se ve,
- * el overlay Reproduciendo y la zona de arrastrar y soltar.
- * Emite: navigate, open-folder, open-files, files-dropped, set-online-lookup.
+ * el overlay Reproduciendo y el estado de la conexión con el bucket.
+ * Emite: navigate, open-connection, sync-library, set-online-lookup.
  */
 export class Router extends Colleague {
   #root;
@@ -21,11 +21,11 @@ export class Router extends Colleague {
   #overlay;
   #navButtons = new Map();
   #onlineSwitch;
+  #connectionStatus;
   #current = 'home';
   #previous = 'home';
   #returnFocus = null;
   #hideTimer = 0;
-  #dragDepth = 0;
 
   constructor(root) {
     super();
@@ -33,7 +33,6 @@ export class Router extends Colleague {
     this.#views = new Map([...root.querySelectorAll('[data-view]')].map((element) => [element.dataset.view, element]));
     this.#overlay = root.querySelector('[data-overlay]');
     this.#renderSidebar(root.querySelector('[data-sidebar]'));
-    this.#listenForDrops();
   }
 
   /** @param {'home'|'search'|'collection'} view @param {string|null} nav elemento de la sidebar a resaltar */
@@ -81,6 +80,12 @@ export class Router extends Colleague {
     this.#onlineSwitch.checked = enabled;
   }
 
+  /** Bucket conectado ({ bucket, endpoint } o null) bajo "Conexión S3". */
+  setConnection(summary) {
+    this.#connectionStatus.textContent = summary ? `${summary.bucket} · ${new URL(summary.endpoint).host}` : 'Sin conectar';
+    this.#connectionStatus.classList.toggle('is-off', !summary);
+  }
+
   #renderSidebar(sidebar) {
     const nav = h('div', { class: 'nav' });
     for (const [view, label, iconName] of NAV_ITEMS) {
@@ -89,10 +94,16 @@ export class Router extends Colleague {
       this.#navButtons.set(view, button);
       nav.append(button);
     }
-    const addFolder = h('button', { type: 'button', class: 'nav__item' }, icon('folder'), 'Añadir carpeta');
-    const addFiles = h('button', { type: 'button', class: 'nav__item' }, icon('note'), 'Añadir archivos');
-    addFolder.addEventListener('click', () => this.notify(EVENTS.OPEN_FOLDER));
-    addFiles.addEventListener('click', () => this.notify(EVENTS.OPEN_FILES));
+    this.#connectionStatus = h('span', { class: 'nav__status ellipsis is-off' }, 'Sin conectar');
+    const connection = h(
+      'button',
+      { type: 'button', class: 'nav__item nav__item--status' },
+      icon('cloud'),
+      h('span', { class: 'nav__text' }, 'Conexión S3', this.#connectionStatus),
+    );
+    const refresh = h('button', { type: 'button', class: 'nav__item' }, icon('refresh'), 'Actualizar biblioteca');
+    connection.addEventListener('click', () => this.notify(EVENTS.OPEN_CONNECTION));
+    refresh.addEventListener('click', () => this.notify(EVENTS.SYNC_LIBRARY));
     this.#onlineSwitch = h('input', { type: 'checkbox', role: 'switch', class: 'switch', checked: true });
     this.#onlineSwitch.addEventListener('change', () => this.notify(EVENTS.SET_ONLINE_LOOKUP, this.#onlineSwitch.checked));
     const onlineRow = h(
@@ -105,8 +116,8 @@ export class Router extends Colleague {
     sidebar.replaceChildren(
       h('div', { class: 'brand' }, h('span', { class: 'brand__logo' }, icon('pulse')), 'Pulse'),
       nav,
-      h('div', { class: 'sidebar__section' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), addFolder, addFiles, onlineRow),
-      h('p', { class: 'sidebar__hint' }, 'También puedes arrastrar canciones o carpetas a la ventana.'),
+      h('div', { class: 'sidebar__section' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, refresh, onlineRow),
+      h('p', { class: 'sidebar__hint' }, 'Sube canciones a tu bucket y pulsa «Actualizar biblioteca».'),
     );
     this.#setActiveNav('home');
   }
@@ -125,30 +136,5 @@ export class Router extends Colleague {
     for (const element of this.#root.children) {
       if (element !== this.#overlay && !element.matches('[role="status"]')) element.inert = inert;
     }
-  }
-
-  #listenForDrops() {
-    const hasFiles = (event) => event.dataTransfer?.types?.includes('Files');
-    window.addEventListener('dragenter', (event) => {
-      if (!hasFiles(event)) return;
-      event.preventDefault();
-      this.#dragDepth += 1;
-      this.#root.classList.add('is-dropping');
-    });
-    window.addEventListener('dragover', (event) => {
-      if (hasFiles(event)) event.preventDefault();
-    });
-    window.addEventListener('dragleave', (event) => {
-      if (!hasFiles(event)) return;
-      this.#dragDepth = Math.max(0, this.#dragDepth - 1);
-      if (this.#dragDepth === 0) this.#root.classList.remove('is-dropping');
-    });
-    window.addEventListener('drop', (event) => {
-      event.preventDefault();
-      this.#dragDepth = 0;
-      this.#root.classList.remove('is-dropping');
-      const files = [...(event.dataTransfer?.files ?? [])];
-      if (files.length > 0) this.notify(EVENTS.FILES_DROPPED, files);
-    });
   }
 }

@@ -339,22 +339,6 @@ svg {
   color: var(--color-text);
 }
 
-/* Arrastrar y soltar música sobre la ventana */
-.app.is-dropping::after {
-  content: 'Suelta para añadir a tu biblioteca';
-  position: fixed;
-  inset: var(--space-3);
-  z-index: 40;
-  display: grid;
-  place-items: center;
-  border: 2px dashed var(--color-primary);
-  border-radius: var(--radius-card);
-  background: var(--color-scrim);
-  font-size: var(--fs-section);
-  font-weight: 700;
-  pointer-events: none;
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

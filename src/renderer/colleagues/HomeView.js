@@ -17,7 +17,7 @@ const RECENTS_LIMIT = 8;
 /**
  * Pantalla 01 · Inicio: saludo, chips, "Mix diario", "Escuchado recientemente"
  * y géneros. El filtro de los chips es estado de la vista; los datos llegan en render().
- * Emite: play-mix, track-selected, open-collection, toggle-favorite, open-folder, open-files.
+ * Emite: play-mix, track-selected, open-collection, toggle-favorite, open-connection, sync-library.
  */
 export class HomeView extends Colleague {
   #greeting;
@@ -198,10 +198,10 @@ export class HomeView extends Colleague {
   }
 
   #welcome() {
-    const folder = h('button', { type: 'button', class: 'button button--primary' }, icon('folder'), 'Añadir carpeta');
-    const files = h('button', { type: 'button', class: 'button button--secondary' }, icon('note'), 'Añadir archivos');
-    folder.addEventListener('click', () => this.notify(EVENTS.OPEN_FOLDER));
-    files.addEventListener('click', () => this.notify(EVENTS.OPEN_FILES));
+    const connect = h('button', { type: 'button', class: 'button button--primary' }, icon('cloud'), 'Conectar mi bucket');
+    const refresh = h('button', { type: 'button', class: 'button button--secondary' }, icon('refresh'), 'Actualizar biblioteca');
+    connect.addEventListener('click', () => this.notify(EVENTS.OPEN_CONNECTION));
+    refresh.addEventListener('click', () => this.notify(EVENTS.SYNC_LIBRARY));
     return h(
       'section',
       { class: 'welcome-card' },
@@ -210,9 +210,9 @@ export class HomeView extends Colleague {
       h(
         'p',
         { class: 'welcome-card__text' },
-        'Añade una carpeta con canciones para empezar. También puedes arrastrar archivos o carpetas a la ventana.',
+        'Tu música vive en un bucket S3 (o compatible, como MinIO). Conéctalo para empezar o, si ya lo está, sube canciones y actualiza la biblioteca.',
       ),
-      h('div', { class: 'welcome-card__actions' }, folder, files),
+      h('div', { class: 'welcome-card__actions' }, connect, refresh),
     );
   }
 }

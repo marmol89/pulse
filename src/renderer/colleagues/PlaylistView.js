@@ -18,7 +18,7 @@ const KIND_LABELS = {
   mix: 'Para ti',
 };
 const EMPTY_MESSAGES = {
-  library: 'Tu biblioteca está vacía. Añade una carpeta desde la barra lateral o arrastra canciones a la ventana.',
+  library: 'Tu biblioteca está vacía. Sube canciones a tu bucket y pulsa «Actualizar biblioteca» en la barra lateral.',
   favorites: 'Aún no tienes favoritos. Pulsa el corazón de cualquier canción para guardarla aquí.',
   recents: 'Todavía no has escuchado nada.',
   queue: 'La cola está vacía.',

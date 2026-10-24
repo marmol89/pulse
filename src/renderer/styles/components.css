@@ -1227,3 +1227,115 @@
 .search-box__input::-webkit-search-cancel-button {
   display: none;
 }
+
+/* ---------- Conexión S3 (diálogo) ---------- */
+
+.connection {
+  width: min(520px, calc(100vw - var(--space-12)));
+  padding: var(--space-8);
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-overlay);
+  color: var(--color-text);
+}
+
+.connection::backdrop {
+  background: var(--color-scrim);
+}
+
+.connection__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.connection__form > .button {
+  align-self: flex-start;
+}
+
+.connection__title {
+  margin: 0;
+  font-size: var(--fs-section);
+  font-weight: 700;
+}
+
+.connection__text {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-3);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.field__label {
+  color: var(--color-text-2);
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
+
+.field__input {
+  height: 40px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-track);
+  border-radius: var(--radius-row);
+  outline: none;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--fs-chip);
+  user-select: text;
+}
+
+.field__input::placeholder {
+  color: var(--color-text-2);
+}
+
+.field__input:focus-visible {
+  border-color: var(--color-primary);
+}
+
+.connection__error {
+  margin: 0;
+  color: var(--color-accent);
+  font-size: var(--fs-body);
+  font-weight: 600;
+}
+
+.connection__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-5);
+}
+
+.button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* "Conexión S3" en la sidebar: nombre del bucket debajo */
+.nav__item--status {
+  height: auto;
+  padding-block: var(--space-2);
+}
+
+.nav__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nav__status {
+  color: var(--color-success);
+  font-size: var(--fs-small);
+  font-weight: 400;
+}
+
+.nav__status.is-off {
+  color: var(--color-text-2);
+}

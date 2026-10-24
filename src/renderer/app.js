@@ -16,6 +16,7 @@ import { PlaylistView } from './colleagues/PlaylistView.js';
 import { NowPlayingView } from './colleagues/NowPlayingView.js';
 import { ControlsView } from './colleagues/ControlsView.js';
 import { ToastView } from './colleagues/ToastView.js';
+import { ConnectionView } from './colleagues/ConnectionView.js';
 import { KeyboardShortcuts } from './colleagues/KeyboardShortcuts.js';
 
 /** Raíz de composición: crea los colegas, los conecta con el mediator y arranca la app. */
@@ -40,6 +41,7 @@ const mediator = new PlayerMediator({
   nowPlaying: new NowPlayingView($('#now-playing')),
   controls: new ControlsView($('#player-bar')),
   toast: new ToastView($('#toast')),
+  connection: new ConnectionView($('#connection')),
   keyboard: new KeyboardShortcuts(window),
 });
 

@@ -43,12 +43,12 @@ describe('handlers/errors', () => {
     assert.deepEqual(toasts(ctx), ['No se pudo reproducir la pista']);
   });
 
-  test('si el archivo ya no existe, lo quita de la biblioteca y sigue con la siguiente', async () => {
+  test('si la canción ya no está en el bucket, la quita de la biblioteca y sigue con la siguiente', async () => {
     const ctx = failing([a, b, c], b, { verify: false });
 
     await errors[EVENTS.ERROR](ctx, {});
 
-    assert.deepEqual(toasts(ctx), ['«Canción B» ya no está en el disco: se ha quitado de la biblioteca']);
+    assert.deepEqual(toasts(ctx), ['«Canción B» ya no está en el bucket: se ha quitado de la biblioteca']);
     assert.equal(ctx.catalog.get(b.path), null);
     assert.deepEqual(ctx.playlist.tracks(), [a, c]);
     for (const view of [ctx.playlistView, ctx.search, ctx.home]) assert.deepEqual(callsOf(view.removeTracks), [[[b.path]]]);
