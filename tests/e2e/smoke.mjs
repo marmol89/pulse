@@ -1,15 +1,17 @@
 /**
  * Prueba de humo de la app real (Electron) con playwright-core:
- * genera una biblioteca de WAV con etiquetas, recorre las pantallas,
- * comprueba reproducción, saltos y favoritos, y guarda capturas en tests/e2e/output/.
+ * levanta un S3 falso con WAV etiquetados, conecta la app desde su formulario,
+ * recorre las pantallas, comprueba reproducción desde el bucket, saltos, favoritos,
+ * cambios en el bucket y guarda capturas en tests/e2e/output/. Nunca usa tu S3 real.
  * Uso: npm run test:e2e   (abre la ventana unos segundos; el audio va silenciado)
  */
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { _electron as electron } from 'playwright-core';
 import { createWav } from '../helpers/audio.js';
+import { startFakeS3 } from '../helpers/fakeS3.js';
 import { encodePng, paint, diagonalGradient } from '../../scripts/lib/png.js';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
@@ -34,12 +36,9 @@ const FIXTURES = [
   ['Sueltas/pista sin etiquetas.wav', null],
 ];
 
-async function createLibrary(dir) {
-  for (const [index, [file, tags]] of FIXTURES.entries()) {
-    const target = path.join(dir, file);
-    await mkdir(path.dirname(target), { recursive: true });
-    await writeFile(target, createWav({ seconds: 12, frequency: 330 + index * 55, tags }));
-  }
+/** Bucket "musica" con los WAV (10 s: caben en los 512 KB que se leen para las etiquetas). */
+function bucketObjects() {
+  return Object.fromEntries(FIXTURES.map(([key, tags], index) => [key, createWav({ seconds: 10, frequency: 330 + index * 55, tags })]));
 }
 
 const problems = [];
@@ -49,8 +48,7 @@ const check = (condition, message) => {
 };
 
 const work = await mkdtemp(path.join(tmpdir(), 'pulse-e2e-'));
-const music = path.join(work, 'Música');
-await createLibrary(music);
+const s3 = await startFakeS3({ buckets: { musica: bucketObjects() } });
 await mkdir(OUTPUT, { recursive: true });
 
 const app = await electron.launch({ args: ['.', `--user-data-dir=${path.join(work, 'perfil')}`], cwd: ROOT });
@@ -71,21 +69,31 @@ try {
     if (response.url().startsWith('media:') && response.status() >= 400) logs.push(`[media ${response.status()}] ${response.url()}`);
   });
 
-  // Antes de importar: audio silenciado y sin datos de internet (la prueba no envía nada a iTunes).
-  await page.waitForSelector('.welcome-card');
+  // Antes de conectar: audio silenciado y sin datos de internet (la prueba no envía nada a iTunes).
+  await page.waitForSelector('.connection[open]');
   await page.evaluate(() => {
     localStorage.setItem('pulse.muted', 'true');
     localStorage.setItem('pulse.onlineLookup', 'false');
   });
   await page.reload();
-  await page.waitForSelector('.welcome-card');
-  check(true, 'biblioteca vacía: se muestra la bienvenida');
+  await page.waitForSelector('.connection[open]');
+  check(true, 'la primera vez se abre el formulario de conexión');
   check((await page.isChecked('.switch')) === false, 'el interruptor "Datos de internet" refleja la preferencia guardada');
-  await shot('01-bienvenida');
+  await shot('01-conexion');
 
-  const imported = await page.evaluate((dir) => window.api.importPaths([dir]), music);
-  check(imported.length === FIXTURES.length, `importa ${imported.length}/${FIXTURES.length} pistas`);
-  await page.reload();
+  const fillConnection = async (accessKeyId) => {
+    await page.fill('#connection-endpoint', s3.endpoint);
+    await page.fill('#connection-accessKeyId', accessKeyId);
+    await page.fill('#connection-secretAccessKey', s3.config.secretAccessKey);
+    await page.click('.connection button[type="submit"]');
+  };
+  await fillConnection('clave-incorrecta');
+  await page.waitForSelector('.connection__error:not([hidden])');
+  check((await page.textContent('.connection__error')).includes('claves no son válidas'), 'con claves incorrectas el formulario explica el error');
+  await fillConnection(s3.config.accessKeyId);
+  await page.waitForSelector('.connection', { state: 'hidden' });
+  check(true, 'con claves correctas conecta (sin indicar bucket usa el único que hay)');
+  check((await page.textContent('.nav__status')).startsWith('musica'), 'la sidebar muestra el bucket conectado');
 
   await page.waitForSelector('.feature-card');
   check((await page.locator('.genre-card').count()) === 2, 'Inicio muestra los 2 géneros');
@@ -108,12 +116,12 @@ try {
 
   await page.evaluate(() => {
     const range = document.querySelector('.player .seek-bar__range');
-    range.value = '9';
+    range.value = '7';
     range.dispatchEvent(new Event('input'));
     range.dispatchEvent(new Event('change'));
   });
-  await page.waitForFunction(() => document.querySelector('.player .seek-bar__time')?.textContent >= '0:09', null, { timeout: 5000 });
-  check(true, 'saltar a 0:09 funciona (rangos HTTP)');
+  await page.waitForFunction(() => document.querySelector('.player .seek-bar__time')?.textContent >= '0:07', null, { timeout: 5000 });
+  check(true, 'saltar a 0:07 funciona (rangos de S3)');
   await page.waitForSelector('.card-grid .media-card');
   await shot('03-inicio-con-recientes');
 
@@ -161,9 +169,25 @@ try {
   check((await page.locator('.card-grid .media-card').count()) === 4, 'Álbumes agrupa 4 álbumes');
   await shot('08-albumes');
 
+  s3.put('musica', 'Nuevas/Selva (directo).wav', createWav({ seconds: 3, tags: { title: 'Selva (directo)', artist: 'Kora' } }));
+  await page.click('.nav__item:has-text("Actualizar biblioteca")');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === '1 canción nueva');
+  check(true, '"Actualizar biblioteca" trae la canción subida al bucket');
+
   check(logs.length === 0, `sin errores de consola${logs.length ? `:\n  ${logs.join('\n  ')}` : ''}`);
+
+  // Canción borrada del bucket con la app abierta (aquí el 404 en la consola es lo esperado).
+  s3.remove('musica', 'Los Prismas/Atardecer.wav');
+  await page.click('.nav__item:has-text("Biblioteca")');
+  await page.dblclick('.view--collection .track-row:has-text("Atardecer")');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent.includes('ya no está en el bucket'));
+  check(
+    (await page.locator('.view--collection .track-row:has-text("Atardecer")').count()) === 0,
+    'una canción borrada del bucket se quita al intentar reproducirla',
+  );
 } finally {
   await app.close();
+  await s3.close();
   await rm(work, { recursive: true, force: true });
 }
 
