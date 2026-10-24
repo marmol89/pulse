@@ -1,0 +1,70 @@
+# Compila los instaladores: .exe (NSIS) en Windows, AppImage y .deb en Linux.
+# - Desde "Versiones", al publicar una versión: los adjunta a su release de GitHub.
+# - A mano (pestaña Actions → "Instaladores" → Run workflow): los deja como artefactos del run, sin publicar nada.
+name: Instaladores
+
+on:
+  workflow_call:
+    inputs:
+      etiqueta:
+        description: Etiqueta de la release a la que se adjuntan (p. ej. v0.1.0)
+        type: string
+        required: true
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  compilar:
+    name: ${{ matrix.nombre }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nombre: Windows
+            os: windows-latest
+            destino: --win
+            archivos: dist/*.exe
+          - nombre: Linux
+            os: ubuntu-latest
+            destino: --linux
+            archivos: dist/*.AppImage dist/*.deb
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.etiqueta || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+      - name: Compilar
+        run: npx electron-builder ${{ matrix.destino }} --publish never
+        env:
+          # Sin certificado: los instaladores salen sin firmar.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Adjuntar a la release
+        if: inputs.etiqueta
+        shell: bash
+        run: gh release upload "${{ inputs.etiqueta }}" ${{ matrix.archivos }} --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Guardar como artefacto
+        if: ${{ !inputs.etiqueta }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pulse-${{ matrix.nombre }}
+          path: |
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.deb
+          if-no-files-found: error
