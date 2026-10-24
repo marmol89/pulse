@@ -4,13 +4,14 @@
 
 # Pulse
 
-**Tu música en tu propio bucket S3, con un reproductor de escritorio bonito.**
+**Tu música en tu propio bucket S3, con un reproductor bonito para el ordenador y el móvil.**
 
-Reproductor nativo para Windows y Linux, hecho con Electron y JavaScript puro, sin frameworks de UI.
+Reproductor para Windows y Linux (Electron) y Android (Capacitor), hecho con JavaScript puro, sin frameworks de UI.
 Por dentro está organizado con el patrón **Mediator**.
 
 ![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
+![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)
 ![Electron 45](https://img.shields.io/badge/Electron-45-47848F?style=for-the-badge&logo=electron&logoColor=white)
 ![Node ≥ 22](https://img.shields.io/badge/Node-%E2%89%A5%2022-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-puro-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
@@ -41,7 +42,7 @@ Por dentro está organizado con el patrón **Mediator**.
 - ❤️ Favoritos, escuchado recientemente, Mix diario, álbumes y artistas, aleatorio y repetir, búsqueda sin tildes,
   elección de la salida de audio y controles multimedia del sistema.
 - 🔐 **Seguridad**: la clave secreta se guarda cifrada con el almacén del sistema (DPAPI en Windows, llavero en
-  Linux) y nunca vuelve a la ventana. La ventana se ejecuta aislada (`contextIsolation`, `sandbox`, CSP estricta).
+  Linux, Keystore en Android) y en el escritorio nunca vuelve a la ventana. La ventana se ejecuta aislada (`contextIsolation`, `sandbox`, CSP estricta).
 
 ## 📸 Capturas
 
@@ -64,10 +65,13 @@ Cada versión publicada en [**Releases**](https://github.com/marmol89/pulse/rele
 |---|---|
 | Windows | `Pulse-Setup-X.Y.Z.exe` (instalador) |
 | Linux | `pulse-X.Y.Z-x86_64.AppImage` (portable) o `pulse-X.Y.Z-amd64.deb` (Debian/Ubuntu) |
+| Android | `Pulse-X.Y.Z-debug.apk` |
 
 > [!NOTE]
 > Los instaladores no están firmados: Windows SmartScreen puede avisar la primera vez («Más información» →
 > «Ejecutar de todas formas»). En Linux, al AppImage hay que darle permiso de ejecución (`chmod +x`).
+> En Android, descarga el APK en el móvil y ábrelo: te pedirá permitir «instalar apps de origen desconocido».
+> Es una compilación *debug*: para actualizar, instala la nueva encima.
 
 ## 🚀 Inicio rápido
 
@@ -168,13 +172,13 @@ flowchart LR
 
 ```
 src/
-├── main/                 proceso principal (fuera del mediador)
-│   ├── s3/               cliente S3, conexión cifrada (safeStorage)
-│   ├── protocol/         media://track|cover/<id> con rangos, solo pistas de la biblioteca
+├── backend/              lógica común a escritorio y Android (sin Node ni Electron)
+│   ├── s3/               cliente S3 y conexión con la clave secreta cifrada
 │   ├── library/          sincronización, subidas, metadatos/ en el bucket, caché local
-│   ├── online/           iTunes, Deezer, LRCLIB, emparejado y cola en segundo plano
-│   └── ipc/              canales que usa el preload
+│   └── online/           iTunes, Deezer, LRCLIB, emparejado y cola en segundo plano
+├── main/                 Electron (fuera del mediador): ventana, archivos, media:// con rangos, ipc/
 ├── preload/preload.cjs   window.api (contextBridge)
+├── android/              window.api de Android: red nativa, Keystore, carátulas, URLs firmadas
 └── renderer/
     ├── app.js            raíz de composición
     ├── core/             Mediator y Colleague
@@ -195,6 +199,8 @@ tests/                    unitarios por carpeta, helpers (S3 falso, WAV con ID3�
 | `npm run icons` | Regenera `src/assets/icon.png` |
 | `npm run dist:win` | Instalador NSIS para Windows en `dist/` |
 | `npm run dist:linux` | AppImage y `.deb` en `dist/` (mejor desde Linux, WSL o CI) |
+| `npm run android:apk` | APK de Android en `dist/` (necesita JDK 21 y el SDK de Android: `JAVA_HOME`, `ANDROID_HOME`) |
+| `npm run test:e2e:android` | Prueba de humo del APK instalado en un emulador, contra el S3 falso |
 
 Para publicar no hace falta compilar en local: lo hace GitHub Actions al sacar cada versión (ver
 «Versiones», más abajo).
@@ -224,7 +230,7 @@ Las versiones siguen [SemVer](https://semver.org/lang/es/) y las prepara
    `package.json` y escribe el [`CHANGELOG.md`](CHANGELOG.md). Un `feat` sube la versión menor (0.1.0 → 0.2.0) y
    un `fix`, el parche (0.1.0 → 0.1.1).
 2. Solo el admin del repositorio la aprueba. Al fusionarla se crea la etiqueta `vX.Y.Z` con su release, y GitHub
-   Actions compila y adjunta los instaladores de Windows y Linux.
+   Actions compila y adjunta los instaladores de Windows y Linux y el APK de Android.
 3. Los commits siguientes abren la PR de la versión siguiente. La primera versión es la **0.1.0**.
 
 Para probar la compilación sin publicar nada: pestaña **Actions** → **Instaladores** → **Run workflow**.
