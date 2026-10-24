@@ -34,6 +34,19 @@ describe('LibraryService', () => {
     assert.deepEqual(calls, [['lookup', '/a.mp3', { force: false }], ['lookup', '/a.mp3', { force: true }], ['enabled', false]]);
   });
 
+  test('verify() pregunta al proceso main y library-changed llega al mediator', async () => {
+    let push;
+    const library = new LibraryService({ verifyTrack: async (path) => path === '/esta.mp3', onLibraryChanged: (callback) => (push = callback) });
+    const mediator = recordingMediator();
+    library.setMediator(mediator);
+
+    assert.equal(await library.verify('/esta.mp3'), true);
+    assert.equal(await library.verify('/borrada.mp3'), false);
+    push({ removed: ['/borrada.mp3'], added: [] });
+
+    assert.deepEqual(mediator.events, [[EVENTS.LIBRARY_CHANGED, { removed: ['/borrada.mp3'], added: [] }]]);
+  });
+
   test('las pistas completadas en segundo plano llegan al mediator como tracks-updated', () => {
     let push;
     const library = new LibraryService({ onTracksUpdated: (callback) => (push = callback) });
@@ -45,23 +58,24 @@ describe('LibraryService', () => {
     assert.deepEqual(mediator.events, [[EVENTS.TRACKS_UPDATED, [{ path: '/a.mp3' }]]]);
   });
 
-  test('delega en window.api', async () => {
+  test('biblioteca y conexión S3 delegan en window.api', async () => {
     const calls = [];
+    const summary = { endpoint: 'https://minio.ejemplo.com', accessKeyId: 'clave', bucket: 'app-musica', prefix: '' };
     const api = {
       loadLibrary: async () => ['guardada'],
-      chooseFiles: async () => ['/a.mp3'],
-      chooseFolder: async () => '/musica',
-      importPaths: async (paths) => calls.push(paths) && ['nueva'],
-      pathForFile: (file) => (file.name === 'sin-ruta' ? '' : `/drop/${file.name}`),
+      syncLibrary: async () => ({ added: 2, removed: 0 }),
+      getConnection: async () => summary,
+      saveConnection: async (input) => calls.push(input) && { ok: true, summary, count: 2 },
+      importCredentials: async () => null,
     };
     const library = new LibraryService(api);
 
     assert.deepEqual(await library.load(), ['guardada']);
-    assert.deepEqual(await library.chooseFiles(), ['/a.mp3']);
-    assert.equal(await library.chooseFolder(), '/musica');
-    assert.deepEqual(await library.import(['/musica']), ['nueva']);
-    assert.deepEqual(calls, [['/musica']]);
-    assert.deepEqual(library.pathsForFiles([{ name: 'a.mp3' }, { name: 'sin-ruta' }]), ['/drop/a.mp3']);
+    assert.deepEqual(await library.sync(), { added: 2, removed: 0 });
+    assert.deepEqual(await library.connection(), summary);
+    assert.equal((await library.saveConnection({ bucket: 'app-musica' })).ok, true);
+    assert.deepEqual(calls, [{ bucket: 'app-musica' }]);
+    assert.equal(await library.importCredentials(), null);
   });
 });
 
@@ -159,6 +173,15 @@ describe('MediaSessionBridge', () => {
       { duration: 100, position: 10, playbackRate: 1 },
       { duration: 100, position: 100, playbackRate: 1 },
     ]);
+  });
+
+  test('clear() deja de mostrar la pista y descarta una carátula pendiente', async () => {
+    const { session, bridge } = setup(fakeFetch({ delay: 20 }));
+    const shown = bridge.show(track('/a.mp3', { title: 'A', cover: 'media://cover/a' }));
+    bridge.clear();
+    await shown;
+    assert.equal(session.metadata, null);
+    assert.equal(session.playbackState, 'none');
   });
 
   test('sin Media Session (o con acciones no admitidas) no falla', () => {

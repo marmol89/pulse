@@ -9,76 +9,33 @@ const toasts = (ctx) => callsOf(ctx.toast.show).map(([message]) => message);
 
 describe('handlers/library', () => {
   test('app-ready carga la biblioteca guardada y pinta Inicio', async () => {
-    const ctx = fakeContext({ library: spy({ load: async () => tracks('a', 'b') }) });
-
+    const ctx = fakeContext({ library: spy({ load: async () => tracks('s3://m/a.mp3', 's3://m/b.mp3') }) });
     await library[EVENTS.APP_READY](ctx);
-
     assert.equal(ctx.catalog.size(), 2);
     assert.equal(callsOf(ctx.home.render)[0][0].isEmpty, false);
   });
 
-  test('open-folder importa la carpeta elegida y avisa de cuántas canciones son nuevas', async () => {
-    const ctx = fakeContext({
-      library: spy({ chooseFolder: async () => '/musica', import: async () => tracks('a', 'b') }),
-    });
-
-    await library[EVENTS.OPEN_FOLDER](ctx);
-
-    assert.deepEqual(callsOf(ctx.library.import), [[['/musica']]]);
-    assert.equal(ctx.catalog.size(), 2);
-    assert.deepEqual(toasts(ctx), ['Analizando tu música…', '2 canciones añadidas']);
+  test('sync-library avisa mientras actualiza y si ya estaba al día', async () => {
+    const ctx = fakeContext({ library: spy({ sync: async () => ({ added: 0, removed: 0 }) }) });
+    await library[EVENTS.SYNC_LIBRARY](ctx);
+    assert.deepEqual(toasts(ctx), ['Actualizando tu biblioteca…', 'Tu biblioteca ya está al día']);
   });
 
-  test('cancelar el diálogo no importa nada', async () => {
-    const ctx = fakeContext();
-    await library[EVENTS.OPEN_FOLDER](ctx);
-    await library[EVENTS.OPEN_FILES](ctx);
-    assert.equal(ctx.library.import.mock.callCount(), 0);
-    assert.equal(ctx.toast.show.mock.callCount(), 0);
+  test('si hay cambios no repite el aviso: llega con library-changed', async () => {
+    const ctx = fakeContext({ library: spy({ sync: async () => ({ added: 3, removed: 1 }) }) });
+    await library[EVENTS.SYNC_LIBRARY](ctx);
+    assert.deepEqual(toasts(ctx), ['Actualizando tu biblioteca…']);
   });
 
-  test('open-files importa los archivos elegidos', async () => {
-    const ctx = fakeContext({
-      library: spy({ chooseFiles: async () => ['/a.mp3'], import: async () => tracks('/a.mp3') }),
-    });
-    await library[EVENTS.OPEN_FILES](ctx);
-    assert.deepEqual(toasts(ctx).at(-1), '1 canción añadida');
-  });
-
-  test('files-dropped importa las rutas de los archivos soltados', async () => {
-    const files = [{ name: 'a.mp3' }];
-    const ctx = fakeContext({
-      library: spy({ pathsForFiles: () => ['/a.mp3'], import: async () => [] }),
-    });
-
-    await library[EVENTS.FILES_DROPPED](ctx, files);
-
-    assert.deepEqual(callsOf(ctx.library.pathsForFiles), [[files]]);
-    assert.deepEqual(toasts(ctx).at(-1), 'No hay canciones nuevas');
-  });
-
-  test('tras importar vuelve a pintar la colección abierta', async () => {
-    const ctx = fakeContext({
-      library: spy({ chooseFolder: async () => '/m', import: async () => tracks('a') }),
-      playlistView: spy({ source: { kind: 'library' } }),
-    });
-
-    await library[EVENTS.OPEN_FOLDER](ctx);
-
-    assert.equal(callsOf(ctx.playlistView.render)[0][0].tracks.length, 1);
-  });
-
-  test('si la importación falla avisa y propaga el error al mediator', async () => {
+  test('sin conexión con el almacenamiento avisa del error', async () => {
     const ctx = fakeContext({
       library: spy({
-        chooseFolder: async () => '/m',
-        import: async () => {
-          throw new Error('EACCES');
+        sync: async () => {
+          throw new Error('sin red');
         },
       }),
     });
-
-    await assert.rejects(library[EVENTS.OPEN_FOLDER](ctx), /EACCES/);
-    assert.equal(toasts(ctx).at(-1), 'No se pudo importar la música');
+    await library[EVENTS.SYNC_LIBRARY](ctx);
+    assert.equal(toasts(ctx).at(-1), 'No se pudo conectar con el almacenamiento');
   });
 });

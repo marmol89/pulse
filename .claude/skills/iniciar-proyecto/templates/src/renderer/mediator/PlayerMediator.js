@@ -8,6 +8,8 @@ import views from './handlers/views.js';
 import favorites from './handlers/favorites.js';
 import recents from './handlers/recents.js';
 import online from './handlers/online.js';
+import changes from './handlers/changes.js';
+import connection from './handlers/connection.js';
 import errors from './handlers/errors.js';
 
 /**
@@ -20,7 +22,7 @@ export class PlayerMediator extends Mediator {
   /**
    * @param {{
    *   audio, playlist, catalog, favorites, recents, settings, library, mediaSession,
-   *   router, home, search, playlistView, nowPlaying, controls, toast, keyboard?
+   *   router, home, search, playlistView, nowPlaying, controls, toast, connection, keyboard?
    * }} colleagues
    */
   constructor(colleagues) {
@@ -37,6 +39,8 @@ export class PlayerMediator extends Mediator {
       .use(favorites)
       .use(recents)
       .use(online)
+      .use(changes)
+      .use(connection)
       .use(errors);
   }
 

@@ -34,10 +34,14 @@ export const EVENTS = Object.freeze({
   CYCLE_REPEAT: 'cycle-repeat', // ()
   PLAY_MIX: 'play-mix', // ()
 
-  // Biblioteca
-  OPEN_FILES: 'open-files', // ()
-  OPEN_FOLDER: 'open-folder', // ()
-  FILES_DROPPED: 'files-dropped', // (File[])
+  // Biblioteca (en el bucket S3)
+  SYNC_LIBRARY: 'sync-library', // () — "Actualizar biblioteca"
+  LIBRARY_CHANGED: 'library-changed', // ({ removed: id[], added: Track[] }) — cambios en el bucket
+
+  // Conexión S3
+  OPEN_CONNECTION: 'open-connection', // ()
+  SAVE_CONNECTION: 'save-connection', // ({ endpoint, accessKeyId, secretAccessKey, bucket, prefix })
+  IMPORT_CREDENTIALS: 'import-credentials', // () — elegir un credentials.json
 
   // Vistas
   NAVIGATE: 'navigate', // ('home' | 'search' | 'library')

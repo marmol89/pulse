@@ -35,6 +35,24 @@ export class Playlist extends Colleague {
     return [...this.#tracks];
   }
 
+  /**
+   * Quita pistas de la cola sin cambiar el orden del resto. Si se quita la actual, pasa a ser
+   * actual la siguiente (ninguna si era la última). Devuelve si se ha quitado la actual.
+   */
+  remove(paths) {
+    const removed = new Set(paths);
+    const currentIndex = this.index();
+    const currentRemoved = currentIndex >= 0 && removed.has(this.#tracks[currentIndex].path);
+    const newIndex = [];
+    let kept = 0;
+    for (const track of this.#tracks) newIndex.push(removed.has(track.path) ? -1 : kept++);
+    const keptBefore = this.#order.slice(0, Math.max(this.#position, 0)).filter((index) => newIndex[index] >= 0).length;
+    this.#tracks = this.#tracks.filter((track) => !removed.has(track.path));
+    this.#order = this.#order.map((index) => newIndex[index]).filter((index) => index >= 0);
+    if (this.#position >= 0) this.#position = keptBefore < this.#order.length ? keptBefore : -1;
+    return currentRemoved;
+  }
+
   /** Sustituye una pista de la cola por su versión actualizada (misma ruta), sin cambiar el orden. */
   replace(track) {
     const index = this.#tracks.findIndex((candidate) => candidate.path === track.path);

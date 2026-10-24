@@ -27,6 +27,13 @@ export class Catalog extends Colleague {
     return added;
   }
 
+  /** Quita pistas (p. ej. archivos que ya no están en el disco). Devuelve cuántas había. */
+  remove(paths) {
+    let removed = 0;
+    for (const path of paths) if (this.#tracks.delete(path)) removed += 1;
+    return removed;
+  }
+
   size() {
     return this.#tracks.size;
   }

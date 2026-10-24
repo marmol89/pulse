@@ -102,6 +102,47 @@ describe('Playlist', () => {
     assert.equal(playlist.replace(tracks('z')[0]), false);
   });
 
+  test('remove() quita pistas sin cambiar el orden del resto ni la actual', () => {
+    const playlist = new Playlist();
+    playlist.setQueue(tracks('a', 'b', 'c', 'd'), 'c');
+
+    assert.equal(playlist.remove(['a', 'd', 'no-esta']), false);
+
+    assert.equal(playlist.current().path, 'c');
+    assert.deepEqual(paths(playlist.tracks()), ['b', 'c']);
+    assert.equal(playlist.previous().path, 'b');
+  });
+
+  test('remove() de la actual hace actual la siguiente', () => {
+    const playlist = new Playlist();
+    playlist.setQueue(tracks('a', 'b', 'c'), 'b');
+    assert.equal(playlist.remove(['b']), true);
+    assert.equal(playlist.current().path, 'c');
+    assert.equal(playlist.previous().path, 'a');
+  });
+
+  test('remove() de la actual cuando era la última deja la cola sin pista actual', () => {
+    const playlist = new Playlist();
+    playlist.setQueue(tracks('a', 'b'), 'b');
+    assert.equal(playlist.remove(['b']), true);
+    assert.equal(playlist.current(), null);
+    assert.equal(playlist.size(), 1);
+
+    assert.equal(playlist.remove(['a']), false, 'ya no había actual');
+    assert.equal(playlist.size(), 0);
+  });
+
+  test('remove() con aleatorio mantiene el orden barajado', () => {
+    const playlist = new Playlist({ random: alwaysFirst });
+    playlist.setQueue(tracks('a', 'b', 'c', 'd'), 'b');
+    playlist.toggleShuffle(); // b, c, d, a
+
+    playlist.remove(['c']);
+
+    assert.equal(playlist.current().path, 'b');
+    assert.deepEqual(paths([playlist.next(), playlist.next()]), ['d', 'a']);
+  });
+
   test('tracks() devuelve una copia en el orden original', () => {
     const playlist = new Playlist();
     playlist.setQueue(tracks('a', 'b'));

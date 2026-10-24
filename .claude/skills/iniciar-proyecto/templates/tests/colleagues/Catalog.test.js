@@ -24,6 +24,13 @@ describe('Catalog', () => {
     assert.equal(catalog.get(neon.path).title, 'Editada');
   });
 
+  test('remove() quita pistas y cuenta las que había', () => {
+    const catalog = catalogWith(neon, ola);
+    assert.equal(catalog.remove([neon.path, '/no/existe.mp3']), 1);
+    assert.equal(catalog.get(neon.path), null);
+    assert.equal(catalog.size(), 1);
+  });
+
   test('byPaths() respeta el orden e ignora rutas desconocidas', () => {
     const catalog = catalogWith(neon, ola, selva);
     assert.deepEqual(
