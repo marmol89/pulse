@@ -1,5 +1,5 @@
 import { EVENTS } from '../events.js';
-import { refreshHome, renderCollection } from '../actions.js';
+import { refreshLibraryViews } from '../actions.js';
 
 /** Biblioteca: cargar la guardada al arrancar e importar archivos, carpetas o lo que se suelte. */
 export default {
@@ -39,11 +39,4 @@ async function importPaths(ctx, paths) {
 function addedMessage(added) {
   if (added === 0) return 'No hay canciones nuevas';
   return added === 1 ? '1 canción añadida' : `${added} canciones añadidas`;
-}
-
-/** Inicio y, si está abierta, la colección visible reflejan la biblioteca actual. */
-function refreshLibraryViews(ctx) {
-  refreshHome(ctx);
-  const source = ctx.playlistView.source();
-  if (source) renderCollection(ctx, source);
 }

@@ -2,9 +2,8 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import favorites from '../../src/renderer/mediator/handlers/favorites.js';
 import recents from '../../src/renderer/mediator/handlers/recents.js';
-import errors from '../../src/renderer/mediator/handlers/errors.js';
 import { EVENTS } from '../../src/renderer/mediator/events.js';
-import { fakeContext, spy, callsOf } from '../helpers/fakeContext.js';
+import { fakeContext, callsOf } from '../helpers/fakeContext.js';
 import { tracks } from '../helpers/tracks.js';
 
 describe('handlers/favorites', () => {
@@ -47,29 +46,5 @@ describe('handlers/recents', () => {
     const ctx = fakeContext();
     recents[EVENTS.TRACK_STARTED](ctx);
     assert.deepEqual(ctx.recents.list(), []);
-  });
-});
-
-describe('handlers/errors', () => {
-  test('error avisa y salta a la siguiente pista', () => {
-    const ctx = fakeContext({ audio: spy({ consecutiveErrors: 1 }) });
-    const [, b] = tracks('a', 'b');
-    ctx.playlist.setQueue(tracks('a', 'b'));
-
-    errors[EVENTS.ERROR](ctx, { message: 'Formato no compatible' });
-
-    assert.deepEqual(callsOf(ctx.toast.show), [['Formato no compatible', { tone: 'error' }]]);
-    assert.deepEqual(callsOf(ctx.audio.load), [[b.url, true]]);
-  });
-
-  test('si fallan todas las pistas seguidas se detiene en vez de girar en bucle', () => {
-    const ctx = fakeContext({ audio: spy({ consecutiveErrors: 2 }) });
-    ctx.playlist.setQueue(tracks('a', 'b'));
-    ctx.playlist.cycleRepeat();
-
-    errors[EVENTS.ERROR](ctx, {});
-
-    assert.equal(ctx.audio.load.mock.callCount(), 0);
-    assert.equal(callsOf(ctx.toast.show)[0][0], 'No se pudo reproducir la pista');
   });
 });

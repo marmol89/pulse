@@ -1,15 +1,19 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  clearPlayer,
   loadTrack,
   playCollection,
+  playCurrentOrClear,
   openCollection,
   refreshHome,
+  refreshLibraryViews,
+  removeTracks,
   resolveCollection,
   showModes,
   trackListState,
 } from '../../src/renderer/mediator/actions.js';
-import { fakeContext, callsOf } from '../helpers/fakeContext.js';
+import { fakeContext, spy, callsOf } from '../helpers/fakeContext.js';
 import { track, tracks } from '../helpers/tracks.js';
 
 describe('actions', () => {
@@ -105,6 +109,54 @@ describe('actions', () => {
     ctx.playlist.setQueue(tracks('a'));
     ctx.audio.isPlaying.mock.mockImplementation(() => true);
     assert.deepEqual(trackListState(ctx), { favorites: new Set(), currentPath: 'a', playing: true });
+  });
+
+  test('removeTracks() quita las pistas de modelos y vistas e indica si era la actual', () => {
+    const ctx = fakeContext();
+    const [a, b] = tracks('a', 'b');
+    ctx.catalog.add([a, b]);
+    ctx.playlist.setQueue([a, b], 'b');
+
+    assert.equal(removeTracks(ctx, ['a']), false);
+    assert.equal(removeTracks(ctx, ['b']), true);
+    assert.equal(removeTracks(ctx, []), false);
+
+    assert.equal(ctx.catalog.size(), 0);
+    assert.equal(ctx.playlist.size(), 0);
+    assert.deepEqual(callsOf(ctx.search.removeTracks), [[['a']], [['b']]]);
+  });
+
+  test('playCurrentOrClear() carga la pista actual o vacía el reproductor si no hay', () => {
+    const ctx = fakeContext();
+    const [a] = tracks('a');
+    ctx.playlist.setQueue([a]);
+    playCurrentOrClear(ctx, false);
+    assert.deepEqual(callsOf(ctx.audio.load), [[a.url, false]]);
+
+    const empty = fakeContext();
+    playCurrentOrClear(empty, true);
+    assert.equal(empty.audio.stop.mock.callCount(), 1);
+  });
+
+  test('clearPlayer() para el audio, cierra Reproduciendo y deja la player bar vacía', () => {
+    const ctx = fakeContext();
+    clearPlayer(ctx);
+    assert.equal(ctx.audio.stop.mock.callCount(), 1);
+    assert.equal(ctx.router.closeOverlay.mock.callCount(), 1);
+    assert.equal(ctx.controls.clear.mock.callCount(), 1);
+    assert.equal(ctx.mediaSession.clear.mock.callCount(), 1);
+    for (const view of [ctx.playlistView, ctx.search, ctx.home]) assert.deepEqual(callsOf(view.highlight), [[null]]);
+  });
+
+  test('refreshLibraryViews() repinta Inicio y la colección abierta, si la hay', () => {
+    const closed = fakeContext();
+    refreshLibraryViews(closed);
+    assert.equal(closed.home.render.mock.callCount(), 1);
+    assert.equal(closed.playlistView.render.mock.callCount(), 0);
+
+    const open = fakeContext({ playlistView: spy({ source: { kind: 'library' } }) });
+    refreshLibraryViews(open);
+    assert.equal(open.playlistView.render.mock.callCount(), 1);
   });
 
   test('showModes() refleja aleatorio y repetir en las tres vistas con controles', () => {

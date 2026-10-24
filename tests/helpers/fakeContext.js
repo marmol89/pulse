@@ -52,7 +52,7 @@ export function fakeContext(overrides = {}) {
     favorites: new Favorites(storage),
     recents: new Recents(storage),
     settings: new Settings(storage),
-    library: spy({ load: [], chooseFiles: [], chooseFolder: null, import: [], pathsForFiles: [], lookup: null }),
+    library: spy({ load: [], chooseFiles: [], chooseFolder: null, import: [], pathsForFiles: [], lookup: null, verify: true }),
     mediaSession: spy(),
     router: spy(),
     home: spy(),

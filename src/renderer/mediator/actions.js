@@ -27,12 +27,38 @@ export function loadTrack(ctx, track, autoplay = true) {
   return true;
 }
 
+/** Ya no suena nada: sin audio, sin Reproduciendo y con la player bar en "Nada sonando". */
+export function clearPlayer(ctx) {
+  ctx.audio.stop();
+  ctx.router.closeOverlay();
+  ctx.controls.clear();
+  ctx.mediaSession.clear();
+  eachTrackListView(ctx, (view) => view.highlight(null));
+}
+
+/** Tras quitar la pista actual: suena (o queda lista) la siguiente o, si no hay, se vacía el reproductor. */
+export function playCurrentOrClear(ctx, autoplay) {
+  const track = ctx.playlist.current();
+  if (track) loadTrack(ctx, track, autoplay);
+  else clearPlayer(ctx);
+}
+
 /** La pista actual en la player bar, Reproduciendo y los controles del sistema. */
 export function showTrack(ctx, track) {
   const isFavorite = ctx.favorites.has(track.path);
   ctx.controls.show(track, isFavorite);
   ctx.nowPlaying.show(track, isFavorite);
   ctx.mediaSession.show(track);
+}
+
+/** Pistas cuyo archivo ya no existe: fuera de la biblioteca, la cola y las vistas. Devuelve si sonaba una. */
+export function removeTracks(ctx, paths) {
+  if (paths.length === 0) return false;
+  ctx.catalog.remove(paths);
+  const currentRemoved = ctx.playlist.remove(paths);
+  eachTrackListView(ctx, (view) => view.removeTracks(paths));
+  refreshHome(ctx);
+  return currentRemoved;
 }
 
 /** Pistas completadas con datos de internet: modelos y vistas pasan a mostrarlas. */
@@ -80,6 +106,13 @@ export function openCollection(ctx, source) {
   renderCollection(ctx, source);
   ctx.router.closeOverlay();
   ctx.router.show('collection', source.kind === 'library' ? 'library' : null);
+}
+
+/** Inicio y, si está abierta, la colección visible reflejan la biblioteca actual. */
+export function refreshLibraryViews(ctx) {
+  refreshHome(ctx);
+  const source = ctx.playlistView.source();
+  if (source) renderCollection(ctx, source);
 }
 
 export function refreshHome(ctx) {

@@ -8,6 +8,7 @@ import views from './handlers/views.js';
 import favorites from './handlers/favorites.js';
 import recents from './handlers/recents.js';
 import online from './handlers/online.js';
+import missing from './handlers/missing.js';
 import errors from './handlers/errors.js';
 
 /**
@@ -37,6 +38,7 @@ export class PlayerMediator extends Mediator {
       .use(favorites)
       .use(recents)
       .use(online)
+      .use(missing)
       .use(errors);
   }
 
