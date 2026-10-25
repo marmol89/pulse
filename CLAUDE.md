@@ -35,7 +35,8 @@ src/backend/     lógica común a Electron y Android, SIN Node ni Electron (lo c
                  metadatos/ del bucket), lists.js (listas de canciones: lists.js aquí y metadatos/listas.json),
                  favorites.js (favoritos: favorites.json y metadatos/favoritos.json), shared.js (lo que comparten
                  listas y favoritos: guardar aquí, subir, juntar copias por `updatedAt`),
-                 tracks.js (registro ↔ pista), store.js (library.json: caché local)
+                 tracks.js (registro ↔ pista), store.js (library.json: caché local), covers.js (carátulas
+                 incrustadas en covers/: se guardan al sincronizar y se leen del bucket como mucho 4 a la vez)
   online/        datos de internet: matching, itunes, deezer, lrclib, http, enricher, queue (ver abajo)
 src/main/        adaptador de Electron (NO forma parte del mediator)
   main.js        ventana, instancia única, sin navegación, --lang=es
@@ -62,7 +63,7 @@ src/renderer/
                  PlaylistView, SearchView, NowPlayingView, ControlsView, ToastView, ConnectionView,
                  ListDialog, KeyboardShortcuts)
   ui/            piezas de UI sin estado de negocio (dom, icons, cover, format, trackList, transport)
-  lib/           utilidades puras (storage, text)
+  lib/           utilidades puras (storage, text, artists: separar colaboraciones)
   styles/        tokens.css (único sitio con valores), layout.css, components.css
 tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con ID3, FakeAudio) + e2e/
 ```
@@ -88,6 +89,10 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   (como mucho cada 15 s) y con "Actualizar biblioteca". Nuevo, cambiado (ETag) o borrado → `library-changed`.
 - Las etiquetas se leen descargando solo los primeros 512 KB (más si la etiqueta ID3 es grande). Las que están
   al final de archivos grandes no se leen; con "Datos de internet" se completan desde el nombre del archivo.
+- **Carátulas incrustadas**: al leer las etiquetas, la imagen se guarda en `covers/` (`covers.js`; en Android,
+  `src/android/covers.js`), así no se vuelve a descargar el archivo para pintarla. Si falta, se lee del bucket
+  (máx. 4 a la vez). Un fallo de red **no** cuenta como "sin carátula": el protocolo responde 503 y la vista
+  reintenta una vez; "no tiene" sí se recuerda.
 - **Subir canciones**: botón "Subir canciones" (diálogo del main) o arrastrar archivos/carpetas a la ventana
   (`webUtils.getPathForFile` en el preload). `upload.js` sube de una en una bajo la carpeta de la conexión
   (una carpeta conserva su nombre: "Disco/01.mp3"), **nunca sobrescribe** (mismo archivo → se salta; otro con
@@ -156,6 +161,10 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   (salvo una vez al subir `LOOKUP_VERSION` en `enricher.js`, cuando la búsqueda mejora). Si LRCLIB falla un
   momento (da 503 a ratos), se guardan los datos y solo la letra queda pendiente.
 - Se guarda en `library.json` y las carátulas en `userData/covers/` (compartidas por álbum): funciona sin conexión.
+- **Fotos de artista** (`online/artists.js`): Deezer `/search/artist` (mismo nombre y foto de verdad), de una en una en
+  segundo plano y solo con "Datos de internet". Se guardan en `covers/` y lo buscado en `artists.json` (solo en ese
+  equipo, no van al bucket). La ventana las pide al cambiar la biblioteca (`artists:pictures`) y las nuevas llegan como
+  `artist-pictures-changed`; en Electron se sirven por `media://artist/<archivo>` (solo fotos de artista).
 - **Privacidad**: envía título y artista a esos servicios. Interruptor "Datos de internet" en la sidebar
   (`Settings`, activado por defecto). "Buscar en internet" en Reproduciendo fuerza la búsqueda de una pista.
 - El e2e la desactiva antes de importar: los tests nunca llaman a servicios reales (los unitarios usan `fakeFetch`).

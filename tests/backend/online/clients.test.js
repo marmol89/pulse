@@ -109,6 +109,7 @@ describe('online/deezer', () => {
       disc: 0,
       duration: 189,
       artworkUrl: deezerResult().album.cover_xl,
+      artistPicture: null,
       url: 'https://www.deezer.com/track/1080687652',
     });
   });

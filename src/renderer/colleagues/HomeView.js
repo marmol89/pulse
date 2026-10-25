@@ -204,7 +204,7 @@ export class HomeView extends Colleague {
       { class: 'card-grid' },
       artists.map((artist) =>
         this.#card({
-          cover: createCover({ src: artist.sample.cover, seed: artist.name, className: 'cover--card cover--round', tag: 'span' }),
+          cover: createCover({ src: artist.picture ?? artist.sample.cover, seed: artist.name, className: 'cover--card cover--round', tag: 'span' }),
           title: artist.name,
           subtitle: plural(artist.count, 'canción', 'canciones'),
           round: true,

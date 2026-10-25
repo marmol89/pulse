@@ -5,13 +5,13 @@
  * cambios en el bucket, subir canciones del ordenador, la copia en metadatos/ y guarda capturas en tests/e2e/output/. Nunca usa tu S3 real.
  * Uso: npm run test:e2e   (abre la ventana unos segundos; el audio va silenciado)
  */
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { _electron as electron } from 'playwright-core';
 import { createWav } from '../helpers/audio.js';
-import { FIXTURES, bucketObjects } from './fixtures.js';
+import { FIXTURES, bucketObjects, KORA_PICTURE } from './fixtures.js';
 import { startFakeS3 } from '../helpers/fakeS3.js';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
@@ -26,6 +26,11 @@ const check = (condition, message) => {
 const work = await mkdtemp(path.join(tmpdir(), 'pulse-e2e-'));
 const s3 = await startFakeS3({ buckets: { musica: bucketObjects() } });
 await mkdir(OUTPUT, { recursive: true });
+
+// Una foto de artista ya encontrada en otra sesión (sin internet en la prueba): artists.json y covers/.
+await mkdir(path.join(work, 'perfil', 'covers'), { recursive: true });
+await writeFile(path.join(work, 'perfil', 'covers', 'e2e-kora.jpg'), KORA_PICTURE);
+await writeFile(path.join(work, 'perfil', 'artists.json'), JSON.stringify({ Kora: { coverName: 'e2e-kora.jpg', checkedAt: 1 } }));
 
 const launch = () => electron.launch({ args: ['.', `--user-data-dir=${path.join(work, 'perfil')}`], cwd: ROOT });
 let app = await launch();
@@ -144,12 +149,38 @@ try {
   await page.click('.nav__item:has-text("Inicio")');
   await page.click('.chip:has-text("Álbumes")');
   check((await page.locator('.card-grid .media-card').count()) === 4, 'Álbumes agrupa 4 álbumes');
+  const loadedCovers = await page
+    .waitForFunction(() => [...document.querySelectorAll('.card-grid .cover__image')].filter((image) => image.complete && image.naturalWidth > 0).length >= 2, null, { timeout: 5000 })
+    .then(() => true, () => false);
+  const savedCovers = (await readdir(path.join(work, 'perfil', 'covers')).catch(() => [])).filter((name) => name.startsWith('embedded-'));
+  check(loadedCovers && savedCovers.length >= 2, `las carátulas incrustadas se ven y quedan guardadas en covers/ (${savedCovers.length})`);
   await shot('08-albumes');
 
-  s3.put('musica', 'Nuevas/Selva (directo).wav', createWav({ seconds: 3, tags: { title: 'Selva (directo)', artist: 'Kora' } }));
+  const guest = 'Invitada Con Un Nombre Larguísimo Que No Cabe';
+  s3.put('musica', 'Nuevas/Selva (directo).wav', createWav({ seconds: 3, tags: { title: 'Selva (directo)', artist: `Kora, ${guest} & Aurora Vega` } }));
   await page.click('.nav__item:has-text("Actualizar biblioteca")');
   await page.waitForFunction(() => document.querySelector('.toast')?.textContent === '1 canción nueva');
   check(true, '"Actualizar biblioteca" trae la canción subida al bucket');
+
+  // Artistas: una colaboración cuenta para cada artista y los nombres largos no se salen de su tarjeta.
+  await page.click('.chip:has-text("Artistas")');
+  const artistCards = await page.$$eval('.card-grid .media-card', (cards) =>
+    cards.map((card) => {
+      const title = card.querySelector('.media-card__title');
+      const box = card.getBoundingClientRect();
+      const text = title.getBoundingClientRect();
+      return { name: title.textContent, count: card.querySelector('.media-card__subtitle').textContent, inside: text.left >= box.left - 1 && text.right <= box.right + 1 };
+    }),
+  );
+  const cardOf = (name) => artistCards.find((card) => card.name === name);
+  check(cardOf('Kora')?.count === '2 canciones' && cardOf('Aurora Vega')?.count === '3 canciones' && Boolean(cardOf(guest)), 'Artistas separa las colaboraciones');
+  check(artistCards.every((card) => card.inside), 'Artistas: los nombres largos no se salen de su tarjeta');
+  await page.waitForFunction(() => {
+    const image = [...document.querySelectorAll('.card-grid .media-card')].find((card) => card.querySelector('.media-card__title').textContent === 'Kora')?.querySelector('img');
+    return image?.src.startsWith('media://artist/') && image.complete && image.naturalWidth > 0;
+  });
+  check(true, 'Artistas muestra la foto guardada del artista (media://artist/)');
+  await shot('08b-artistas');
 
   // Subir canciones del ordenador: el diálogo de archivos del proceso main se sustituye por uno falso.
   const upload = path.join(work, 'Para subir', 'Brisa.wav');

@@ -47,6 +47,18 @@ describe('LibraryService', () => {
     assert.deepEqual(mediator.events, [[EVENTS.LIBRARY_CHANGED, { removed: ['/borrada.mp3'], added: [] }]]);
   });
 
+  test('fotos de artista: las guardadas al pedirlas y las nuevas como artist-pictures-changed', async () => {
+    let push;
+    const library = new LibraryService({ getArtistPictures: async (names) => ({ [names[0]]: 'media://artist/k.jpg' }), onArtistPicturesChanged: (callback) => (push = callback) });
+    const mediator = recordingMediator();
+    library.setMediator(mediator);
+
+    assert.deepEqual(await library.getArtistPictures(['Kora']), { Kora: 'media://artist/k.jpg' });
+    assert.deepEqual(await new LibraryService({}).getArtistPictures(['Kora']), {}, 'sin soporte en la plataforma');
+    push({ Selva: 'media://artist/s.jpg' });
+    assert.deepEqual(mediator.events, [[EVENTS.ARTIST_PICTURES_CHANGED, { Selva: 'media://artist/s.jpg' }]]);
+  });
+
   test('subir: el diálogo, lo arrastrado (solo lo que viene del disco) y el progreso', async () => {
     let push;
     const calls = [];

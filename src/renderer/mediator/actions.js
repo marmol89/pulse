@@ -150,9 +150,29 @@ export function openCollection(ctx, source) {
 
 /** Inicio y, si está abierta, la colección visible reflejan la biblioteca actual. */
 export function refreshLibraryViews(ctx) {
+  repaintLibraryViews(ctx);
+  requestArtistPictures(ctx);
+}
+
+function repaintLibraryViews(ctx) {
   refreshHome(ctx);
   const source = ctx.playlistView.source();
   if (source) renderCollection(ctx, source);
+}
+
+/** Pide las fotos de los artistas de la biblioteca: llegan las guardadas y, más tarde, las que se encuentren. */
+export async function requestArtistPictures(ctx) {
+  const names = ctx.catalog.artists().map((artist) => artist.name);
+  if (names.length === 0) return;
+  try {
+    showArtistPictures(ctx, await ctx.library.getArtistPictures(names));
+  } catch {
+    // sin fotos: se ven las carátulas de sus canciones
+  }
+}
+
+export function showArtistPictures(ctx, pictures) {
+  if (ctx.catalog.setArtistPictures(pictures)) repaintLibraryViews(ctx);
 }
 
 export function refreshHome(ctx) {

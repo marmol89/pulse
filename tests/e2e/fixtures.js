@@ -9,6 +9,8 @@ function coverPng(from, to) {
 
 const NEON = coverPng('#7C5CFF', '#FF5CA8');
 const MAREAS = coverPng('#2EC5FF', '#7C5CFF');
+/** Foto de artista de Deezer ya guardada (los e2e no salen a internet). */
+export const KORA_PICTURE = coverPng('#22C55E', '#0E7490');
 export const FIXTURES = [
   ['Aurora Vega/Neón/01 Intro.wav', { title: 'Intro', artist: 'Aurora Vega', album: 'Neón', genre: 'Pop latino', track: '1', cover: NEON }],
   [
