@@ -59,9 +59,15 @@ describe('Recents', () => {
     assert.equal(recents.list()[0], '/14.mp3');
   });
 
-  test('persiste entre instancias', () => {
+  test('los de antes (solo de este equipo) se ven hasta recibir los del bucket y se pueden olvidar', () => {
     const storage = memoryStorage();
-    new Recents(storage).add('/a.mp3');
-    assert.deepEqual(new Recents(storage).list(), ['/a.mp3']);
+    storage.set('recents', ['/b.mp3', '/a.mp3']); // la más reciente primero, como se guardaban
+    const recents = new Recents(storage);
+    assert.deepEqual(recents.list(), ['/b.mp3', '/a.mp3']);
+    assert.deepEqual(recents.legacy(), ['/a.mp3', '/b.mp3'], 'para subir: de la más antigua a la más reciente');
+    recents.forgetLegacy();
+    recents.set(['/c.mp3']);
+    assert.deepEqual(recents.list(), ['/c.mp3']);
+    assert.deepEqual(new Recents(storage).list(), []);
   });
 });

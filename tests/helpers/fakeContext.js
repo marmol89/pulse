@@ -54,7 +54,7 @@ export function fakeContext(overrides = {}) {
     recents: new Recents(storage),
     lists: new Lists(),
     settings: new Settings(storage),
-    library: spy({ load: [], sync: { added: 0, removed: 0 }, verify: true, connection: null, importCredentials: null, lookup: null, lists: [], favorites: [], setFavorite: { ok: true, favorites: [] }, importFavorites: { ok: true, favorites: [] } }),
+    library: spy({ load: [], sync: { added: 0, removed: 0 }, verify: true, connection: null, importCredentials: null, lookup: null, lists: [], favorites: [], setFavorite: { ok: true, favorites: [] }, importFavorites: { ok: true, favorites: [] }, recents: [], addRecent: { ok: true, recents: [] }, importRecents: { ok: true, recents: [] } }),
     mediaSession: spy(),
     router: spy(),
     home: spy(),
