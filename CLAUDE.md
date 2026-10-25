@@ -62,7 +62,8 @@ src/renderer/
                  servicios (AudioEngine, LibraryService, MediaSessionBridge) y vistas (Router, HomeView,
                  PlaylistView, SearchView, NowPlayingView, ControlsView, ToastView, ConnectionView,
                  ListDialog, KeyboardShortcuts)
-  ui/            piezas de UI sin estado de negocio (dom, icons, cover, format, trackList, transport)
+  ui/            piezas de UI sin estado de negocio (dom, icons, cover, format, trackList, transport, menu: el «⋯»
+                 de las filas, reorder: arrastrar filas con el asa y Alt+↑/↓)
   lib/           utilidades puras (storage, text, artists: separar colaboraciones)
   styles/        tokens.css (único sitio con valores), layout.css, components.css
 tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con ID3, FakeAudio) + e2e/
