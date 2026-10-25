@@ -77,6 +77,12 @@ describe('library/favorites', () => {
     assert.deepEqual(phone.changes, [[A]], 'avisa del cambio');
     await phone.favorites.sync();
     assert.equal(phone.changes.length, 1, 'sin cambios no vuelve a avisar');
+
+    clock = 2_000;
+    await pc.favorites.set(B, true);
+    await pc.favorites.sync();
+    await phone.favorites.sync();
+    assert.deepEqual(phone.changes.at(-1), [B, A], 'el aviso también trae primero las más recientes');
   });
 
   test('una desmarcada en un equipo no vuelve con la copia del otro; gana el cambio más reciente', async () => {

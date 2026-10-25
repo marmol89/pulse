@@ -17,10 +17,12 @@ export const favoriteResult = resultOf('favorites');
  * con `deleted` si se desmarcó (para que la copia de otro equipo no la vuelva a marcar).
  * `all()` y las operaciones devuelven las rutas, las marcadas más recientemente primero.
  */
-export function createFavoriteStore({ now = Date.now, ...deps }) {
+export function createFavoriteStore({ now = Date.now, onChange = () => {}, ...deps }) {
+  const newestFirst = (paths) => paths.reverse();
   const records = createSharedRecords({
     ...deps,
     now,
+    onChange: (paths) => onChange(newestFirst(paths)),
     key: 'favorites',
     localFile: FAVORITES_FILE,
     remoteFile: REMOTE_FILE,
@@ -30,7 +32,6 @@ export function createFavoriteStore({ now = Date.now, ...deps }) {
     valid,
     show: (record) => record.id,
   });
-  const newestFirst = (paths) => paths.reverse();
 
   return {
     load: records.load,
