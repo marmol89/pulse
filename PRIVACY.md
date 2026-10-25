@@ -23,7 +23,7 @@ Pulse se conecta directamente al endpoint que tú configuras para:
 
 - listar y reproducir tus archivos de audio;
 - subir las canciones que elijas desde el móvil;
-- guardar en tu bucket (carpeta `metadatos/`) una copia de tu biblioteca (con las carátulas y letras encontradas) y tus listas de canciones, para compartirlas entre tus dispositivos (móvil, Windows y Linux).
+- guardar en tu bucket (carpeta `metadatos/`) una copia de tu biblioteca (con las carátulas y letras encontradas) y tus listas de canciones y favoritos, para compartirlos entre tus dispositivos (móvil, Windows y Linux).
 
 Pulse lee las etiquetas de tus archivos de audio, pero nunca las modifica.
 
