@@ -124,10 +124,40 @@ try {
   await page.waitForSelector('.view--search .track-row');
   check((await page.locator('.view--search .track-row').count()) === 1, 'Buscar "selva" encuentra 1 pista');
 
+  // Listas: en el móvil se llega desde Inicio ("Tus listas") y "+" se ve siempre en las filas.
+  await page.click('.nav__item:has-text("Inicio")');
+  await page.click('.media-card:has-text("Nueva lista")');
+  await page.waitForSelector('.list-dialog[open]');
+  await page.fill('#list-dialog-name', 'Para correr');
+  await page.click('.list-dialog button[type="submit"]');
+  await page.waitForSelector('.view--collection:not([hidden]) .collection-header__title:has-text("Para correr")');
+  check(true, 'Inicio › "Nueva lista" crea la lista y la abre');
+  await page.click('.nav__item:has-text("Biblioteca")');
+  await page.locator('.view--collection .track-row:has-text("Selva") [data-action="add"]').click();
+  await page.waitForSelector('.list-dialog[open] .list-picker__item');
+  await page.waitForTimeout(300);
+  await shot('05-anadir-a-lista');
+  await page.click('.list-picker__item:has-text("Para correr")');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'Añadida a «Para correr»');
+  check(true, '"+" en una fila añade la canción a la lista');
+  const listsInBucket = async () => {
+    for (let i = 0; i < 40; i += 1) {
+      const body = s3.get('musica', 'metadatos/listas.json');
+      const lists = body ? JSON.parse(body.toString()).lists : [];
+      if (lists[0]?.tracks.length === 1) return lists;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    return [];
+  };
+  check((await listsInBucket()).length === 1, 'la lista se sube a metadatos/listas.json del bucket');
+  await page.click('.nav__item:has-text("Inicio")');
+  await page.waitForSelector('.section[aria-label="Tus listas"] .media-card:has-text("Para correr")');
+  await shot('06-inicio-listas');
+
   await page.click('.nav__item--menu');
   await page.waitForSelector('.sidebar.is-menu-open');
   await page.waitForTimeout(400);
-  await shot('05-tu-musica');
+  await shot('07-tu-musica');
   check((await page.textContent('.nav__status')).startsWith('musica'), '"Tu música" muestra el bucket conectado');
 
   // Subir: el selector de archivos del sistema no se puede manejar desde aquí; se suelta un File,
