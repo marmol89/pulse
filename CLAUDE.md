@@ -48,7 +48,7 @@ src/android/     window.api de Android sobre el mismo backend (esbuild → www/a
   api.js         mismos métodos que el preload; audio con URLs firmadas de S3 (7 días)
   main.js        punto de entrada con los plugins reales (Filesystem, SecureStorage, App, CapacitorHttp)
   nativeHttp.js  red nativa sin CORS (y requestHandler del SDK de S3); files.js, secret.js (Keystore),
-                 covers.js (carátulas en el móvil), picker.js (elegir archivos), backButton.js
+                 covers.js (carátulas en el móvil), downloads.js (canciones sin conexión), picker.js, backButton.js
   mediaSession.js navigator.mediaSession (y MediaMetadata) sobre el plugin nativo PulsePlayback
 android/         proyecto Gradle de Capacitor (la versión se lee de package.json); www/ se genera y no va al repo
   app/src/main/java/…/  PlaybackService (servicio en primer plano + MediaSession) y PlaybackPlugin
@@ -135,6 +135,11 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   controles, MediaSession (pantalla de bloqueo, auriculares) y wake lock solo mientras suena. El WebView no trae la
   Media Session API: `src/android/mediaSession.js` la imita y `MediaSessionBridge` no sabe de Android. Probado con la
   pantalla apagada y Doze forzado; el e2e comprueba que sigue sonando con la app en segundo plano.
+- **Descargas sin conexión** (solo Android, `src/android/downloads.js`): botón "Descargar" en listas, favoritos y
+  álbumes; se bajan de una en una desde la URL firmada con `Filesystem.downloadFile` a `downloads/` (en
+  `downloads.json`: archivo, ETag y tamaño). Mientras el ETag no cambie, la pista suena del archivo local; si cambió
+  en el bucket, vuelve a sonar desde S3. "Tu música" cuenta lo descargado y lo borra. `downloadFile` no crea la
+  carpeta aunque se le pida `recursive`: `main.js` la crea antes. En Electron `canDownload()` es falso y no hay botón.
 - **Firma**: la keystore de release no va al repo (`*.jks` ignorado). En CI llega de los secretos
   `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` y `ANDROID_KEY_PASSWORD`; sin ellos
   sale el debug. Si se pierde la keystore, las versiones nuevas no se instalan encima: hay que guardar copia.
