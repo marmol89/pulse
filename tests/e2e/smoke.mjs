@@ -130,6 +130,17 @@ try {
 
   await page.keyboard.press('Escape');
   check(await page.isHidden('.device__menu'), 'Esc cierra primero el menú de salidas');
+
+  // Temporizador de apagado: 30 minutos → "Hasta las HH:MM"; después, desactivado.
+  await page.click('.sleep-timer .device__button');
+  await page.click('.sleep-timer .device__option:has-text("30 minutos")');
+  await page.waitForFunction(() => /^Hasta las \d\d:\d\d$/.test(document.querySelector('.sleep-timer .device__button span')?.textContent ?? ''));
+  check(true, 'el temporizador de apagado dice hasta qué hora suena');
+  await shot('06b-temporizador');
+  await page.click('.sleep-timer .device__button');
+  await page.click('.sleep-timer .device__option:has-text("Desactivado")');
+  await page.waitForFunction(() => document.querySelector('.sleep-timer .device__button span')?.hidden === true);
+  check(true, 'el temporizador se puede desactivar');
   await page.keyboard.press('Escape');
   await page.waitForSelector('.now-playing', { state: 'hidden' });
   check(true, 'Reproduciendo se abre desde la portada y se cierra con Esc');
