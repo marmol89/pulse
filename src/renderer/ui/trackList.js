@@ -2,12 +2,14 @@ import { h, favoriteButton, iconButton, setFavoriteButton } from './dom.js';
 import { icon } from './icons.js';
 import { createCover, trackSeed } from './cover.js';
 import { formatTime } from './format.js';
+import { showMenu } from './menu.js';
 
 /**
  * Lista de pistas (filas de 60 px de la pantalla Playlist). Componente de UI,
  * no colega: avisa a su vista con callbacks y la vista notifica al mediator.
  * Doble clic, Enter o el botón sobre la portada reproducen. Con `onAddToList`, cada fila tiene
- * "Añadir a una lista"; con `onRemove` y `removable` al pintar, "Quitar de la lista".
+ * "Añadir a una lista"; con `onPlayNext` y `onEnqueue`, un menú "⋯" con "Reproducir a continuación" y
+ * "Añadir a la cola"; con `onRemove` y `removable` al pintar (su texto: "Quitar de la lista"), el botón de quitar.
  */
 export class TrackList {
   #element;
@@ -16,16 +18,27 @@ export class TrackList {
   #tracks = new Map();
   #currentPath = null;
   #canAdd;
-  #removable = false;
+  #canQueue;
+  #removable = '';
 
-  constructor({ onPlay, onToggleFavorite, onAddToList = null, onRemove = () => {}, label = 'Canciones' }) {
+  constructor({ onPlay, onToggleFavorite, onAddToList = null, onPlayNext = null, onEnqueue = null, onRemove = () => {}, label = 'Canciones' }) {
     this.#canAdd = Boolean(onAddToList);
-    const actions = { play: onPlay, favorite: onToggleFavorite, add: onAddToList, remove: onRemove };
+    this.#canQueue = Boolean(onPlayNext && onEnqueue);
+    const more = (path, button) =>
+      showMenu(
+        button,
+        [
+          { label: 'Reproducir a continuación', icon: 'next', onSelect: () => onPlayNext(path) },
+          { label: 'Añadir a la cola', icon: 'queue-add', onSelect: () => onEnqueue(path) },
+        ],
+        { label: `Opciones de ${this.#tracks.get(path)?.title ?? 'la canción'}` },
+      );
+    const actions = { play: onPlay, favorite: onToggleFavorite, add: onAddToList, remove: onRemove, more };
     this.#element = h('ol', { class: 'track-list', 'aria-label': label });
     this.#element.addEventListener('click', (event) => {
       const button = event.target.closest('button[data-action]');
       if (!button) return;
-      actions[button.dataset.action]?.(button.closest('.track-row').dataset.path);
+      actions[button.dataset.action]?.(button.closest('.track-row').dataset.path, button);
     });
     this.#element.addEventListener('dblclick', (event) => {
       const row = event.target.closest('.track-row');
@@ -45,10 +58,11 @@ export class TrackList {
 
   /**
    * @param {object[]} tracks
-   * @param {{ favorites?: Set<string>, currentPath?: string|null, playing?: boolean, removable?: boolean }} state
+   * @param {{ favorites?: Set<string>, currentPath?: string|null, playing?: boolean, removable?: boolean|string }} state
+   * `removable`: el texto del botón de quitar (con `true`, "Quitar de la lista").
    */
   render(tracks, { favorites = new Set(), currentPath = null, playing = false, removable = false } = {}) {
-    this.#removable = removable;
+    this.#removable = removable === true ? 'Quitar de la lista' : removable || '';
     this.#rows.clear();
     this.#tracks.clear();
     this.#currentPath = null;
@@ -127,8 +141,9 @@ export class TrackList {
       h(
         'span',
         { class: 'track-row__actions' },
-        this.#removable && iconButton('close', 'Quitar de la lista', { className: 'row-action row-action--remove', 'data-action': 'remove', tabindex: '-1' }),
+        this.#removable && iconButton('close', this.#removable, { className: 'row-action row-action--remove', 'data-action': 'remove', tabindex: '-1' }),
         this.#canAdd && iconButton('plus', 'Añadir a una lista', { className: 'row-action', 'data-action': 'add', tabindex: '-1' }),
+        this.#canQueue && iconButton('more', 'Más opciones', { className: 'row-action', 'data-action': 'more', 'aria-haspopup': 'menu', 'aria-expanded': 'false', tabindex: '-1' }),
         favoriteButton(isFavorite, { 'data-action': 'favorite', tabindex: '-1' }),
       ),
       h(

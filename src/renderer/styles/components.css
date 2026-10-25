@@ -1481,3 +1481,44 @@
 .list-dialog__delete.is-confirming {
   color: var(--color-accent);
 }
+
+/* Menú emergente de las filas ("⋯": reproducir a continuación, añadir a la cola) */
+.menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 240px;
+  max-width: calc(100vw - 8px);
+  padding: var(--space-2);
+  border-radius: var(--radius-row);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-overlay);
+}
+
+.menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-cover-sm);
+  background: none;
+  color: var(--color-text);
+  font-size: var(--fs-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu__item:hover,
+.menu__item:focus-visible {
+  background: var(--color-hover);
+  outline: none;
+}
+
+.menu__item .icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-2);
+}
