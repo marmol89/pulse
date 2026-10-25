@@ -18,6 +18,7 @@ export class TrashDialog extends Colleague {
   #error;
   #empty;
   #submit;
+  #cancel;
   #path = null;
   #confirmingEmpty = false;
 
@@ -36,8 +37,8 @@ export class TrashDialog extends Colleague {
     this.#error = h('p', { class: 'connection__error', role: 'alert', hidden: true });
     this.#empty = h('button', { type: 'button', class: 'link-button list-dialog__delete' });
     this.#empty.addEventListener('click', () => this.#onEmpty());
-    const cancel = h('button', { type: 'button', class: 'link-button' }, 'Cerrar');
-    cancel.addEventListener('click', () => this.close());
+    this.#cancel = h('button', { type: 'button', class: 'link-button' });
+    this.#cancel.addEventListener('click', () => this.close());
     this.#submit = h('button', { type: 'submit', class: 'button button--primary' }, 'Mover a la papelera');
 
     const form = h(
@@ -46,7 +47,7 @@ export class TrashDialog extends Colleague {
       h('header', { class: 'connection__header' }, this.#title, this.#text),
       this.#items,
       this.#error,
-      h('div', { class: 'connection__actions' }, this.#empty, cancel, this.#submit),
+      h('div', { class: 'connection__actions' }, this.#empty, this.#cancel, this.#submit),
     );
     form.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -64,6 +65,7 @@ export class TrashDialog extends Colleague {
     this.#items.hidden = true;
     this.#empty.hidden = true;
     this.#submit.hidden = false;
+    this.#cancel.textContent = 'Cancelar';
     this.#submit.disabled = false;
     this.#submit.focus();
   }
@@ -73,6 +75,7 @@ export class TrashDialog extends Colleague {
     this.#path = null;
     this.#open('Papelera', 'Canciones eliminadas de tu bucket. Restaura las que quieras; al vaciar la papelera se borran para siempre.');
     this.#submit.hidden = true;
+    this.#cancel.textContent = 'Cerrar';
     this.showItems(items);
   }
 

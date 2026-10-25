@@ -457,6 +457,42 @@ try {
   await shot('09b-fundido');
   await page.selectOption('#crossfade-select', '0');
 
+  // Papelera: "⋯" › "Eliminar del bucket" (con confirmación), restaurar desde "Papelera" y vaciarla.
+  const toastIs = (text) => page.waitForFunction((expected) => document.querySelector('.toast')?.textContent === expected, text);
+  const hasRow = (title) => page.locator(`.view--collection .track-row:has-text("${title}")`).count().then((count) => count > 0);
+  s3.put('musica', 'Nuevas/Efímera.wav', createWav({ seconds: 3, tags: { title: 'Efímera', artist: 'Kora' } }));
+  await page.click('.nav__item:has-text("Actualizar biblioteca")');
+  await toastIs('1 canción nueva');
+  await page.click('.nav__item:has-text("Biblioteca")');
+  const trashFromMenu = async () => {
+    await page.click('.view--collection .track-row:has-text("Efímera") [data-action="more"]');
+    await page.click('.menu__item:has-text("Eliminar del bucket")');
+    await page.waitForSelector('.trash-dialog[open] button[type="submit"]:not([hidden])');
+  };
+  await trashFromMenu();
+  await shot('11-eliminar-del-bucket');
+  await page.click('.trash-dialog button[type="submit"]');
+  await toastIs('Movida a la papelera del bucket');
+  check(!(await hasRow('Efímera')) && !s3.get('musica', 'Nuevas/Efímera.wav') && Boolean(s3.get('musica', 'papelera/Nuevas/Efímera.wav')), '"Eliminar del bucket" la mueve a papelera/ y la quita de la biblioteca');
+  await page.click('.nav__item:has-text("Papelera")');
+  await page.waitForSelector('.trash-dialog[open] .trash-item:has-text("Nuevas/Efímera.wav")');
+  await shot('11b-papelera');
+  await page.click('.trash-item:has-text("Efímera") .trash-item__restore');
+  await toastIs('Restaurada: vuelve a estar en tu biblioteca');
+  await page.waitForSelector('.trash-dialog[open] .trash-items:has-text("La papelera está vacía")');
+  await page.click('.trash-dialog .link-button:has-text("Cerrar")');
+  await page.waitForSelector('.view--collection .track-row:has-text("Efímera")');
+  check(Boolean(s3.get('musica', 'Nuevas/Efímera.wav')), 'desde "Papelera" se restaura en su carpeta y vuelve a la biblioteca');
+  await trashFromMenu();
+  await page.click('.trash-dialog button[type="submit"]');
+  await toastIs('Movida a la papelera del bucket');
+  await page.click('.nav__item:has-text("Papelera")');
+  await page.click('.trash-dialog[open] .link-button:has-text("Vaciar papelera")');
+  await page.click('.trash-dialog[open] .link-button:has-text("Pulsa otra vez")');
+  await toastIs('1 canción borrada para siempre');
+  await page.click('.trash-dialog .link-button:has-text("Cerrar")');
+  check(!s3.keys('musica').some((key) => key.includes('Efímera')), 'vaciar la papelera (con doble pulsación) la borra para siempre');
+
   check(logs.length === 0, `sin errores de consola${logs.length ? `:\n  ${logs.join('\n  ')}` : ''}`);
 
   // Canción borrada del bucket con la app abierta (aquí el 404 en la consola es lo esperado). Tiene que ser una que
