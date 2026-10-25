@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { registerMediaScheme, handleMediaProtocol } from './protocol/media.js';
 import { createLibraryStore } from '../backend/library/store.js';
 import { readRecordCover } from '../backend/library/tracks.js';
-import { readRemoteCover } from '../backend/library/remote.js';
+import { createEmbeddedCovers } from '../backend/library/covers.js';
 import { createLibrarySync } from '../backend/library/sync.js';
 import { createUploader } from '../backend/library/upload.js';
 import { collectPaths } from './library/collect.js';
@@ -71,6 +71,8 @@ async function start() {
   // Favoritos: favorites.json aquí y metadatos/favoritos.json en el bucket, igual que las listas.
   const favorites = createFavoriteStore({ files, getStorage: () => s3.storage(), onChange: (all) => broadcast('favorites:changed', all) });
   await favorites.load();
+  // Carátulas incrustadas en covers/ de userData: se descargan del bucket una sola vez.
+  const embeddedCovers = createEmbeddedCovers({ files, getStorage: () => s3.storage() });
   const librarySync = createLibrarySync({
     store,
     getStorage: () => s3.storage(),
@@ -81,6 +83,7 @@ async function start() {
       if (change.added.length > 0) queue.wake();
     },
     onUpdated: (tracks) => broadcast('library:tracks-updated', tracks),
+    onPicture: (record, picture) => embeddedCovers.save(record, picture),
   });
 
   const uploader = createUploader({
@@ -94,7 +97,7 @@ async function start() {
     isAllowed: (id) => store.has(id),
     readCover: (id) =>
       readRecordCover(store.get(id), {
-        readEmbedded: (record) => readRemoteCover(s3.storage(), record),
+        readEmbedded: (record) => embeddedCovers.get(record),
         readCover: (name) => metadata.readCover(name),
       }),
     openTrack: (id, range) => {

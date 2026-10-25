@@ -86,6 +86,9 @@ describe('protocol/responses', () => {
 
       const withoutCover = { isAllowed: () => true, readCover: async () => null };
       assert.equal((await respondToMedia(mediaUrl('cover', id), null, withoutCover)).status, 404);
+
+      const failing = { isAllowed: () => true, readCover: async () => Promise.reject(new Error('S3 ocupado')) };
+      assert.equal((await respondToMedia(mediaUrl('cover', id), null, failing)).status, 503, 'un fallo no es "sin carátula"');
     });
   });
 });

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/marmol89/pulse/compare/v0.3.0...v0.4.0) (2026-10-25)
+
+
+### Novedades
+
+* favoritos sincronizados en todos los Pulse por el bucket ([#17](https://github.com/marmol89/pulse/issues/17)) ([faad0ea](https://github.com/marmol89/pulse/commit/faad0ea5be560afd03776a8ce2bb0c8eb430ba25))
+* listas de canciones sincronizadas en todos los Pulse por el bucket ([#15](https://github.com/marmol89/pulse/issues/15)) ([271ea3c](https://github.com/marmol89/pulse/commit/271ea3c0c1baa9a30bde87d796b123a5e73bcd7e))
+
 ## [0.3.0](https://github.com/marmol89/pulse/compare/v0.2.0...v0.3.0) (2026-10-24)
 
 

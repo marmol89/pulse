@@ -15,7 +15,7 @@ import { createHttp } from '../backend/online/http.js';
 import { createEnricher } from '../backend/online/enricher.js';
 import { createEnrichmentQueue } from '../backend/online/queue.js';
 import { createNativeFetch, createS3RequestHandler } from './nativeHttp.js';
-import { createCoverCache } from './covers.js';
+import { coverFileName, createCoverCache } from './covers.js';
 import { pickFiles } from './picker.js';
 
 /** Lo máximo que permite una URL firmada de S3: se vuelve a firmar cada vez que llega a la interfaz. */
@@ -139,7 +139,7 @@ async function start({ files, crypto, http, coverUrl, userAgent, App, prepare, p
   const covers = createCoverCache({
     files,
     toUrl: coverUrl,
-    readEmbedded: (record) => (s3.storage() ? readRemoteCover(s3.storage(), record) : null),
+    readEmbedded: (record) => (s3.storage() ? readRemoteCover(s3.storage(), record) : Promise.reject(new Error('Sin conexión'))),
     readCover: (name) => metadata.readCover(name),
     getRecord: (id) => store.get(id),
     onReady: (ids) => present(ids.map((id) => store.get(id)).filter(Boolean).map(trackOf)).then((tracks) => emit('updated', tracks)),
@@ -172,6 +172,12 @@ async function start({ files, crypto, http, coverUrl, userAgent, App, prepare, p
       if (change.added.length > 0) queue.wake();
     },
     onUpdated: emitTracks('updated'),
+    // La carátula incrustada se guarda al leer las etiquetas: así no hay que volver a descargar el archivo.
+    onPicture: async (record, picture) => {
+      const name = coverFileName(record);
+      await files.write(`covers/${name}`, picture.data);
+      covers.markPresent(name);
+    },
   });
   const uploader = createUploader({
     getStorage: () => s3.storage(),
