@@ -1,8 +1,9 @@
 /**
  * Plugins de Capacitor falsos para probar src/android/ en Node.
  *
- * fakeCapacitorHttp() se comporta como CapacitorHttp en Android (HttpRequestHandler.java): solo
- * escribe el cuerpo si hay Content-Type, con `dataType: 'file'` lo decodifica de base64, y responde
+ * fakeCapacitorHttp() se comporta como CapacitorHttp en Android (CapacitorHttpUrlConnection.java): solo
+ * escribe el cuerpo si hay Content-Type; con application/json lo escribe tal cual (texto, aunque se pida
+ * `dataType: 'file'`); si no, con `dataType: 'file'` lo decodifica de base64. Responde
  * en base64 si se pide binario, salvo el JSON (ya interpretado) y los errores (texto).
  */
 export function fakeCapacitorHttp(fetchImpl = fetch) {
@@ -12,8 +13,9 @@ export function fakeCapacitorHttp(fetchImpl = fetch) {
     async request({ url, method = 'GET', headers = {}, data, dataType, responseType }) {
       calls.push({ url, method, headers, dataType });
       const mutates = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
-      const hasType = Object.keys(headers).some((name) => name.toLowerCase() === 'content-type');
-      const body = mutates && data != null && hasType ? (dataType === 'file' ? Buffer.from(data, 'base64') : String(data)) : undefined;
+      const contentType = Object.entries(headers).find(([name]) => name.toLowerCase() === 'content-type')?.[1];
+      const decode = dataType === 'file' && !String(contentType).includes('application/json');
+      const body = mutates && data != null && contentType ? (decode ? Buffer.from(data, 'base64') : String(data)) : undefined;
       const response = await fetchImpl(url, { method, headers, body });
       const type = response.headers.get('content-type') ?? '';
       const bytes = Buffer.from(await response.arrayBuffer());

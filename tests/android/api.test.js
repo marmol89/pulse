@@ -111,6 +111,12 @@ describe('android/api (window.api sobre el backend compartido)', () => {
     assert.deepEqual((await api.deleteList(created.id)).lists, []);
   });
 
+  test('metadatos/biblioteca.json llega al bucket como JSON (no en el base64 de la red nativa)', async () => {
+    await (await api.ready).metadata.flush();
+    const saved = JSON.parse(s3.get('musica', 'metadatos/biblioteca.json').toString());
+    assert.ok(saved.tracks.length > 0);
+  });
+
   test('tiene los mismos métodos que el preload de Electron', async () => {
     const preload = await readFile(new URL('../../src/preload/preload.cjs', import.meta.url), 'utf8');
     const methods = [...preload.matchAll(/^ {2}(\w+): /gm)].map(([, name]) => name);
