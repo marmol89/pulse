@@ -37,6 +37,9 @@ export async function respondToMedia(url, rangeHeader, { isAllowed, readCover, o
   const target = parseMediaUrl(url);
   if (!target || !isAllowed(target.path)) return new Response('Prohibido', { status: 403 });
   if (target.kind === 'track') return openTrack(target.path, rangeHeader);
-  if (target.kind === 'cover') return pictureResponse(await readCover(target.path));
+  if (target.kind === 'cover') {
+    // 503 (no 404) si no se pudo leer: la vista lo vuelve a intentar en vez de dejarla sin carátula.
+    return readCover(target.path).then(pictureResponse, () => new Response('Carátula no disponible', { status: 503 }));
+  }
   return new Response('No encontrado', { status: 404 });
 }
