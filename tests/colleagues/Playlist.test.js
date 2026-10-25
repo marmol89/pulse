@@ -143,6 +143,24 @@ describe('Playlist', () => {
     assert.deepEqual(paths([playlist.next(), playlist.next()]), ['d', 'a']);
   });
 
+  test('upcoming() dice cuál sonará al terminar sin avanzar, según repetir y aleatorio', () => {
+    const playlist = new Playlist({ random: alwaysFirst });
+    assert.equal(playlist.upcoming(), null);
+    playlist.setQueue(tracks('a', 'b', 'c'), 'b');
+    assert.equal(playlist.upcoming().path, 'c');
+    assert.equal(playlist.current().path, 'b');
+    playlist.next();
+    assert.equal(playlist.upcoming(), null, 'última y sin repetir');
+    playlist.cycleRepeat();
+    assert.equal(playlist.upcoming().path, 'a', 'repetir todo vuelve al principio');
+    playlist.cycleRepeat();
+    assert.equal(playlist.upcoming().path, 'c', 'repetir una');
+    playlist.cycleRepeat();
+    playlist.setQueue(tracks('a', 'b', 'c', 'd'), 'b');
+    playlist.toggleShuffle(); // b, c, d, a
+    assert.equal(playlist.upcoming().path, 'c');
+  });
+
   test('tracks() devuelve una copia en el orden original', () => {
     const playlist = new Playlist();
     playlist.setQueue(tracks('a', 'b'));

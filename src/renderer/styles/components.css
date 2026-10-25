@@ -272,6 +272,20 @@
   font-size: var(--fs-small);
 }
 
+/* Selector compacto en una fila de ajustes (p. ej. el fundido entre canciones) */
+.setting-row__select {
+  flex: none;
+  height: 32px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--fs-small);
+  cursor: pointer;
+}
+
 .switch {
   position: relative;
   flex: none;

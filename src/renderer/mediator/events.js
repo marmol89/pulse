@@ -27,7 +27,8 @@ export const EVENTS = Object.freeze({
   PREVIOUS: 'previous', // ()
   TRACK_SELECTED: 'track-selected', // ({ source, path })
   PLAY_COLLECTION: 'play-collection', // (source)
-  ENDED: 'ended', // ()
+  ENDED: 'ended', // () — con fundido, unos segundos antes del final
+  NEAR_END: 'near-end', // () — quedan 20 s: momento de precargar la siguiente
 
   // Modos
   TOGGLE_SHUFFLE: 'toggle-shuffle', // ()
@@ -73,6 +74,7 @@ export const EVENTS = Object.freeze({
 
   // Datos de internet (carátula, álbum, año, género, letra)
   SET_ONLINE_LOOKUP: 'set-online-lookup', // (activado)
+  SET_CROSSFADE: 'set-crossfade', // (segundos: 0 = sin fundido)
   LOOKUP_TRACK: 'lookup-track', // (path) — búsqueda pedida por el usuario
   TRACKS_UPDATED: 'tracks-updated', // (Track[]) — completadas en segundo plano
 });

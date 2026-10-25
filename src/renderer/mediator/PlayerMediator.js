@@ -14,6 +14,7 @@ import uploads from './handlers/uploads.js';
 import errors from './handlers/errors.js';
 import lists from './handlers/lists.js';
 import listTracks from './handlers/listTracks.js';
+import crossfade from './handlers/crossfade.js';
 
 /**
  * Solo compone: conecta colegas y registra módulos de handlers.
@@ -47,7 +48,8 @@ export class PlayerMediator extends Mediator {
       .use(uploads)
       .use(errors)
       .use(lists)
-      .use(listTracks);
+      .use(listTracks)
+      .use(crossfade);
   }
 
   get context() {
