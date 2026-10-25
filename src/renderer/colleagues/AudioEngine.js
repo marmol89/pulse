@@ -21,6 +21,7 @@ export class AudioEngine extends Colleague {
   #hasTrack = false;
   #awaitingStart = false;
   #consecutiveErrors = 0;
+  #startAt = 0;
 
   constructor(audio, storage, devices = globalThis.navigator?.mediaDevices) {
     super();
@@ -40,6 +41,10 @@ export class AudioEngine extends Colleague {
     const audio = this.#audio;
     audio.addEventListener('timeupdate', () => this.#emitTime());
     audio.addEventListener('durationchange', () => this.#emitTime());
+    audio.addEventListener('loadedmetadata', () => {
+      if (this.#startAt > 0) audio.currentTime = this.#startAt;
+      this.#startAt = 0;
+    });
     audio.addEventListener('play', () => this.notify(EVENTS.STATE_CHANGE, { playing: true }));
     audio.addEventListener('pause', () => this.notify(EVENTS.STATE_CHANGE, { playing: false }));
     audio.addEventListener('playing', () => {
@@ -62,8 +67,10 @@ export class AudioEngine extends Colleague {
     this.notify(EVENTS.TIME_UPDATE, { current: currentTime || 0, duration: Number.isFinite(duration) ? duration : 0 });
   }
 
-  load(url, autoplay = true) {
+  /** Carga una pista; con `startAt`, empieza en ese segundo (al retomar la sesión). */
+  load(url, autoplay = true, startAt = 0) {
     this.#audio.src = url;
+    this.#startAt = startAt > 0 ? startAt : 0;
     this.#hasTrack = true;
     this.#awaitingStart = true;
     if (autoplay) this.play();
