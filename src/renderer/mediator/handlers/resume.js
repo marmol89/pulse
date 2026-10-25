@@ -16,7 +16,8 @@ export default {
   [EVENTS.LIBRARY_CHANGED]: saveQueue,
   [EVENTS.PLAY_NEXT]: saveQueue,
   [EVENTS.ENQUEUE]: saveQueue,
-  [EVENTS.REMOVE_FROM_QUEUE]: saveQueue, // pueden haber quitado pistas de la cola
+  [EVENTS.REMOVE_FROM_QUEUE]: saveQueue,
+  [EVENTS.MOVE_IN_QUEUE]: saveQueue, // pueden haber quitado pistas de la cola
 
   [EVENTS.TIME_UPDATE](ctx, { current }) {
     ctx.session.saveTime(current);

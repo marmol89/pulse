@@ -33,6 +33,7 @@ export const EVENTS = Object.freeze({
   PLAY_NEXT: 'play-next', // (paths[]) — "Reproducir a continuación"
   ENQUEUE: 'enqueue', // (paths[]) — "Añadir a la cola"
   REMOVE_FROM_QUEUE: 'remove-from-queue', // (path)
+  MOVE_IN_QUEUE: 'move-in-queue', // ({ path, to }) — arrastrar en "Ver la cola" (to: posición final)
 
   // Modos
   TOGGLE_SHUFFLE: 'toggle-shuffle', // ()
@@ -72,6 +73,7 @@ export const EVENTS = Object.freeze({
   CHOOSE_LIST: 'choose-list', // (path?) — "Añadir a una lista": sin path, la pista actual
   ADD_TO_LIST: 'add-to-list', // ({ id, paths })
   REMOVE_FROM_LIST: 'remove-from-list', // ({ id, path })
+  MOVE_IN_LIST: 'move-in-list', // ({ id, path, to }) — arrastrar una canción (to: posición final)
   EDIT_LIST: 'edit-list', // (id) — "Editar lista": renombrar o eliminar
   RENAME_LIST: 'rename-list', // ({ id, name })
   DELETE_LIST: 'delete-list', // (id)

@@ -1,7 +1,7 @@
 import { EVENTS } from '../events.js';
 import { loadTrack, playCurrentOrClear, renderCollection } from '../actions.js';
 
-/** Cola editable: "Reproducir a continuación", "Añadir a la cola" y quitar de "Ver la cola". El orden vive en Playlist. */
+/** Cola editable: "Reproducir a continuación", "Añadir a la cola" y mover o quitar en "Ver la cola". El orden vive en Playlist. */
 export default {
   [EVENTS.PLAY_NEXT](ctx, paths) {
     addToQueue(ctx, paths, 'playNext', 'Sonará a continuación');
@@ -9,6 +9,10 @@ export default {
 
   [EVENTS.ENQUEUE](ctx, paths) {
     addToQueue(ctx, paths, 'enqueue', 'Añadida a la cola');
+  },
+
+  [EVENTS.MOVE_IN_QUEUE](ctx, { path, to }) {
+    if (ctx.playlist.move(path, to)) refreshQueueView(ctx);
   },
 
   [EVENTS.REMOVE_FROM_QUEUE](ctx, path) {

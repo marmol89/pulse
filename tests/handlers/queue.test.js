@@ -58,6 +58,17 @@ describe('handlers/queue', () => {
     assert.deepEqual(callsOf(ctx.playlistView.render)[0][0].tracks.map((track) => track.path), ['b', 'c']);
   });
 
+  test('arrastrar en "Ver la cola" cambia el orden sin cortar la que suena', () => {
+    const ctx = playing({ playlistView: spy({ source: { kind: 'queue' } }) });
+    queue[EVENTS.MOVE_IN_QUEUE](ctx, { path: 'c', to: 1 });
+    resume[EVENTS.MOVE_IN_QUEUE](ctx, { path: 'c', to: 1 });
+    assert.deepEqual(order(ctx), ['a', 'c', 'b']);
+    assert.equal(ctx.playlist.current().path, 'a');
+    assert.equal(ctx.audio.load.mock.callCount(), 0);
+    assert.equal(ctx.playlistView.render.mock.callCount(), 1);
+    assert.deepEqual(ctx.session.load().queue.order, [0, 2, 1]);
+  });
+
   test('elegir una pista en "Ver la cola" salta a ella sin rehacer la cola', () => {
     const ctx = playing();
     ctx.playlist.setShuffle(true);
