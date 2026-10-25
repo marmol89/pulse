@@ -435,6 +435,28 @@ try {
   s3.setReadOnly(false);
   await shot('09-subir-sin-permiso');
 
+  // Fundido de 2 s: la siguiente empieza 2 s antes del final (sin fundido, al acabar la pista).
+  await page.selectOption('#crossfade-select', '2');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'Fundido de 2 s entre canciones');
+  await page.click('.nav__item:has-text("Biblioteca")');
+  const firstTitle = await page.textContent('.view--collection .track-row .track-row__title'); // la primera: hay siguiente
+  await page.dblclick('.view--collection .track-row >> nth=0');
+  // Que empiece de verdad (0:00 y luego avanza): la barra puede enseñar aún el tiempo de la anterior.
+  await page.waitForFunction((title) => document.querySelector('.player__title')?.textContent === title && document.querySelector('.player .seek-bar__time')?.textContent === '0:00', firstTitle);
+  await page.waitForFunction(() => document.querySelector('.player .seek-bar__time')?.textContent >= '0:01');
+  const changedAfter = await page.evaluate(async (title) => {
+    const range = document.querySelector('.player .seek-bar__range');
+    range.value = '6';
+    range.dispatchEvent(new Event('input'));
+    range.dispatchEvent(new Event('change'));
+    const start = performance.now();
+    while (document.querySelector('.player__title').textContent === title && performance.now() - start < 8000) await new Promise((resolve) => setTimeout(resolve, 50));
+    return performance.now() - start;
+  }, firstTitle);
+  check(changedAfter < 3500, `con fundido, la siguiente empieza antes del final de la pista (${Math.round(changedAfter)} ms tras saltar a 0:06 de 0:10)`);
+  await shot('09b-fundido');
+  await page.selectOption('#crossfade-select', '0');
+
   check(logs.length === 0, `sin errores de consola${logs.length ? `:\n  ${logs.join('\n  ')}` : ''}`);
 
   // Canción borrada del bucket con la app abierta (aquí el 404 en la consola es lo esperado). Tiene que ser una que

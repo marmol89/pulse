@@ -77,9 +77,16 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
 3. Toda coordinación vive en `mediator/handlers/`: un módulo por caso de uso, **≤ 80 líneas**, sin estado y sin importar colegas. Coordinación repetida → `mediator/actions.js`.
 4. `PlayerMediator` solo compone (colegas + `.use(módulo)`): ni `if` ni `switch`.
 5. Eventos en kebab-case, solo los de `mediator/events.js` (con su payload documentado).
-6. La lógica de un solo colega va dentro de él (aleatorio/repetir en `Playlist`, búsqueda y agrupación en `Catalog`, volumen en `AudioEngine`). Las vistas pintan y emiten; su único estado es de UI (filtro de chips, letra desplegada…).
+6. La lógica de un solo colega va dentro de él (aleatorio/repetir en `Playlist`, búsqueda y agrupación en `Catalog`, volumen, precarga y fundido en `AudioEngine`). Las vistas pintan y emiten; su único estado es de UI (filtro de chips, letra desplegada…).
 7. `Mediator.notify()` inicia los handlers en orden, no deja que uno lento bloquee a otro y aísla sus errores.
 8. Seguridad: `contextIsolation`, `sandbox`, sin `nodeIntegration`, CSP de `index.html`. Nada de `innerHTML` con datos de archivos: usa `h()` de `ui/dom.js`.
+
+## Reproducción sin cortes y fundido
+
+- `AudioEngine` tiene dos `<audio>` (el segundo, `standby`, lo crea `app.js`). A 20 s del final emite `near-end`;
+  `handlers/crossfade.js` precarga ahí `Playlist.upcoming()` y `load()` de esa URL solo cambia de elemento.
+- "Fundido" en la sidebar (0–8 s, guardado en `crossfade`): `ended` llega esos segundos antes y las dos pistas se cruzan.
+  Solo cuenta el elemento activo; volumen, silencio y salida (`setSinkId`) se aplican a los dos.
 
 ## Música en S3
 

@@ -124,6 +124,14 @@ export class Playlist extends Colleague {
     return this.current();
   }
 
+  /** La que sonará al terminar la actual (como nextOnEnded, pero sin avanzar), o null. */
+  upcoming() {
+    if (this.#position < 0) return null;
+    if (this.#repeat === 'one') return this.current();
+    if (this.#position < this.#order.length - 1) return this.#tracks[this.#order[this.#position + 1]];
+    return this.#repeat === 'all' ? this.#tracks[this.#order[0]] : null;
+  }
+
   /** Siguiente pista al terminar la actual, según el modo repetir. */
   nextOnEnded() {
     return this.#repeat === 'one' ? this.current() : this.next();

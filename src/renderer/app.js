@@ -29,7 +29,7 @@ const $ = (selector) => document.querySelector(selector);
 
 const mediator = new PlayerMediator({
   // Modelos y servicios
-  audio: new AudioEngine(new Audio(), storage),
+  audio: new AudioEngine(new Audio(), storage, undefined, { standby: new Audio() }),
   playlist: new Playlist(),
   catalog: new Catalog(),
   favorites: new Favorites(storage),

@@ -29,6 +29,7 @@ export class Router extends Colleague {
   #listsNav;
   #activeNav = 'home';
   #onlineSwitch;
+  #crossfade;
   #connectionStatus;
   #current = 'home';
   #previous = 'home';
@@ -96,6 +97,11 @@ export class Router extends Colleague {
   }
 
   /** Refleja si se buscan carátulas e información en internet. */
+  /** Segundos de fundido elegidos (0: sin fundido). */
+  setCrossfade(seconds) {
+    this.#crossfade.value = String(seconds);
+  }
+
   setOnlineLookup(enabled) {
     this.#onlineSwitch.checked = enabled;
   }
@@ -161,6 +167,18 @@ export class Router extends Colleague {
       this.#onlineSwitch,
     );
 
+    this.#crossfade = h(
+      'select',
+      { class: 'setting-row__select', id: 'crossfade-select' },
+      ...[0, 2, 4, 6, 8].map((seconds) => h('option', { value: String(seconds) }, seconds === 0 ? 'No' : `${seconds} s`)),
+    );
+    this.#crossfade.addEventListener('change', () => this.notify(EVENTS.SET_CROSSFADE, Number(this.#crossfade.value)));
+    const crossfadeRow = h(
+      'label',
+      { class: 'switch-row', for: 'crossfade-select', title: 'La canción que termina baja mientras empieza la siguiente' },
+      h('span', { class: 'switch-row__text' }, h('span', { class: 'switch-row__title' }, 'Fundido'), h('span', { class: 'switch-row__hint' }, 'Entre canciones')),
+      this.#crossfade,
+    );
     const newList = h('button', { type: 'button', class: 'nav__item' }, icon('plus'), 'Nueva lista');
     newList.addEventListener('click', act(EVENTS.NEW_LIST));
     this.#listsNav = h('div', { class: 'sidebar__lists-items' });
@@ -169,7 +187,7 @@ export class Router extends Colleague {
       h('div', { class: 'brand' }, h('span', { class: 'brand__logo' }, icon('pulse')), 'Pulse'),
       nav,
       h('div', { class: 'sidebar__section sidebar__lists' }, h('h2', { class: 'sidebar__heading' }, 'Tus listas'), newList, this.#listsNav),
-      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, onlineRow),
+      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, onlineRow, crossfadeRow),
       h('p', { class: 'sidebar__hint' }, 'También puedes arrastrar canciones o carpetas a la ventana para subirlas a tu bucket.'),
     );
     this.#setActiveNav('home');

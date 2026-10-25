@@ -29,7 +29,8 @@ export const EVENTS = Object.freeze({
   PLAY_COLLECTION: 'play-collection', // (source)
   SORT_LIBRARY: 'sort-library', // (orden: 'added' | 'title' | 'artist' | 'album' | 'year')
   FILTER_LIBRARY: 'filter-library', // (texto) — filtra "Tu biblioteca" que se está viendo
-  ENDED: 'ended', // ()
+  ENDED: 'ended', // () — con fundido, unos segundos antes del final
+  NEAR_END: 'near-end', // () — quedan 20 s: momento de precargar la siguiente
 
   // Temporizador de apagado
   SET_SLEEP_TIMER: 'set-sleep-timer', // (minutos | 'track' | null) — null lo desactiva
@@ -88,6 +89,7 @@ export const EVENTS = Object.freeze({
 
   // Datos de internet (carátula, álbum, año, género, letra)
   SET_ONLINE_LOOKUP: 'set-online-lookup', // (activado)
+  SET_CROSSFADE: 'set-crossfade', // (segundos: 0 = sin fundido)
   LOOKUP_TRACK: 'lookup-track', // (path) — búsqueda pedida por el usuario
   TRACKS_UPDATED: 'tracks-updated', // (Track[]) — completadas en segundo plano
   ARTIST_PICTURES_CHANGED: 'artist-pictures-changed', // ({ nombre: URL }) — fotos de artista nuevas

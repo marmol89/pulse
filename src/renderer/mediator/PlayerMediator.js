@@ -19,6 +19,7 @@ import queue from './handlers/queue.js';
 import resume from './handlers/resume.js';
 import sleep from './handlers/sleep.js';
 import librarySort from './handlers/librarySort.js';
+import crossfade from './handlers/crossfade.js';
 
 /**
  * Solo compone: conecta colegas y registra módulos de handlers.
@@ -57,7 +58,8 @@ export class PlayerMediator extends Mediator {
       .use(queue)
       .use(resume)
       .use(sleep)
-      .use(librarySort);
+      .use(librarySort)
+      .use(crossfade);
   }
 
   get context() {
