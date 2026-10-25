@@ -1482,6 +1482,20 @@
   color: var(--color-accent);
 }
 
+/* Temporizador de apagado (junto a "Ver la cola"): mismo botón y menú que la salida de audio */
+.now-playing__end-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto; /* a la derecha también sin selector de salida (Android) */
+}
+
+.device__menu--end {
+  right: 0;
+  left: auto;
+  min-width: 220px;
+}
+
 /* Menú emergente de las filas ("⋯": reproducir a continuación, añadir a la cola) */
 .menu {
   position: fixed;

@@ -29,6 +29,9 @@ export const EVENTS = Object.freeze({
   PLAY_COLLECTION: 'play-collection', // (source)
   ENDED: 'ended', // ()
 
+  // Temporizador de apagado
+  SET_SLEEP_TIMER: 'set-sleep-timer', // (minutos | 'track' | null) — null lo desactiva
+  SLEEP_TIMER_ENDED: 'sleep-timer-ended', // ()
   // Cola editable ("⋯" de cada fila y "Ver la cola")
   PLAY_NEXT: 'play-next', // (paths[]) — "Reproducir a continuación"
   ENQUEUE: 'enqueue', // (paths[]) — "Añadir a la cola"

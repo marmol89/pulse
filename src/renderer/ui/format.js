@@ -74,3 +74,9 @@ export function greeting(date = new Date()) {
   if (hour >= 12 && hour < 20) return 'Buenas tardes';
   return 'Buenas noches';
 }
+
+/** Hora de una marca de tiempo, "23:05" (temporizador de apagado). */
+export function formatClock(timestamp) {
+  const date = new Date(timestamp);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}

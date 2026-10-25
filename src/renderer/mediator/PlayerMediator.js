@@ -17,6 +17,7 @@ import listTracks from './handlers/listTracks.js';
 import artistPictures from './handlers/artistPictures.js';
 import queue from './handlers/queue.js';
 import resume from './handlers/resume.js';
+import sleep from './handlers/sleep.js';
 
 /**
  * Solo compone: conecta colegas y registra módulos de handlers.
@@ -27,7 +28,7 @@ export class PlayerMediator extends Mediator {
 
   /**
    * @param {{
-   *   audio, playlist, catalog, favorites, recents, lists, settings, session, library, mediaSession,
+   *   audio, playlist, catalog, favorites, recents, lists, settings, session, library, mediaSession, sleepTimer,
    *   router, home, search, playlistView, nowPlaying, controls, toast, connection, listDialog, keyboard?
    * }} colleagues
    */
@@ -53,7 +54,8 @@ export class PlayerMediator extends Mediator {
       .use(listTracks)
       .use(artistPictures)
       .use(queue)
-      .use(resume);
+      .use(resume)
+      .use(sleep);
   }
 
   get context() {

@@ -11,6 +11,7 @@ import { Settings } from './colleagues/Settings.js';
 import { Session } from './colleagues/Session.js';
 import { LibraryService } from './colleagues/LibraryService.js';
 import { MediaSessionBridge } from './colleagues/MediaSessionBridge.js';
+import { SleepTimer } from './colleagues/SleepTimer.js';
 import { Router } from './colleagues/Router.js';
 import { HomeView } from './colleagues/HomeView.js';
 import { SearchView } from './colleagues/SearchView.js';
@@ -38,6 +39,7 @@ const mediator = new PlayerMediator({
   session: new Session(storage),
   library: new LibraryService(window.api),
   mediaSession: new MediaSessionBridge(),
+  sleepTimer: new SleepTimer(),
   // Vistas
   router: new Router($('#app')),
   home: new HomeView($('#view-home')),
