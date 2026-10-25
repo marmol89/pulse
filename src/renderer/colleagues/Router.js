@@ -17,7 +17,7 @@ const OVERLAY_DURATION_MS = 260;
  * En pantallas estrechas (Android) la sidebar es la tab bar de abajo y "Tu música" se abre como un
  * panel desde su pestaña (estado de UI: `is-menu-open`).
  * En la sidebar también están "Tus listas" (en pantallas estrechas se llega a ellas desde Inicio).
- * Emite: navigate, open-connection, upload-songs, files-dropped, sync-library, set-online-lookup,
+ * Emite: navigate, open-connection, upload-songs, files-dropped, sync-library, open-trash, set-online-lookup,
  * new-list, open-collection (una lista).
  */
 export class Router extends Colleague {
@@ -151,6 +151,7 @@ export class Router extends Colleague {
     );
     const upload = h('button', { type: 'button', class: 'nav__item' }, icon('upload'), 'Subir canciones');
     const refresh = h('button', { type: 'button', class: 'nav__item' }, icon('refresh'), 'Actualizar biblioteca');
+    const trash = h('button', { type: 'button', class: 'nav__item', title: 'Canciones eliminadas del bucket: restaurarlas o borrarlas para siempre' }, icon('trash'), 'Papelera');
     const act = (event) => () => {
       this.#setMenuOpen(false);
       this.notify(event);
@@ -158,6 +159,7 @@ export class Router extends Colleague {
     connection.addEventListener('click', act(EVENTS.OPEN_CONNECTION));
     upload.addEventListener('click', act(EVENTS.UPLOAD_SONGS));
     refresh.addEventListener('click', act(EVENTS.SYNC_LIBRARY));
+    trash.addEventListener('click', act(EVENTS.OPEN_TRASH));
     // Solo se ve en pantallas estrechas: abre "Tu música" encima de la tab bar.
     this.#menuButton = h(
       'button',
@@ -205,7 +207,7 @@ export class Router extends Colleague {
       h('div', { class: 'brand' }, h('span', { class: 'brand__logo' }, icon('pulse')), 'Pulse'),
       nav,
       h('div', { class: 'sidebar__section sidebar__lists' }, h('h2', { class: 'sidebar__heading' }, 'Tus listas'), newList, this.#listsNav),
-      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, onlineRow, crossfadeRow, this.#downloadsRow),
+      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, trash, onlineRow, crossfadeRow, this.#downloadsRow),
       h('p', { class: 'sidebar__hint' }, 'También puedes arrastrar canciones o carpetas a la ventana para subirlas a tu bucket.'),
     );
     this.#setActiveNav('home');

@@ -75,6 +75,13 @@ export const EVENTS = Object.freeze({
   // Escuchado recientemente (en el bucket, como los favoritos)
   RECENTS_CHANGED: 'recents-changed', // (paths[]) — llegaron cambios de otro equipo (la última que sonó primero)
 
+  // Papelera del bucket ("Eliminar del bucket" en el "⋯" de cada fila y "Papelera" en Tu música)
+  TRASH_TRACK: 'trash-track', // (path) — pide confirmación
+  CONFIRM_TRASH: 'confirm-trash', // (path) — la mueve a la papelera
+  OPEN_TRASH: 'open-trash', // ()
+  RESTORE_FROM_TRASH: 'restore-from-trash', // (key) — clave del objeto en la papelera
+  EMPTY_TRASH: 'empty-trash', // () — borra para siempre lo que hay en ella
+
   // Descargas para escuchar sin conexión (solo Android)
   DOWNLOAD_COLLECTION: 'download-collection', // (source)
   REMOVE_DOWNLOADS: 'remove-downloads', // (source)

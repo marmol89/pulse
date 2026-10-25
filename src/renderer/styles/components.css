@@ -1625,6 +1625,15 @@
   color: var(--color-accent);
 }
 
+/* Papelera del bucket (mismo diálogo que las listas) */
+.trash-item {
+  cursor: default;
+}
+
+.trash-item__restore {
+  flex: none;
+}
+
 /* Temporizador de apagado (junto a "Ver la cola"): mismo botón y menú que la salida de audio */
 .now-playing__end-actions {
   display: flex;

@@ -63,6 +63,7 @@ export function fakeContext(overrides = {}) {
     mediaSession: spy(),
     sleepTimer: new SleepTimer({ timers: { setTimeout: () => 1, clearTimeout() {} }, now: () => 0 }),
     router: spy(),
+    trashDialog: spy(),
     home: spy(),
     search: spy(),
     playlistView: spy({ source: null }),

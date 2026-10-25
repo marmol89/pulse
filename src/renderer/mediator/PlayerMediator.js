@@ -21,6 +21,7 @@ import sleep from './handlers/sleep.js';
 import librarySort from './handlers/librarySort.js';
 import crossfade from './handlers/crossfade.js';
 import downloads from './handlers/downloads.js';
+import trash from './handlers/trash.js';
 
 /**
  * Solo compone: conecta colegas y registra módulos de handlers.
@@ -32,7 +33,7 @@ export class PlayerMediator extends Mediator {
   /**
    * @param {{
    *   audio, playlist, catalog, favorites, recents, lists, settings, session, library, mediaSession, sleepTimer,
-   *   router, home, search, playlistView, nowPlaying, controls, toast, connection, listDialog, keyboard?
+   *   router, home, search, playlistView, nowPlaying, controls, toast, connection, listDialog, trashDialog, keyboard?
    * }} colleagues
    */
   constructor(colleagues) {
@@ -61,7 +62,8 @@ export class PlayerMediator extends Mediator {
       .use(sleep)
       .use(librarySort)
       .use(crossfade)
-      .use(downloads);
+      .use(downloads)
+      .use(trash);
   }
 
   get context() {

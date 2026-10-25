@@ -46,6 +46,7 @@ export class HomeView extends Colleague {
       onToggleFavorite: (path) => this.notify(EVENTS.TOGGLE_FAVORITE, path),
       onAddToList: (path) => this.notify(EVENTS.CHOOSE_LIST, path),
       onPlayNext: (path) => this.notify(EVENTS.PLAY_NEXT, [path]),
+      onTrash: (path) => this.notify(EVENTS.TRASH_TRACK, path),
       onEnqueue: (path) => this.notify(EVENTS.ENQUEUE, [path]),
     });
     root.replaceChildren(h('header', { class: 'home-header' }, this.#greeting), chips, this.#content);
