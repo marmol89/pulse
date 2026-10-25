@@ -21,6 +21,7 @@ export class AudioEngine extends Colleague {
   #hasTrack = false;
   #awaitingStart = false;
   #consecutiveErrors = 0;
+  #startAt = 0;
 
   constructor(audio, storage, devices = globalThis.navigator?.mediaDevices) {
     super();
@@ -40,6 +41,10 @@ export class AudioEngine extends Colleague {
     const audio = this.#audio;
     audio.addEventListener('timeupdate', () => this.#emitTime());
     audio.addEventListener('durationchange', () => this.#emitTime());
+    audio.addEventListener('loadedmetadata', () => {
+      if (this.#startAt > 0) audio.currentTime = this.#startAt;
+      this.#startAt = 0;
+    });
     audio.addEventListener('play', () => this.notify(EVENTS.STATE_CHANGE, { playing: true }));
     audio.addEventListener('pause', () => this.notify(EVENTS.STATE_CHANGE, { playing: false }));
     audio.addEventListener('playing', () => {
@@ -62,8 +67,10 @@ export class AudioEngine extends Colleague {
     this.notify(EVENTS.TIME_UPDATE, { current: currentTime || 0, duration: Number.isFinite(duration) ? duration : 0 });
   }
 
-  load(url, autoplay = true) {
+  /** Carga una pista; con `startAt`, empieza en ese segundo (al retomar la sesión). */
+  load(url, autoplay = true, startAt = 0) {
     this.#audio.src = url;
+    this.#startAt = startAt > 0 ? startAt : 0;
     this.#hasTrack = true;
     this.#awaitingStart = true;
     if (autoplay) this.play();
@@ -144,6 +151,31 @@ export class AudioEngine extends Colleague {
   #setMuted(muted) {
     this.#audio.muted = muted;
     this.#storage.set(STORAGE_KEYS.muted, muted);
+  }
+
+  /**
+   * Baja el volumen poco a poco, pausa y lo deja como estaba (temporizador de apagado). El volumen
+   * guardado no cambia. Si no suena nada, solo resuelve.
+   */
+  fadeOut(ms = 4000, { steps = 20, timers = globalThis } = {}) {
+    if (!this.isPlaying()) return Promise.resolve();
+    const audio = this.#audio;
+    const start = audio.volume;
+    return new Promise((resolve) => {
+      let step = 0;
+      const tick = () => {
+        step += 1;
+        if (step < steps) {
+          audio.volume = start * (1 - step / steps);
+          timers.setTimeout(tick, ms / steps);
+          return;
+        }
+        this.pause();
+        audio.volume = start;
+        resolve();
+      };
+      timers.setTimeout(tick, ms / steps);
+    });
   }
 
   /** Pistas seguidas que han fallado sin que ninguna llegara a sonar. */

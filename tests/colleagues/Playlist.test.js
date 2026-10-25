@@ -34,6 +34,88 @@ describe('Playlist', () => {
     assert.deepEqual(paths([playlist.previous(), playlist.previous(), playlist.previous()]), ['b', 'a', null]);
   });
 
+  test('snapshot() y restore() vuelven a la misma cola, orden, posición y modos', () => {
+    const original = new Playlist({ random: alwaysFirst });
+    original.setQueue(tracks('a', 'b', 'c', 'd'), 'b');
+    original.setShuffle(true);
+    original.next();
+    original.cycleRepeat();
+    const byPath = new Map(tracks('a', 'b', 'c', 'd').map((track) => [track.path, track]));
+
+    const restored = new Playlist();
+    assert.equal(restored.restore(original.snapshot(), (path) => byPath.get(path)).path, original.current().path);
+    assert.deepEqual(restored.snapshot(), original.snapshot());
+    assert.equal(restored.isShuffle(), true);
+    assert.equal(restored.repeatMode(), 'all');
+  });
+
+  test('restore() quita las pistas que ya no están y sigue por la siguiente', () => {
+    const original = new Playlist();
+    original.setQueue(tracks('a', 'b', 'c'), 'b');
+    const byPath = new Map(tracks('a', 'c').map((track) => [track.path, track]));
+    const restored = new Playlist();
+    assert.equal(restored.restore(original.snapshot(), (path) => byPath.get(path)).path, 'c');
+    assert.deepEqual(paths(restored.tracks()), ['a', 'c']);
+    assert.equal(new Playlist().restore(original.snapshot(), () => null), null);
+  });
+
+  test('restore() ignora un orden roto y usa el original', () => {
+    const byPath = new Map(tracks('a', 'b').map((track) => [track.path, track]));
+    const restored = new Playlist();
+    restored.restore({ paths: ['a', 'b'], order: [0, 0], position: 1, shuffle: true, repeat: 'raro' }, (path) => byPath.get(path));
+    assert.deepEqual(restored.snapshot(), { paths: ['a', 'b'], order: [0, 1], position: 1, shuffle: false, repeat: 'off' });
+  });
+
+  test('playNext() mete las pistas justo detrás de la actual y enqueue() al final, sin repetirlas', () => {
+    const playlist = new Playlist();
+    playlist.setQueue(tracks('a', 'b', 'c'), 'a');
+    assert.equal(playlist.playNext(tracks('x', 'y')), 2);
+    assert.deepEqual(paths(playlist.ordered()), ['a', 'x', 'y', 'b', 'c']);
+    assert.equal(playlist.enqueue(tracks('b', 'z')), 2);
+    assert.deepEqual(paths(playlist.ordered()), ['a', 'x', 'y', 'c', 'b', 'z'], 'b se mueve al final, no se repite');
+    assert.equal(playlist.playNext(tracks('a')), 0, 'la que suena no se mueve');
+    assert.equal(playlist.current().path, 'a');
+    assert.equal(playlist.next().path, 'x');
+  });
+
+  test('en aleatorio, lo añadido a mano no se baraja', () => {
+    const playlist = new Playlist({ random: alwaysFirst });
+    playlist.setQueue(tracks('a', 'b', 'c', 'd'), 'a');
+    playlist.setShuffle(true);
+    const before = paths(playlist.ordered());
+    playlist.enqueue(tracks('z'));
+    playlist.playNext(tracks('x'));
+    assert.deepEqual(paths(playlist.ordered()), [before[0], 'x', ...before.slice(1), 'z']);
+  });
+
+  test('con la cola vacía, lo añadido pasa a ser la actual', () => {
+    const playlist = new Playlist();
+    playlist.enqueue(tracks('a', 'b'));
+    assert.equal(playlist.current().path, 'a');
+  });
+
+  test('move() cambia el orden de reproducción y la actual sigue siendo la misma', () => {
+    const playlist = new Playlist();
+    playlist.setQueue(tracks('a', 'b', 'c', 'd'), 'b');
+    assert.equal(playlist.move('d', 0), true);
+    assert.deepEqual(paths(playlist.ordered()), ['d', 'a', 'b', 'c']);
+    assert.equal(playlist.current().path, 'b');
+    playlist.move('b', 99);
+    assert.deepEqual(paths(playlist.ordered()), ['d', 'a', 'c', 'b']);
+    assert.equal(playlist.next(), null, 'la actual ya es la última');
+    assert.equal(playlist.move('no-existe', 0), false);
+  });
+
+  test('jumpTo() salta a una pista de la cola sin cambiar el orden', () => {
+    const playlist = new Playlist({ random: alwaysFirst });
+    playlist.setQueue(tracks('a', 'b', 'c'), 'a');
+    playlist.setShuffle(true);
+    const order = paths(playlist.ordered());
+    assert.equal(playlist.jumpTo(order[2]).path, order[2]);
+    assert.deepEqual(paths(playlist.ordered()), order);
+    assert.equal(playlist.jumpTo('no-existe'), null);
+  });
+
   test('cycleRepeat() recorre off → all → one → off', () => {
     const playlist = new Playlist();
     assert.equal(playlist.repeatMode(), 'off');

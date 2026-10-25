@@ -7,6 +7,7 @@ import {
   collectionStats,
   greeting,
   formatDeviceLabel,
+  formatClock,
   formatTrackNumber,
   formatDataSource,
   trackDetails,
@@ -38,6 +39,11 @@ describe('ui/format', () => {
     const tracks = Array.from({ length: 24 }, () => ({ duration: 230 }));
     assert.equal(collectionStats(tracks), '24 canciones · 1 h 32 min');
     assert.equal(collectionStats([{ duration: 0 }]), '1 canción');
+  });
+
+  test('formatClock() da la hora con dos cifras', () => {
+    assert.equal(formatClock(new Date(2026, 9, 25, 9, 5).getTime()), '09:05');
+    assert.equal(formatClock(new Date(2026, 9, 25, 23, 40).getTime()), '23:40');
   });
 
   test('formatDeviceLabel() quita ids USB y traduce el dispositivo predeterminado', () => {

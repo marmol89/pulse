@@ -1,11 +1,12 @@
 import { EVENTS } from '../events.js';
-import { refreshLibraryViews } from '../actions.js';
+import { refreshLibraryViews, restoreSession } from '../actions.js';
 
 /** Biblioteca: la guardada al arrancar y "Actualizar biblioteca" con el bucket. */
 export default {
   async [EVENTS.APP_READY](ctx) {
     ctx.catalog.add(await ctx.library.load());
     refreshLibraryViews(ctx);
+    restoreSession(ctx); // necesita la biblioteca: va aquí y no en un APP_READY propio
   },
 
   // Los cambios llegan como library-changed (handlers/changes.js), con su propio aviso.

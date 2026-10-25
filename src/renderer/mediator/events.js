@@ -29,6 +29,15 @@ export const EVENTS = Object.freeze({
   PLAY_COLLECTION: 'play-collection', // (source)
   ENDED: 'ended', // ()
 
+  // Temporizador de apagado
+  SET_SLEEP_TIMER: 'set-sleep-timer', // (minutos | 'track' | null) — null lo desactiva
+  SLEEP_TIMER_ENDED: 'sleep-timer-ended', // ()
+  // Cola editable ("⋯" de cada fila y "Ver la cola")
+  PLAY_NEXT: 'play-next', // (paths[]) — "Reproducir a continuación"
+  ENQUEUE: 'enqueue', // (paths[]) — "Añadir a la cola"
+  REMOVE_FROM_QUEUE: 'remove-from-queue', // (path)
+  MOVE_IN_QUEUE: 'move-in-queue', // ({ path, to }) — arrastrar en "Ver la cola" (to: posición final)
+
   // Modos
   TOGGLE_SHUFFLE: 'toggle-shuffle', // ()
   CYCLE_REPEAT: 'cycle-repeat', // ()
@@ -70,6 +79,7 @@ export const EVENTS = Object.freeze({
   CHOOSE_LIST: 'choose-list', // (path?) — "Añadir a una lista": sin path, la pista actual
   ADD_TO_LIST: 'add-to-list', // ({ id, paths })
   REMOVE_FROM_LIST: 'remove-from-list', // ({ id, path })
+  MOVE_IN_LIST: 'move-in-list', // ({ id, path, to }) — arrastrar una canción (to: posición final)
   EDIT_LIST: 'edit-list', // (id) — "Editar lista": renombrar o eliminar
   RENAME_LIST: 'rename-list', // ({ id, name })
   DELETE_LIST: 'delete-list', // (id)
@@ -78,4 +88,5 @@ export const EVENTS = Object.freeze({
   SET_ONLINE_LOOKUP: 'set-online-lookup', // (activado)
   LOOKUP_TRACK: 'lookup-track', // (path) — búsqueda pedida por el usuario
   TRACKS_UPDATED: 'tracks-updated', // (Track[]) — completadas en segundo plano
+  ARTIST_PICTURES_CHANGED: 'artist-pictures-changed', // ({ nombre: URL }) — fotos de artista nuevas
 });

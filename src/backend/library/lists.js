@@ -87,6 +87,17 @@ export function createListStore({ now = Date.now, newId = randomId, ...deps }) {
       return change(id, (list) => ({ ...list, tracks: [...new Set([...list.tracks, ...cleanPaths(paths)])].slice(0, MAX_TRACKS) }));
     },
 
+    /** Mueve una canción de la lista a la posición `to` (0 = la primera). */
+    moveTrack(id, path, to) {
+      return change(id, (list) => {
+        const tracks = list.tracks.filter((track) => track !== path);
+        if (tracks.length === list.tracks.length) throw new TypeError('Esa canción ya no está en la lista');
+        const at = Math.min(Math.max(Math.trunc(Number(to)) || 0, 0), tracks.length);
+        tracks.splice(at, 0, path);
+        return { ...list, tracks };
+      });
+    },
+
     removeTrack(id, path) {
       return change(id, (list) => ({ ...list, tracks: list.tracks.filter((track) => track !== path) }));
     },

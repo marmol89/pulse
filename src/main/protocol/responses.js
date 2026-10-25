@@ -32,11 +32,19 @@ export function pictureResponse(picture) {
 /**
  * Responde a una URL media://. Solo sirve pistas que estén en la biblioteca (`isAllowed`),
  * así el renderer no puede pedir objetos arbitrarios. `openTrack(id, rango)` da el audio.
+ * media://artist/<nombre> es una foto de artista: `readArtist` solo devuelve las que lo son.
  */
-export async function respondToMedia(url, rangeHeader, { isAllowed, readCover, openTrack }) {
+export async function respondToMedia(url, rangeHeader, { isAllowed, readCover, openTrack, readArtist = async () => null }) {
   const target = parseMediaUrl(url);
+  if (target?.kind === 'artist') {
+    const data = await readArtist(target.path);
+    return data ? pictureResponse({ format: 'image/jpeg', data }) : new Response('Prohibido', { status: 403 });
+  }
   if (!target || !isAllowed(target.path)) return new Response('Prohibido', { status: 403 });
   if (target.kind === 'track') return openTrack(target.path, rangeHeader);
-  if (target.kind === 'cover') return pictureResponse(await readCover(target.path));
+  if (target.kind === 'cover') {
+    // 503 (no 404) si no se pudo leer: la vista lo vuelve a intentar en vez de dejarla sin carátula.
+    return readCover(target.path).then(pictureResponse, () => new Response('Carátula no disponible', { status: 503 }));
+  }
   return new Response('No encontrado', { status: 404 });
 }
