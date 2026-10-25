@@ -196,6 +196,26 @@ try {
     `los metadatos se guardan en metadatos/biblioteca.json del bucket (${metadataTracks.length} canciones)`,
   );
 
+  // Otro equipo encontró la letra sincronizada de "Luces de Neón": llega con los metadatos del bucket.
+  const synced = metadataTracks.map((track) =>
+    track.title === 'Luces de Neón'
+      ? { ...track, syncedLyrics: '[00:00.00]Brillan las luces\n[00:03.00]de la ciudad\n[00:06.00]y tú conmigo', online: { ...track.online, lyricsCheckedAt: Date.now() } }
+      : track,
+  );
+  s3.put('musica', 'metadatos/biblioteca.json', JSON.stringify({ ...JSON.parse(s3.get('musica', 'metadatos/biblioteca.json').toString()), tracks: synced }));
+  await page.click('.nav__item:has-text("Actualizar biblioteca")');
+  await page.click('.nav__item:has-text("Biblioteca")');
+  await page.dblclick('.view--collection .track-row:has-text("Luces de Neón")');
+  await page.click('.player__cover');
+  await page.waitForSelector('.now-playing.is-open .lyrics__line');
+  if ((await page.getAttribute('.lyrics .link-button', 'aria-expanded')) === 'false') await page.click('.lyrics .link-button');
+  await page.click('.lyrics__line:has-text("y tú conmigo")');
+  await page.waitForSelector('.lyrics__line.is-active:has-text("y tú conmigo")');
+  check((await page.textContent('.now-playing .seek-bar__time')) >= '0:06', 'la letra sincronizada resalta el verso que suena y pulsar uno salta a él');
+  await shot('05b-letra-sincronizada');
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.now-playing', { state: 'hidden' });
+
   // Listas de canciones: se crean en la app y se comparten en metadatos/listas.json del bucket.
   await page.click('.sidebar__lists .nav__item:has-text("Nueva lista")');
   await page.waitForSelector('.list-dialog[open]');
