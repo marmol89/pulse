@@ -33,6 +33,20 @@ describe('AudioEngine', () => {
     assert.equal(audio.playCalls, 0);
   });
 
+  test('fadeOut() baja el volumen poco a poco, pausa y lo deja como estaba', async () => {
+    const { audio, engine, storage } = setup();
+    engine.setVolume(0.5);
+    engine.load('media://track/a', true);
+    const volumes = [];
+    const timers = { setTimeout: (task) => setImmediate(() => (volumes.push(audio.volume), task())) };
+    await engine.fadeOut(100, { steps: 4, timers });
+    assert.deepEqual(volumes, [0.5, 0.375, 0.25, 0.125]);
+    assert.equal(engine.isPlaying(), false);
+    assert.equal(audio.volume, 0.5);
+    assert.equal(storage.get('volume'), 0.5, 'el volumen guardado no cambia');
+    await engine.fadeOut(100, { timers }); // sin sonar: no hace nada
+  });
+
   test('track-started se emite una vez por pista cargada, no al reanudar', () => {
     const { audio, engine, events } = setup();
     engine.load('media://track/a');

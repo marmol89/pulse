@@ -146,6 +146,31 @@ export class AudioEngine extends Colleague {
     this.#storage.set(STORAGE_KEYS.muted, muted);
   }
 
+  /**
+   * Baja el volumen poco a poco, pausa y lo deja como estaba (temporizador de apagado). El volumen
+   * guardado no cambia. Si no suena nada, solo resuelve.
+   */
+  fadeOut(ms = 4000, { steps = 20, timers = globalThis } = {}) {
+    if (!this.isPlaying()) return Promise.resolve();
+    const audio = this.#audio;
+    const start = audio.volume;
+    return new Promise((resolve) => {
+      let step = 0;
+      const tick = () => {
+        step += 1;
+        if (step < steps) {
+          audio.volume = start * (1 - step / steps);
+          timers.setTimeout(tick, ms / steps);
+          return;
+        }
+        this.pause();
+        audio.volume = start;
+        resolve();
+      };
+      timers.setTimeout(tick, ms / steps);
+    });
+  }
+
   /** Pistas seguidas que han fallado sin que ninguna llegara a sonar. */
   consecutiveErrors() {
     return this.#consecutiveErrors;
