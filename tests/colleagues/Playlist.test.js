@@ -94,6 +94,18 @@ describe('Playlist', () => {
     assert.equal(playlist.current().path, 'a');
   });
 
+  test('move() cambia el orden de reproducción y la actual sigue siendo la misma', () => {
+    const playlist = new Playlist();
+    playlist.setQueue(tracks('a', 'b', 'c', 'd'), 'b');
+    assert.equal(playlist.move('d', 0), true);
+    assert.deepEqual(paths(playlist.ordered()), ['d', 'a', 'b', 'c']);
+    assert.equal(playlist.current().path, 'b');
+    playlist.move('b', 99);
+    assert.deepEqual(paths(playlist.ordered()), ['d', 'a', 'c', 'b']);
+    assert.equal(playlist.next(), null, 'la actual ya es la última');
+    assert.equal(playlist.move('no-existe', 0), false);
+  });
+
   test('jumpTo() salta a una pista de la cola sin cambiar el orden', () => {
     const playlist = new Playlist({ random: alwaysFirst });
     playlist.setQueue(tracks('a', 'b', 'c'), 'a');

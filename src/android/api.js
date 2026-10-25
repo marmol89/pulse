@@ -96,6 +96,7 @@ export function createAndroidApi(deps) {
     createList: call(({ lists }, name, paths) => listResult(() => lists.create(name, Array.isArray(paths) ? paths : []))),
     renameList: call(({ lists }, id, name) => listResult(() => lists.rename(String(id), name))),
     addToList: call(({ lists }, id, paths) => listResult(() => lists.add(String(id), Array.isArray(paths) ? paths : []))),
+    moveInList: call(({ lists }, id, path, to) => listResult(() => lists.moveTrack(String(id), String(path), Number(to)))),
     removeFromList: call(({ lists }, id, path) => listResult(() => lists.removeTrack(String(id), String(path)))),
     deleteList: call(({ lists }, id) => listResult(() => lists.remove(String(id)))),
     onListsChanged: subscribe('lists'),

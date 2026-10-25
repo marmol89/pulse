@@ -108,6 +108,11 @@ export class LibraryService extends Colleague {
     return this.#api.addToList(id, paths);
   }
 
+  /** Mueve una canción de la lista a la posición `to`. @returns {Promise<ListResult>} */
+  moveInList(id, path, to) {
+    return this.#api.moveInList(id, path, to);
+  }
+
   /** @returns {Promise<ListResult>} */
   removeFromList(id, path) {
     return this.#api.removeFromList(id, path);

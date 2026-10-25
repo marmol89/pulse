@@ -79,6 +79,17 @@ export class Playlist extends Colleague {
     return this.#insert(tracks, () => this.#order.length);
   }
 
+  /** Mueve una pista a la posición `to` del orden de reproducción; la que suena sigue siendo la actual. */
+  move(path, to) {
+    const from = this.#order.findIndex((index) => this.#tracks[index].path === path);
+    if (from < 0) return false;
+    const current = this.index();
+    const [moved] = this.#order.splice(from, 1);
+    this.#order.splice(Math.min(Math.max(Math.trunc(Number(to)) || 0, 0), this.#order.length), 0, moved);
+    this.#position = this.#order.indexOf(current);
+    return true;
+  }
+
   /** Pasa a sonar una pista que ya está en la cola, sin cambiar el orden. Devuelve la pista o null. */
   jumpTo(path) {
     const position = this.#order.findIndex((index) => this.#tracks[index].path === path);
