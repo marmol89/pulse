@@ -5,7 +5,7 @@
  * cambios en el bucket, subir canciones del ordenador, la copia en metadatos/ y guarda capturas en tests/e2e/output/. Nunca usa tu S3 real.
  * Uso: npm run test:e2e   (abre la ventana unos segundos; el audio va silenciado)
  */
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -143,6 +143,11 @@ try {
   await page.click('.nav__item:has-text("Inicio")');
   await page.click('.chip:has-text("Álbumes")');
   check((await page.locator('.card-grid .media-card').count()) === 4, 'Álbumes agrupa 4 álbumes');
+  const loadedCovers = await page
+    .waitForFunction(() => [...document.querySelectorAll('.card-grid .cover__image')].filter((image) => image.complete && image.naturalWidth > 0).length >= 2, null, { timeout: 5000 })
+    .then(() => true, () => false);
+  const savedCovers = (await readdir(path.join(work, 'perfil', 'covers')).catch(() => [])).filter((name) => name.startsWith('embedded-'));
+  check(loadedCovers && savedCovers.length >= 2, `las carátulas incrustadas se ven y quedan guardadas en covers/ (${savedCovers.length})`);
   await shot('08-albumes');
 
   s3.put('musica', 'Nuevas/Selva (directo).wav', createWav({ seconds: 3, tags: { title: 'Selva (directo)', artist: 'Kora' } }));

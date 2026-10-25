@@ -35,7 +35,8 @@ src/backend/     lógica común a Electron y Android, SIN Node ni Electron (lo c
                  metadatos/ del bucket), lists.js (listas de canciones: lists.js aquí y metadatos/listas.json),
                  favorites.js (favoritos: favorites.json y metadatos/favoritos.json), shared.js (lo que comparten
                  listas y favoritos: guardar aquí, subir, juntar copias por `updatedAt`),
-                 tracks.js (registro ↔ pista), store.js (library.json: caché local)
+                 tracks.js (registro ↔ pista), store.js (library.json: caché local), covers.js (carátulas
+                 incrustadas en covers/: se guardan al sincronizar y se leen del bucket como mucho 4 a la vez)
   online/        datos de internet: matching, itunes, deezer, lrclib, http, enricher, queue (ver abajo)
 src/main/        adaptador de Electron (NO forma parte del mediator)
   main.js        ventana, instancia única, sin navegación, --lang=es
@@ -87,6 +88,10 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   (como mucho cada 15 s) y con "Actualizar biblioteca". Nuevo, cambiado (ETag) o borrado → `library-changed`.
 - Las etiquetas se leen descargando solo los primeros 512 KB (más si la etiqueta ID3 es grande). Las que están
   al final de archivos grandes no se leen; con "Datos de internet" se completan desde el nombre del archivo.
+- **Carátulas incrustadas**: al leer las etiquetas, la imagen se guarda en `covers/` (`covers.js`; en Android,
+  `src/android/covers.js`), así no se vuelve a descargar el archivo para pintarla. Si falta, se lee del bucket
+  (máx. 4 a la vez). Un fallo de red **no** cuenta como "sin carátula": el protocolo responde 503 y la vista
+  reintenta una vez; "no tiene" sí se recuerda.
 - **Subir canciones**: botón "Subir canciones" (diálogo del main) o arrastrar archivos/carpetas a la ventana
   (`webUtils.getPathForFile` en el preload). `upload.js` sube de una en una bajo la carpeta de la conexión
   (una carpeta conserva su nombre: "Disco/01.mp3"), **nunca sobrescribe** (mismo archivo → se salta; otro con

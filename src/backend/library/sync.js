@@ -10,6 +10,7 @@ const CONCURRENCY = 4; // pistas leídas a la vez
  * Antes de leer archivos usa los metadatos guardados en el bucket (`pullMetadata`): lo que ya
  * está ahí no se vuelve a leer, y los datos de internet más recientes llegan con `onUpdated`.
  * `toTrack` convierte un registro en la pista que ve la interfaz (con las URLs de cada plataforma).
+ * `onPicture(registro, carátula)` recibe las carátulas incrustadas leídas, para guardarlas en el equipo.
  */
 export function createLibrarySync({
   store,
@@ -17,6 +18,7 @@ export function createLibrarySync({
   toTrack,
   onChange,
   onUpdated = () => {},
+  onPicture,
   pullMetadata = async () => [],
   readRecord = readRemoteRecord,
   now = Date.now,
@@ -39,7 +41,7 @@ export function createLibrarySync({
       .map((record) => record.path)
       .filter((id) => !present.has(id));
     // Si un objeto no se puede descargar ahora (red, S3), no se guarda: se reintenta en la próxima.
-    const records = (await mapLimit(pending, CONCURRENCY, (object) => readRecord(storage, object).catch(() => null))).filter(Boolean);
+    const records = (await mapLimit(pending, CONCURRENCY, (object) => readRecord(storage, object, { onPicture }).catch(() => null))).filter(Boolean);
     store.remove(removed);
     store.add(records);
     const added = [...known, ...records];

@@ -100,17 +100,30 @@ export function coverVersion(record) {
 /**
  * Carátula de un registro: la incrustada (con `readEmbedded`) o, si no tiene, la descargada de internet
  * (`readCover(coverName)` → Uint8Array o null: de la caché local o de metadatos/caratulas/ en el bucket).
+ * Si la incrustada no se pudo leer (red, S3) y no hay otra, lanza: no es lo mismo que no tener carátula.
  */
 export async function readRecordCover(record, { readEmbedded, readCover }) {
   if (!record) return null;
+  let failure = null;
   if (record.hasCover) {
-    const embedded = await readEmbedded(record).catch(() => null);
+    const embedded = await readEmbedded(record).catch((error) => {
+      failure = error;
+      return null;
+    });
     if (embedded) return embedded;
   }
-  if (!record.coverName) return null;
+  if (!record.coverName) {
+    if (failure) throw failure;
+    return null;
+  }
   const data = await readCover(record.coverName).catch(() => null);
   if (!data?.length) return null; // sin caché ni copia en el bucket: se usará la portada generada
-  return { format: data[0] === 0x89 && data[1] === 0x50 ? 'image/png' : 'image/jpeg', data };
+  return { format: imageFormat(data), data };
+}
+
+/** Tipo de una imagen por sus primeros bytes (PNG o, si no, JPEG). */
+export function imageFormat(data) {
+  return data[0] === 0x89 && data[1] === 0x50 ? 'image/png' : 'image/jpeg';
 }
 
 function clean(value) {
