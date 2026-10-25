@@ -3,13 +3,15 @@ import { icon } from './icons.js';
 import { createCover, trackSeed } from './cover.js';
 import { formatTime } from './format.js';
 import { showMenu } from './menu.js';
+import { enableReorder } from './reorder.js';
 
 /**
  * Lista de pistas (filas de 60 px de la pantalla Playlist). Componente de UI,
  * no colega: avisa a su vista con callbacks y la vista notifica al mediator.
  * Doble clic, Enter o el botón sobre la portada reproducen. Con `onAddToList`, cada fila tiene
  * "Añadir a una lista"; con `onPlayNext` y `onEnqueue`, un menú "⋯" con "Reproducir a continuación" y
- * "Añadir a la cola"; con `onRemove` y `removable` al pintar (su texto: "Quitar de la lista"), el botón de quitar.
+ * "Añadir a la cola"; con `onRemove` y `removable` al pintar (su texto: "Quitar de la lista"), el botón de quitar;
+ * con `onMove` y `reorderable` al pintar, un asa para arrastrar las filas (y Alt+↑/↓).
  */
 export class TrackList {
   #element;
@@ -20,8 +22,9 @@ export class TrackList {
   #canAdd;
   #canQueue;
   #removable = '';
+  #reorderable = false;
 
-  constructor({ onPlay, onToggleFavorite, onAddToList = null, onPlayNext = null, onEnqueue = null, onRemove = () => {}, label = 'Canciones' }) {
+  constructor({ onPlay, onToggleFavorite, onAddToList = null, onPlayNext = null, onEnqueue = null, onRemove = () => {}, onMove = null, label = 'Canciones' }) {
     this.#canAdd = Boolean(onAddToList);
     this.#canQueue = Boolean(onPlayNext && onEnqueue);
     const more = (path, button) =>
@@ -44,6 +47,7 @@ export class TrackList {
       const row = event.target.closest('.track-row');
       if (row && !event.target.closest('button')) onPlay(row.dataset.path);
     });
+    if (onMove) enableReorder(this.#element, { onMove, enabled: () => this.#reorderable });
     this.#element.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' && event.target.classList.contains('track-row')) {
         event.preventDefault();
@@ -58,11 +62,14 @@ export class TrackList {
 
   /**
    * @param {object[]} tracks
-   * @param {{ favorites?: Set<string>, currentPath?: string|null, playing?: boolean, removable?: boolean|string }} state
+   * @param {{ favorites?: Set<string>, currentPath?: string|null, playing?: boolean, removable?: boolean|string, reorderable?: boolean }} state
    * `removable`: el texto del botón de quitar (con `true`, "Quitar de la lista").
    */
-  render(tracks, { favorites = new Set(), currentPath = null, playing = false, removable = false } = {}) {
+  render(tracks, { favorites = new Set(), currentPath = null, playing = false, removable = false, reorderable = false } = {}) {
     this.#removable = removable === true ? 'Quitar de la lista' : removable || '';
+    this.#reorderable = reorderable;
+    // Al repintar (p. ej. tras mover una fila con el teclado) el foco sigue en la misma pista.
+    const focusedPath = this.#element.contains(document.activeElement) ? document.activeElement.closest('.track-row')?.dataset.path : null;
     this.#rows.clear();
     this.#tracks.clear();
     this.#currentPath = null;
@@ -74,6 +81,8 @@ export class TrackList {
       fragment.append(row);
     }
     this.#element.replaceChildren(fragment);
+    this.#element.classList.toggle('is-reorderable', reorderable);
+    if (focusedPath) this.#rows.get(focusedPath)?.focus();
     this.highlight(currentPath);
     this.setPlaying(playing);
   }
@@ -136,6 +145,7 @@ export class TrackList {
     return h(
       'li',
       { class: 'track-row', tabindex: '0', 'data-path': track.path, title: `${track.title} · ${track.artist}` },
+      this.#reorderable && h('span', { class: 'track-row__grip', title: 'Arrastra para cambiar el orden (o Alt+↑/↓)', 'aria-hidden': 'true' }, icon('grip')),
       cover,
       h('div', { class: 'track-row__text' }, h('span', { class: 'track-row__title' }, track.title), h('span', { class: 'track-row__artist' }, track.artist)),
       h(
