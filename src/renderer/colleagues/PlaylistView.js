@@ -25,6 +25,15 @@ const EMPTY_MESSAGES = {
   queue: 'La cola está vacía.',
   list: 'Esta lista está vacía. Pulsa «+» en cualquier canción (o «Añadir a una lista» en Reproduciendo) para añadirla.',
 };
+/** Órdenes de "Tu biblioteca" (los aplica Catalog); el primero es el de siempre. */
+const LIBRARY_SORTS = [
+  ['added', 'Añadidas recientemente'],
+  ['title', 'Título'],
+  ['artist', 'Artista'],
+  ['album', 'Álbum'],
+  ['year', 'Año'],
+];
+
 /** Colecciones de las que se pueden quitar canciones (y cambiar su orden), con el texto del botón. */
 const REMOVE_LABELS = { list: 'Quitar de la lista', queue: 'Quitar de la cola' };
 /** Colecciones cuya portada es la carátula de sus pistas; el resto usa una generada. */
@@ -36,6 +45,7 @@ const TRACK_COVER_KINDS = new Set(['album', 'artist']);
  * En una lista del usuario, además: "Editar lista" y quitar canciones.
  * Emite: navigate-back, play-collection, toggle-shuffle, track-selected, toggle-favorite, choose-list,
  * edit-list, remove-from-list, move-in-list, play-next, enqueue, remove-from-queue, move-in-queue.
+ * En "Tu biblioteca": sort-library y filter-library.
  */
 export class PlaylistView extends Colleague {
   #source = null;
@@ -47,6 +57,9 @@ export class PlaylistView extends Colleague {
   #shuffle;
   #play;
   #edit;
+  #tools;
+  #filter;
+  #sort;
   #list;
   #empty;
 
@@ -67,6 +80,16 @@ export class PlaylistView extends Colleague {
     });
     this.#edit = h('button', { type: 'button', class: 'button button--secondary collection-actions__edit', hidden: true }, icon('pencil'), 'Editar lista');
     this.#edit.addEventListener('click', () => this.notify(EVENTS.EDIT_LIST, this.#source.id));
+    this.#filter = h('input', { type: 'search', class: 'library-tools__input', placeholder: 'Filtrar canciones', 'aria-label': 'Filtrar canciones', spellcheck: 'false' });
+    this.#filter.addEventListener('input', () => this.notify(EVENTS.FILTER_LIBRARY, this.#filter.value));
+    this.#sort = h('select', { class: 'library-tools__sort', 'aria-label': 'Ordenar por' }, ...LIBRARY_SORTS.map(([value, label]) => h('option', { value }, label)));
+    this.#sort.addEventListener('change', () => this.notify(EVENTS.SORT_LIBRARY, this.#sort.value));
+    this.#tools = h(
+      'div',
+      { class: 'library-tools', hidden: true },
+      h('label', { class: 'library-tools__filter' }, icon('search'), this.#filter),
+      h('label', { class: 'library-tools__order' }, h('span', { class: 'library-tools__label' }, 'Ordenar por'), this.#sort),
+    );
     this.#list = new TrackList({
       onPlay: (path) => this.notify(EVENTS.TRACK_SELECTED, { source: this.#source, path }),
       onToggleFavorite: (path) => this.notify(EVENTS.TOGGLE_FAVORITE, path),
@@ -95,7 +118,7 @@ export class PlaylistView extends Colleague {
           this.#stats,
         ),
       ),
-      h('div', { class: 'collection-actions' }, this.#edit, this.#shuffle, this.#play),
+      h('div', { class: 'collection-actions' }, this.#edit, this.#tools, this.#shuffle, this.#play),
       this.#list.element,
       this.#empty,
     );
@@ -115,10 +138,23 @@ export class PlaylistView extends Colleague {
     this.#stats.textContent = collectionStats(tracks);
     const isList = source.kind === 'list';
     this.#edit.hidden = !isList;
+    this.#renderTools(source);
     this.#list.render(tracks, { ...state, removable: REMOVE_LABELS[source.kind] ?? false, reorderable: source.kind in REMOVE_LABELS });
     this.#empty.hidden = tracks.length > 0;
-    this.#empty.textContent = EMPTY_MESSAGES[source.kind] ?? 'No hay canciones aquí.';
+    this.#empty.textContent = source.filter?.trim()
+      ? `Ninguna canción coincide con «${source.filter.trim()}».`
+      : (EMPTY_MESSAGES[source.kind] ?? 'No hay canciones aquí.');
     this.#play.disabled = tracks.length === 0;
+  }
+
+  /** Filtro y orden solo en "Tu biblioteca"; al entrar de nuevo, el filtro empieza vacío. */
+  #renderTools(source) {
+    const isLibrary = source.kind === 'library';
+    this.#tools.hidden = !isLibrary;
+    if (!isLibrary) return;
+    const filter = source.filter ?? '';
+    if (this.#filter.value !== filter) this.#filter.value = filter; // sin mover el cursor mientras se escribe
+    this.#sort.value = source.sort ?? LIBRARY_SORTS[0][0];
   }
 
   /** Colección visible (para repintarla si cambia la biblioteca). */

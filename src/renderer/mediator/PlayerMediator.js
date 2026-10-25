@@ -18,6 +18,7 @@ import artistPictures from './handlers/artistPictures.js';
 import queue from './handlers/queue.js';
 import resume from './handlers/resume.js';
 import sleep from './handlers/sleep.js';
+import librarySort from './handlers/librarySort.js';
 
 /**
  * Solo compone: conecta colegas y registra módulos de handlers.
@@ -55,7 +56,8 @@ export class PlayerMediator extends Mediator {
       .use(artistPictures)
       .use(queue)
       .use(resume)
-      .use(sleep);
+      .use(sleep)
+      .use(librarySort);
   }
 
   get context() {

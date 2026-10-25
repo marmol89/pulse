@@ -47,6 +47,7 @@ export async function readRemoteRecord(storage, object, { onPicture } = {}) {
     key: object.key,
     etag: object.etag,
     size: object.size,
+    addedAt: object.lastModified ?? 0,
   });
   const bytes = await readHead(storage, object);
   let metadata;

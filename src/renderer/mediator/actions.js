@@ -103,6 +103,8 @@ export function resolveCollection(ctx, source) {
       const list = ctx.lists.get(source.id);
       return { source, title: list?.name ?? 'Lista eliminada', byline: 'Tu lista · en tu bucket', tracks: list ? ctx.catalog.byPaths(list.tracks) : [] };
     }
+    case 'library':
+      return ctx.catalog.collection({ ...source, sort: ctx.settings.librarySort() ?? undefined });
     default:
       return ctx.catalog.collection(source);
   }

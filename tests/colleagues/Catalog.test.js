@@ -111,4 +111,26 @@ describe('Catalog', () => {
     assert.deepEqual(catalog.collection({ kind: 'search', key: 'selva' }).tracks, [selva]);
     assert.deepEqual(catalog.collection({ kind: 'desconocido' }).tracks, []);
   });
+
+  test('la biblioteca se ordena: por defecto, las añadidas recientemente primero', () => {
+    const dated = (item, addedAt, year = 0) => ({ ...item, addedAt, year });
+    const catalog = catalogWith(dated(neon, 3, 2020), dated(intro, 3, 2020), dated(ola, 1, 2024), dated(selva, 5), atardecer);
+    const titles = (sort) => catalog.collection({ kind: 'library', sort }).tracks.map((item) => item.title);
+
+    assert.deepEqual(titles(), ['Selva', 'Intro', 'Luces de Neón', 'Ola Azul', 'Atardecer'], 'empate: por título; sin fecha, al final');
+    assert.deepEqual(titles('desconocido'), titles());
+    assert.deepEqual(titles('title'), ['Atardecer', 'Intro', 'Luces de Neón', 'Ola Azul', 'Selva']);
+    assert.deepEqual(titles('artist'), ['Intro', 'Luces de Neón', 'Selva', 'Atardecer', 'Ola Azul'], 'en cada artista, por álbum y número');
+    assert.deepEqual(titles('album'), ['Selva', 'Atardecer', 'Ola Azul', 'Intro', 'Luces de Neón'], 'sin álbum primero');
+    assert.deepEqual(titles('year'), ['Ola Azul', 'Intro', 'Luces de Neón', 'Selva', 'Atardecer'], 'las más nuevas primero');
+  });
+
+  test('el filtro de la biblioteca busca todas las palabras sin cambiar el orden', () => {
+    const catalog = catalogWith(neon, intro, ola, selva, atardecer);
+    const titles = (filter) => catalog.collection({ kind: 'library', sort: 'title', filter }).tracks.map((item) => item.title);
+    assert.deepEqual(titles('aurora'), ['Intro', 'Luces de Neón']);
+    assert.deepEqual(titles('neon aurora'), ['Intro', 'Luces de Neón'], 'sin tildes y por álbum también');
+    assert.deepEqual(titles('  '), titles(''));
+    assert.deepEqual(titles('nada de esto'), []);
+  });
 });
