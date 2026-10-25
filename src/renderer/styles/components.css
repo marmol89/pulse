@@ -1488,12 +1488,22 @@
     flex-wrap: wrap;
   }
 
-  .library-tools {
-    flex-basis: 100%;
+  /* Filtro en su fila; el orden, a la izquierda de aleatorio y play */
+  .library-tools:not([hidden]) {
+    display: contents;
   }
 
   .library-tools__filter {
     flex: 1 1 100%;
+  }
+
+  .library-tools__order {
+    min-width: 0;
+    margin-right: auto;
+  }
+
+  .library-tools__label {
+    display: none;
   }
 }
 
