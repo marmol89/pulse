@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { _electron as electron } from 'playwright-core';
 import { createWav } from '../helpers/audio.js';
-import { FIXTURES, bucketObjects } from './fixtures.js';
+import { FIXTURES, bucketObjects, KORA_PICTURE } from './fixtures.js';
 import { startFakeS3 } from '../helpers/fakeS3.js';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
@@ -26,6 +26,11 @@ const check = (condition, message) => {
 const work = await mkdtemp(path.join(tmpdir(), 'pulse-e2e-'));
 const s3 = await startFakeS3({ buckets: { musica: bucketObjects() } });
 await mkdir(OUTPUT, { recursive: true });
+
+// Una foto de artista ya encontrada en otra sesión (sin internet en la prueba): artists.json y covers/.
+await mkdir(path.join(work, 'perfil', 'covers'), { recursive: true });
+await writeFile(path.join(work, 'perfil', 'covers', 'e2e-kora.jpg'), KORA_PICTURE);
+await writeFile(path.join(work, 'perfil', 'artists.json'), JSON.stringify({ Kora: { coverName: 'e2e-kora.jpg', checkedAt: 1 } }));
 
 const app = await electron.launch({ args: ['.', `--user-data-dir=${path.join(work, 'perfil')}`], cwd: ROOT });
 try {
@@ -169,6 +174,11 @@ try {
   const cardOf = (name) => artistCards.find((card) => card.name === name);
   check(cardOf('Kora')?.count === '2 canciones' && cardOf('Aurora Vega')?.count === '3 canciones' && Boolean(cardOf(guest)), 'Artistas separa las colaboraciones');
   check(artistCards.every((card) => card.inside), 'Artistas: los nombres largos no se salen de su tarjeta');
+  await page.waitForFunction(() => {
+    const image = [...document.querySelectorAll('.card-grid .media-card')].find((card) => card.querySelector('.media-card__title').textContent === 'Kora')?.querySelector('img');
+    return image?.src.startsWith('media://artist/') && image.complete && image.naturalWidth > 0;
+  });
+  check(true, 'Artistas muestra la foto guardada del artista (media://artist/)');
   await shot('08b-artistas');
 
   // Subir canciones del ordenador: el diálogo de archivos del proceso main se sustituye por uno falso.
