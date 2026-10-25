@@ -16,6 +16,13 @@ describe('Settings', () => {
     assert.equal(settings.setOnlineLookup(false), false);
     assert.equal(new Settings(storage).onlineLookup(), false);
   });
+
+  test('el orden de la biblioteca se recuerda (null: el de siempre)', () => {
+    const storage = createStorage(createMemoryBackend());
+    assert.equal(new Settings(storage).librarySort(), null);
+    assert.equal(new Settings(storage).setLibrarySort('artist'), 'artist');
+    assert.equal(new Settings(storage).librarySort(), 'artist');
+  });
 });
 
 describe('LibraryService', () => {

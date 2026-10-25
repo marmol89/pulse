@@ -9,7 +9,7 @@ import { normalize, compareText } from '../lib/text.js';
  * @typedef {{ path: string, url: string, cover: string|null, title: string, artist: string,
  *   albumArtist: string, album: string, genre: string, trackNo: number, disc: number,
  *   year: number, duration: number, lyrics: string }} Track
- * @typedef {{ kind: string, key?: string }} CollectionSource
+ * @typedef {{ kind: string, key?: string, sort?: string, filter?: string }} CollectionSource
  * @typedef {{ source: CollectionSource, title: string, byline: string, tracks: Track[] }} Collection
  */
 export class Catalog extends Colleague {
@@ -98,12 +98,22 @@ export class Catalog extends Colleague {
       .sort((a, b) => compareText(a.name, b.name));
   }
 
+  /**
+   * Toda la biblioteca en el orden elegido (`LIBRARY_SORTS`; si no, las añadidas recientemente primero)
+   * y, con `filter`, solo las que tienen todas sus palabras en el título, el artista o el álbum.
+   */
+  library({ sort, filter = '' } = {}) {
+    const terms = normalize(filter).split(/\s+/).filter(Boolean);
+    const tracks = terms.length > 0 ? this.all().filter((track) => matchScore(track, terms.join(' '), terms) !== null) : this.all();
+    return tracks.sort(LIBRARY_SORTS[sort] ?? LIBRARY_SORTS[DEFAULT_LIBRARY_SORT]);
+  }
+
   /** @param {CollectionSource} source @returns {Collection} */
   collection(source) {
     const { kind, key } = source;
     switch (kind) {
       case 'library':
-        return { source, title: 'Tu biblioteca', byline: 'Creado por ti', tracks: this.all() };
+        return { source, title: 'Tu biblioteca', byline: 'Creado por ti', tracks: this.library(source) };
       case 'album': {
         const tracks = this.all().filter((track) => albumKey(track) === key).sort(byDiscAndNumber);
         return { source, title: tracks[0]?.album ?? '', byline: tracks[0] ? albumArtistOf(tracks[0]) : '', tracks };
@@ -119,6 +129,19 @@ export class Catalog extends Colleague {
     }
   }
 }
+
+const DEFAULT_LIBRARY_SORT = 'added';
+const byTitle = (a, b) => compareText(a.title, b.title);
+const byAlbum = (a, b) => compareText(albumArtistOf(a), albumArtistOf(b)) || compareText(a.album, b.album) || byDiscAndNumber(a, b);
+
+/** Órdenes de "Tu biblioteca" (la vista pone los nombres). */
+const LIBRARY_SORTS = {
+  added: (a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0) || byTitle(a, b),
+  title: (a, b) => byTitle(a, b) || compareText(a.artist, b.artist),
+  artist: (a, b) => compareText(a.artist, b.artist) || byAlbum(a, b),
+  album: (a, b) => compareText(a.album, b.album) || byAlbum(a, b),
+  year: (a, b) => (b.year || 0) - (a.year || 0) || byAlbum(a, b),
+};
 
 export function albumKey(track) {
   return `${normalize(albumArtistOf(track))}::${normalize(track.album)}`;

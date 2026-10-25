@@ -27,6 +27,8 @@ export const EVENTS = Object.freeze({
   PREVIOUS: 'previous', // ()
   TRACK_SELECTED: 'track-selected', // ({ source, path })
   PLAY_COLLECTION: 'play-collection', // (source)
+  SORT_LIBRARY: 'sort-library', // (orden: 'added' | 'title' | 'artist' | 'album' | 'year')
+  FILTER_LIBRARY: 'filter-library', // (texto) — filtra "Tu biblioteca" que se está viendo
   ENDED: 'ended', // ()
 
   // Modos
