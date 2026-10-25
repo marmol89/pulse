@@ -33,16 +33,17 @@ src/backend/     lógica común a Electron y Android, SIN Node ni Electron (lo c
   library/       remote.js (id s3://bucket/clave, etiquetas leyendo el principio del objeto), sync.js
                  (biblioteca = bucket), upload.js (sube lo que da `collect`: {name,size,open}), metadata.js (copia en
                  metadatos/ del bucket), lists.js (listas de canciones: lists.js aquí y metadatos/listas.json),
-                 favorites.js (favoritos: favorites.json y metadatos/favoritos.json), shared.js (lo que comparten
-                 listas y favoritos: guardar aquí, subir, juntar copias por `updatedAt`),
+                 favorites.js (favoritos: favorites.json y metadatos/favoritos.json), recents.js (recientes:
+                 recents.json y metadatos/recientes.json), shared.js (lo que comparten listas, favoritos y
+                 recientes: guardar aquí, subir, juntar copias por `updatedAt`),
                  tracks.js (registro ↔ pista), store.js (library.json: caché local)
   online/        datos de internet: matching, itunes, deezer, lrclib, http, enricher, queue (ver abajo)
 src/main/        adaptador de Electron (NO forma parte del mediator)
   main.js        ventana, instancia única, sin navegación, --lang=es
   files.js       `files` sobre fs en userData; library/collect.js recorre archivos y carpetas para subir
   protocol/      media://track|cover/<id>: audio desde S3 con rangos, solo pistas de la biblioteca (403 si no)
-  ipc/           library.js (library:*, connection:*), metadata.js (metadata:*), lists.js (lists:*) y favorites.js
-                 (favorites:*); los usa el preload
+  ipc/           library.js (library:*, connection:*), metadata.js (metadata:*), lists.js (lists:*), favorites.js
+                 (favorites:*) y recents.js (recents:*); los usa el preload
 src/preload/preload.cjs   window.api (contextBridge, sandbox)
 src/android/     window.api de Android sobre el mismo backend (esbuild → www/api.js, antes que app.js)
   api.js         mismos métodos que el preload; audio con URLs firmadas de S3 (7 días)
@@ -106,6 +107,9 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   por canción (`deleted` al desmarcarla, para que otra copia no la vuelva a marcar). Se guardan en `favorites.json`,
   se suben a los 2 s y llegan como `favorites-changed`. El corazón cambia al momento y, si el main no puede guardarlo,
   vuelve atrás. Los de antes (en `localStorage`, solo de ese equipo) se suben una vez al arrancar con `import()`.
+- **Escuchado recientemente** (`recents.js`, sobre `shared.js`): `metadatos/recientes.json`, un registro por canción
+  con la última vez que sonó (gana la escucha más reciente; se guardan 100 y se ven 12). Se suben a los 2 s y llegan
+  como `recents-changed`; los de antes (en `localStorage`) se suben una vez al arrancar con `import()`.
 - Si una canción falla al sonar se comprueba en el bucket (`library:verify`); si ya no está, se quita.
 - Los tests nunca usan el S3 real: `tests/helpers/fakeS3.js` es un servidor S3 mínimo (listar, rangos, subidas, 403, solo lectura…).
 
