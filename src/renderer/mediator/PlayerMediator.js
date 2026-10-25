@@ -15,6 +15,7 @@ import errors from './handlers/errors.js';
 import lists from './handlers/lists.js';
 import listTracks from './handlers/listTracks.js';
 import artistPictures from './handlers/artistPictures.js';
+import queue from './handlers/queue.js';
 import resume from './handlers/resume.js';
 
 /**
@@ -51,6 +52,7 @@ export class PlayerMediator extends Mediator {
       .use(lists)
       .use(listTracks)
       .use(artistPictures)
+      .use(queue)
       .use(resume);
   }
 

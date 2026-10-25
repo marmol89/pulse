@@ -92,7 +92,7 @@ export function applyTrackUpdates(ctx, tracks) {
 export function resolveCollection(ctx, source) {
   switch (source.kind) {
     case 'queue':
-      return { source, title: 'Cola de reproducción', byline: 'Reproduciendo ahora', tracks: ctx.playlist.tracks() };
+      return { source, title: 'Cola de reproducción', byline: 'Reproduciendo ahora', tracks: ctx.playlist.ordered() };
     case 'favorites':
       return { source, title: 'Tus favoritos', byline: 'Creado por ti', tracks: ctx.catalog.byPaths(ctx.favorites.list()) };
     case 'recents':
@@ -110,6 +110,8 @@ export function resolveCollection(ctx, source) {
 
 /** Convierte una colección en la cola y empieza a sonar (por `startPath` si se indica). */
 export function playCollection(ctx, source, startPath = null) {
+  // En "Ver la cola" se salta a esa pista sin rehacer la cola (en aleatorio se volvería a barajar).
+  if (source.kind === 'queue') return loadTrack(ctx, ctx.playlist.jumpTo(startPath ?? ctx.playlist.ordered()[0]?.path));
   const collection = resolveCollection(ctx, source);
   const track = ctx.playlist.setQueue(collection.tracks, startPath);
   if (track) ctx.nowPlaying.setContext(collection.title);

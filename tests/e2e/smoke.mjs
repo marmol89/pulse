@@ -116,6 +116,24 @@ try {
   await page.waitForFunction(() => document.querySelector('.player__title')?.textContent === 'Luces de Neón');
   check(true, 'doble clic en una fila la reproduce');
 
+  // Cola editable: "⋯" › "Reproducir a continuación" y "Ver la cola" desde Reproduciendo.
+  await page.click('.view--collection .track-row:has-text("Atardecer") [data-action="more"]');
+  await page.waitForSelector('.menu .menu__item');
+  await shot('04b-menu-fila');
+  await page.click('.menu__item:has-text("Reproducir a continuación")');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'Sonará a continuación');
+  await page.click('.player__cover');
+  await page.waitForSelector('.now-playing.is-open');
+  await page.click('.now-playing [aria-label="Ver la cola"]');
+  await page.waitForSelector('.view--collection:not([hidden]) .track-row.is-active');
+  const queueTitles = await page.$$eval('.view--collection .track-row .track-row__title', (rows) => rows.map((row) => row.textContent));
+  const playingAt = queueTitles.indexOf('Luces de Neón');
+  check(playingAt >= 0 && queueTitles[playingAt + 1] === 'Atardecer', `"Reproducir a continuación" la pone detrás de la que suena (${queueTitles.join(', ')})`);
+  await page.click('.view--collection .track-row:has-text("Atardecer") [data-action="remove"]');
+  await page.waitForFunction(() => ![...document.querySelectorAll('.view--collection .track-row__title')].some((row) => row.textContent === 'Atardecer'));
+  check(true, '"Ver la cola" deja quitar canciones');
+  await shot('04c-cola');
+
   await page.click('.player__cover');
   await page.waitForSelector('.now-playing.is-open');
   check(await page.isVisible('.lyrics'), 'Reproduciendo muestra la tarjeta de letra si la pista tiene letra');
