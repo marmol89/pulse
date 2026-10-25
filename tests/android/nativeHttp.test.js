@@ -97,3 +97,30 @@ test('createCoverCache(): pide una vez cada carátula que falta, no reintenta la
   await cache.idle();
   assert.equal(ready.length, 1);
 });
+
+test('createCoverCache(): un fallo de red no cuenta como "no la tiene" y se vuelve a pedir', async () => {
+  const record = { path: 'a', hasCover: true, etag: '1' };
+  let fail = true;
+  let reads = 0;
+  const cache = createCoverCache({
+    files: { list: async () => [], write: async () => {} },
+    toUrl: (name) => `file:${name}`,
+    readEmbedded: async () => {
+      reads += 1;
+      if (fail) throw new Error('ECONNRESET');
+      return { data: Uint8Array.from([1]) };
+    },
+    readCover: async () => null,
+    getRecord: () => record,
+    onReady: () => {},
+    timers: { setTimeout: (task) => setImmediate(task), clearTimeout() {} },
+  });
+  await cache.load();
+  assert.equal(cache.url(record), null);
+  await cache.idle();
+  fail = false;
+  assert.equal(cache.url(record), null, 'se pide otra vez');
+  await cache.idle();
+  assert.equal(reads, 2);
+  assert.match(cache.url(record), /^file:embedded-/);
+});

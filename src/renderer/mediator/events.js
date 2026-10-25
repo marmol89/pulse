@@ -27,8 +27,19 @@ export const EVENTS = Object.freeze({
   PREVIOUS: 'previous', // ()
   TRACK_SELECTED: 'track-selected', // ({ source, path })
   PLAY_COLLECTION: 'play-collection', // (source)
+  SORT_LIBRARY: 'sort-library', // (orden: 'added' | 'title' | 'artist' | 'album' | 'year')
+  FILTER_LIBRARY: 'filter-library', // (texto) — filtra "Tu biblioteca" que se está viendo
   ENDED: 'ended', // () — con fundido, unos segundos antes del final
   NEAR_END: 'near-end', // () — quedan 20 s: momento de precargar la siguiente
+
+  // Temporizador de apagado
+  SET_SLEEP_TIMER: 'set-sleep-timer', // (minutos | 'track' | null) — null lo desactiva
+  SLEEP_TIMER_ENDED: 'sleep-timer-ended', // ()
+  // Cola editable ("⋯" de cada fila y "Ver la cola")
+  PLAY_NEXT: 'play-next', // (paths[]) — "Reproducir a continuación"
+  ENQUEUE: 'enqueue', // (paths[]) — "Añadir a la cola"
+  REMOVE_FROM_QUEUE: 'remove-from-queue', // (path)
+  MOVE_IN_QUEUE: 'move-in-queue', // ({ path, to }) — arrastrar en "Ver la cola" (to: posición final)
 
   // Modos
   TOGGLE_SHUFFLE: 'toggle-shuffle', // ()
@@ -61,6 +72,9 @@ export const EVENTS = Object.freeze({
   TOGGLE_FAVORITE: 'toggle-favorite', // (path?) — sin path, la pista actual
   FAVORITES_CHANGED: 'favorites-changed', // (paths[]) — llegaron cambios de otro equipo (las más recientes primero)
 
+  // Escuchado recientemente (en el bucket, como los favoritos)
+  RECENTS_CHANGED: 'recents-changed', // (paths[]) — llegaron cambios de otro equipo (la última que sonó primero)
+
   // Listas de canciones del usuario (en el bucket, compartidas con todos los Pulse conectados a él)
   LISTS_CHANGED: 'lists-changed', // (List[]) — llegaron cambios de otro equipo
   NEW_LIST: 'new-list', // (paths?) — "Nueva lista": pedir el nombre (con esas canciones dentro)
@@ -68,6 +82,7 @@ export const EVENTS = Object.freeze({
   CHOOSE_LIST: 'choose-list', // (path?) — "Añadir a una lista": sin path, la pista actual
   ADD_TO_LIST: 'add-to-list', // ({ id, paths })
   REMOVE_FROM_LIST: 'remove-from-list', // ({ id, path })
+  MOVE_IN_LIST: 'move-in-list', // ({ id, path, to }) — arrastrar una canción (to: posición final)
   EDIT_LIST: 'edit-list', // (id) — "Editar lista": renombrar o eliminar
   RENAME_LIST: 'rename-list', // ({ id, name })
   DELETE_LIST: 'delete-list', // (id)
@@ -77,4 +92,5 @@ export const EVENTS = Object.freeze({
   SET_CROSSFADE: 'set-crossfade', // (segundos: 0 = sin fundido)
   LOOKUP_TRACK: 'lookup-track', // (path) — búsqueda pedida por el usuario
   TRACKS_UPDATED: 'tracks-updated', // (Track[]) — completadas en segundo plano
+  ARTIST_PICTURES_CHANGED: 'artist-pictures-changed', // ({ nombre: URL }) — fotos de artista nuevas
 });

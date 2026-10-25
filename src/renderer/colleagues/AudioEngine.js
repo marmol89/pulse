@@ -38,6 +38,7 @@ export class AudioEngine extends Colleague {
   #nearEndSent = false;
   #endedEarly = false;
   #consecutiveErrors = 0;
+  #startAt = 0;
 
   constructor(audio, storage, devices = globalThis.navigator?.mediaDevices, { standby = null, timers = globalThis } = {}) {
     super();
@@ -70,6 +71,10 @@ export class AudioEngine extends Colleague {
     const on = (type, listener) => element.addEventListener(type, () => element === this.#audio && listener());
     on('timeupdate', () => this.#emitTime());
     on('durationchange', () => this.#emitTime());
+    on('loadedmetadata', () => {
+      if (this.#startAt > 0) element.currentTime = this.#startAt;
+      this.#startAt = 0;
+    });
     on('play', () => this.notify(EVENTS.STATE_CHANGE, { playing: true }));
     on('pause', () => this.notify(EVENTS.STATE_CHANGE, { playing: false }));
     on('playing', () => {
@@ -119,7 +124,8 @@ export class AudioEngine extends Colleague {
     this.#standbyUrl = url;
   }
 
-  load(url, autoplay = true) {
+  /** Carga una pista; con `startAt`, empieza en ese segundo (al retomar la sesión). */
+  load(url, autoplay = true, startAt = 0) {
     const previous = this.#audio;
     const crossfading = this.#endedEarly && autoplay && !previous.paused;
     const preloaded = Boolean(this.#standby) && this.#standbyUrl === url && !this.#standby.error;
@@ -128,6 +134,7 @@ export class AudioEngine extends Colleague {
     this.#queuedNext = null;
     this.#endedEarly = false;
     this.#nearEndSent = false;
+    this.#startAt = startAt > 0 ? startAt : 0;
     this.#hasTrack = true;
     this.#awaitingStart = true;
     if (swap) {
@@ -135,6 +142,10 @@ export class AudioEngine extends Colleague {
       this.#standby = previous;
       this.#stopFade(this.#audio);
       if (!preloaded) this.#audio.src = url;
+      else if (this.#startAt > 0) {
+        this.#audio.currentTime = this.#startAt; // ya conoce su duración: no habrá loadedmetadata
+        this.#startAt = 0;
+      }
       if (crossfading) this.#crossfadeFrom(previous);
       else this.#release(previous);
     } else {
@@ -293,6 +304,31 @@ export class AudioEngine extends Colleague {
   #setMuted(muted) {
     for (const element of this.#elements()) element.muted = muted;
     this.#storage.set(STORAGE_KEYS.muted, muted);
+  }
+
+  /**
+   * Baja el volumen poco a poco, pausa y lo deja como estaba (temporizador de apagado). El volumen
+   * guardado no cambia. Si no suena nada, solo resuelve.
+   */
+  fadeOut(ms = 4000, { steps = 20, timers = globalThis } = {}) {
+    if (!this.isPlaying()) return Promise.resolve();
+    const audio = this.#audio;
+    const start = audio.volume;
+    return new Promise((resolve) => {
+      let step = 0;
+      const tick = () => {
+        step += 1;
+        if (step < steps) {
+          audio.volume = start * (1 - step / steps);
+          timers.setTimeout(tick, ms / steps);
+          return;
+        }
+        this.pause();
+        audio.volume = start;
+        resolve();
+      };
+      timers.setTimeout(tick, ms / steps);
+    });
   }
 
   /** Pistas seguidas que han fallado sin que ninguna llegara a sonar. */

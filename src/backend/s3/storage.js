@@ -45,14 +45,14 @@ export function createS3Storage({ endpoint, accessKeyId, secretAccessKey, bucket
       return Buckets.map((entry) => entry.Name);
     },
 
-    /** Todos los archivos de audio del bucket (bajo el prefijo), con tamaño y ETag. */
+    /** Todos los archivos de audio del bucket (bajo el prefijo), con tamaño, ETag y fecha de subida (ms). */
     async listAudio() {
       const objects = [];
       let token;
       do {
         const page = await client.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix || undefined, ContinuationToken: token }));
         for (const item of page.Contents ?? []) {
-          if (isAudioFile(item.Key)) objects.push({ key: item.Key, size: item.Size ?? 0, etag: item.ETag ?? '' });
+          if (isAudioFile(item.Key)) objects.push({ key: item.Key, size: item.Size ?? 0, etag: item.ETag ?? '', lastModified: item.LastModified ? new Date(item.LastModified).getTime() : 0 });
         }
         token = page.IsTruncated ? page.NextContinuationToken : undefined;
       } while (token);

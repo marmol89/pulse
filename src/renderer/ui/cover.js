@@ -3,6 +3,7 @@ import { h } from './dom.js';
 /** Gradientes y formas decorativas de las portadas del diseño (Neón, Ola Azul, Atardecer, Selva). */
 const GRADIENTS = ['accent', 'cool', 'warm', 'green'];
 const SHAPES = ['rings', 'ring', 'disc', 'triangle'];
+const RETRY_MS = 4000; // una carátula que no cargó (S3 ocupado, red) se reintenta una vez
 
 /** FNV-1a de 32 bits: el mismo texto da siempre la misma portada. */
 export function hashString(text) {
@@ -25,9 +26,14 @@ export function trackSeed(track) {
   return track.album || track.title || track.path;
 }
 
+/** La misma URL con una marca de reintento, para que el navegador no reutilice el error. */
+export function retryUrl(src) {
+  return `${src}${src.includes('?') ? '&' : '?'}retry=1`;
+}
+
 /**
  * Portada: la carátula real si existe y carga; si no, la generada (queda debajo
- * de la imagen, así que un error de carga deja ver la generada).
+ * de la imagen, así que un error de carga deja ver la generada). Si falla, se reintenta una vez.
  * Usa `tag: 'span'` dentro de botones (un <div> no es válido ahí).
  */
 export function createCover({ src = null, seed = '', className = '', tag = 'div' } = {}) {
@@ -35,7 +41,13 @@ export function createCover({ src = null, seed = '', className = '', tag = 'div'
   const cover = h(tag, { class: `cover cover--${gradient} cover--${shape} ${className}`.trim() });
   if (src) {
     const image = h('img', { class: 'cover__image', src, alt: '', loading: 'lazy', decoding: 'async', draggable: 'false' });
-    image.addEventListener('error', () => image.remove(), { once: true });
+    image.addEventListener('error', function retry() {
+      image.removeEventListener('error', retry);
+      image.addEventListener('error', () => image.remove(), { once: true });
+      setTimeout(() => {
+        if (image.isConnected) image.src = retryUrl(src);
+      }, RETRY_MS);
+    });
     cover.append(image);
   }
   return cover;

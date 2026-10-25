@@ -5,7 +5,8 @@ import { EVENTS } from '../mediator/events.js';
  * Único colega que habla con el proceso main (window.api, expuesto por el preload).
  * La música vive en un bucket S3; la clave secreta nunca llega a la ventana.
  * Emite: tracks-updated (datos de internet en segundo plano), library-changed (cambios en el bucket),
- * upload-progress (subida de canciones en curso), lists-changed y favorites-changed (cambiados desde otro equipo).
+ * upload-progress (subida de canciones en curso), lists-changed, favorites-changed y recents-changed (cambiados desde
+ * otro equipo), artist-pictures-changed (fotos de artista encontradas en segundo plano).
  */
 export class LibraryService extends Colleague {
   #api;
@@ -18,6 +19,8 @@ export class LibraryService extends Colleague {
     api.onUploadProgress?.((progress) => this.notify(EVENTS.UPLOAD_PROGRESS, progress));
     api.onListsChanged?.((lists) => this.notify(EVENTS.LISTS_CHANGED, lists));
     api.onFavoritesChanged?.((paths) => this.notify(EVENTS.FAVORITES_CHANGED, paths));
+    api.onRecentsChanged?.((paths) => this.notify(EVENTS.RECENTS_CHANGED, paths));
+    api.onArtistPicturesChanged?.((pictures) => this.notify(EVENTS.ARTIST_PICTURES_CHANGED, pictures));
   }
 
   /** Biblioteca guardada (la última sincronización con el bucket). */
@@ -106,6 +109,11 @@ export class LibraryService extends Colleague {
     return this.#api.addToList(id, paths);
   }
 
+  /** Mueve una canción de la lista a la posición `to`. @returns {Promise<ListResult>} */
+  moveInList(id, path, to) {
+    return this.#api.moveInList(id, path, to);
+  }
+
   /** @returns {Promise<ListResult>} */
   removeFromList(id, path) {
     return this.#api.removeFromList(id, path);
@@ -134,7 +142,30 @@ export class LibraryService extends Colleague {
     return this.#api.importFavorites(paths);
   }
 
+  /**
+   * "Escuchado recientemente" (en el bucket, compartido con los demás equipos): rutas, la última que sonó primero.
+   * @typedef {{ ok: true, recents: string[] } | { ok: false, error: string }} RecentResult
+   */
+  recents() {
+    return this.#api.getRecents();
+  }
+
+  /** Ha empezado a sonar. @returns {Promise<RecentResult>} */
+  addRecent(path) {
+    return this.#api.addRecent(path);
+  }
+
+  /** Sube los recientes que solo estaban en este equipo (de la más antigua a la más reciente). @returns {Promise<RecentResult>} */
+  importRecents(paths) {
+    return this.#api.importRecents(paths);
+  }
+
   /** Activa o desactiva la búsqueda en segundo plano del proceso main. */
+  /** Fotos de artista ya guardadas ({ nombre: URL }); las que faltan se buscan y llegan como artist-pictures-changed. */
+  async getArtistPictures(names) {
+    return (await this.#api.getArtistPictures?.(names)) ?? {};
+  }
+
   setOnlineLookup(enabled) {
     return this.#api.setOnlineLookup(enabled);
   }

@@ -1,7 +1,7 @@
 import { EVENTS } from '../events.js';
 import { applyLists } from '../actions.js';
 
-/** Canciones de las listas: elegir a qué lista va una, añadirla y quitarla. */
+/** Canciones de las listas: elegir a qué lista va una, añadirla, moverla y quitarla. */
 export default {
   [EVENTS.CHOOSE_LIST](ctx, path) {
     const target = path ?? ctx.playlist.current()?.path;
@@ -16,6 +16,12 @@ export default {
     applyLists(ctx, result.lists);
     const name = ctx.lists.get(id)?.name;
     ctx.toast.show(added ? `Añadida a «${name}»` : `Ya estaba en «${name}»`);
+  },
+
+  async [EVENTS.MOVE_IN_LIST](ctx, { id, path, to }) {
+    const result = await ctx.library.moveInList(id, path, to);
+    if (!result.ok) return ctx.toast.show(result.error, { tone: 'error' });
+    applyLists(ctx, result.lists);
   },
 
   async [EVENTS.REMOVE_FROM_LIST](ctx, { id, path }) {

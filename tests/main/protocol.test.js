@@ -86,6 +86,18 @@ describe('protocol/responses', () => {
 
       const withoutCover = { isAllowed: () => true, readCover: async () => null };
       assert.equal((await respondToMedia(mediaUrl('cover', id), null, withoutCover)).status, 404);
+
+      const failing = { isAllowed: () => true, readCover: async () => Promise.reject(new Error('S3 ocupado')) };
+      assert.equal((await respondToMedia(mediaUrl('cover', id), null, failing)).status, 503, 'un fallo no es "sin carátula"');
+    });
+
+    test('respondToMedia() sirve fotos de artista, y solo esas', async () => {
+      const jpeg = Uint8Array.from([0xff, 0xd8]);
+      const deps = { isAllowed: () => false, readArtist: async (name) => (name === 'abc.jpg' ? jpeg : null) };
+      const response = await respondToMedia(mediaUrl('artist', 'abc.jpg'), null, deps);
+      assert.equal(response.headers.get('content-type'), 'image/jpeg');
+      assert.deepEqual(new Uint8Array(await response.arrayBuffer()), jpeg);
+      assert.equal((await respondToMedia(mediaUrl('artist', '../s3.json'), null, deps)).status, 403);
     });
   });
 });

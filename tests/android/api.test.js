@@ -88,16 +88,11 @@ describe('android/api (window.api sobre el backend compartido)', () => {
     assert.equal((await api.loadLibrary()).length, 2);
   });
 
-  test('la carátula incrustada se guarda en covers/ en segundo plano y la pista se repinta', async () => {
-    const updated = waitFor(api.onTracksUpdated, (tracks) => tracks.some((track) => track.cover));
-    const [first] = (await api.loadLibrary()).filter((track) => track.title === 'Luces de Neón');
-    const [track] = (await updated).filter((item) => item.cover);
-
-    assert.equal(first.cover, null, 'mientras no está en el móvil, la generada');
+  test('la carátula incrustada se guarda en covers/ al sincronizar, sin descargarla otra vez', async () => {
+    const [track] = (await api.loadLibrary()).filter((item) => item.title === 'Luces de Neón');
     assert.match(track.cover, /^https:\/\/localhost\/_capacitor_file_\/covers\/embedded-[0-9a-f]{16}\.jpg$/);
     const name = track.cover.split('/').pop();
     assert.deepEqual(Buffer.from(fs.entries.get(`covers/${name}`).data, 'base64'), Buffer.from(cover));
-    assert.equal((await api.loadLibrary()).find((item) => item.path === track.path).cover, track.cover, 'ya está: sale directamente');
   });
 
   test('las listas se guardan en el móvil y se suben a metadatos/listas.json del bucket', async () => {

@@ -151,6 +151,24 @@ describe('library/sync', () => {
     assert.equal(store.saves, saves + 1);
   });
 
+  test('cada pista lleva la fecha de subida del bucket; a las de antes se les pone sin releerlas', async () => {
+    s3.put('musica', 'pop/a.wav', wav('Luces de Neón'), new Date('2026-03-01T10:00:00Z'));
+    await sync.sync();
+    assert.equal(store.get('s3://musica/pop/a.wav').addedAt, Date.parse('2026-03-01T10:00:00Z'));
+
+    const { addedAt, ...older } = store.get('s3://musica/pop/b.wav'); // guardada por una versión sin fechas
+    store.add([older]);
+    const updated = [];
+    const reads = [];
+    const again = createLibrarySync({ toTrack: mediaTrack, store, getStorage: () => storage, onChange: (change) => changes.push(change), onUpdated: (tracks) => updated.push(tracks), readRecord: async (_, object) => reads.push(object.key) });
+
+    await again.sync();
+
+    assert.deepEqual(reads, []);
+    assert.equal(store.get('s3://musica/pop/b.wav').addedAt, addedAt);
+    assert.deepEqual(updated.map((tracks) => tracks.map((t) => [t.title, t.addedAt])), [[['Ola Azul', addedAt]]]);
+  });
+
   test('verify() confirma las que siguen y quita las borradas', async () => {
     await sync.sync();
     s3.remove('musica', 'pop/b.wav');

@@ -33,16 +33,18 @@ src/backend/     lógica común a Electron y Android, SIN Node ni Electron (lo c
   library/       remote.js (id s3://bucket/clave, etiquetas leyendo el principio del objeto), sync.js
                  (biblioteca = bucket), upload.js (sube lo que da `collect`: {name,size,open}), metadata.js (copia en
                  metadatos/ del bucket), lists.js (listas de canciones: lists.js aquí y metadatos/listas.json),
-                 favorites.js (favoritos: favorites.json y metadatos/favoritos.json), shared.js (lo que comparten
-                 listas y favoritos: guardar aquí, subir, juntar copias por `updatedAt`),
-                 tracks.js (registro ↔ pista), store.js (library.json: caché local)
+                 favorites.js (favoritos: favorites.json y metadatos/favoritos.json), recents.js (recientes:
+                 recents.json y metadatos/recientes.json), shared.js (lo que comparten listas, favoritos y
+                 recientes: guardar aquí, subir, juntar copias por `updatedAt`),
+                 tracks.js (registro ↔ pista), store.js (library.json: caché local), covers.js (carátulas
+                 incrustadas en covers/: se guardan al sincronizar y se leen del bucket como mucho 4 a la vez)
   online/        datos de internet: matching, itunes, deezer, lrclib, http, enricher, queue (ver abajo)
 src/main/        adaptador de Electron (NO forma parte del mediator)
   main.js        ventana, instancia única, sin navegación, --lang=es
   files.js       `files` sobre fs en userData; library/collect.js recorre archivos y carpetas para subir
   protocol/      media://track|cover/<id>: audio desde S3 con rangos, solo pistas de la biblioteca (403 si no)
-  ipc/           library.js (library:*, connection:*), metadata.js (metadata:*), lists.js (lists:*) y favorites.js
-                 (favorites:*); los usa el preload
+  ipc/           library.js (library:*, connection:*), metadata.js (metadata:*), lists.js (lists:*), favorites.js
+                 (favorites:*) y recents.js (recents:*); los usa el preload
 src/preload/preload.cjs   window.api (contextBridge, sandbox)
 src/android/     window.api de Android sobre el mismo backend (esbuild → www/api.js, antes que app.js)
   api.js         mismos métodos que el preload; audio con URLs firmadas de S3 (7 días)
@@ -56,12 +58,14 @@ src/renderer/
   app.js         raíz de composición: crea colegas → PlayerMediator → app-ready
   core/          Mediator (solo enruta) y Colleague
   mediator/      PlayerMediator (solo compone), events.js, actions.js, handlers/ (uno por caso de uso)
-  colleagues/    modelos (Catalog, Playlist = la cola, Lists = listas del usuario, Favorites, Recents, Settings),
-                 servicios (AudioEngine, LibraryService, MediaSessionBridge) y vistas (Router, HomeView,
+  colleagues/    modelos (Catalog, Playlist = la cola, Lists = listas del usuario, Favorites, Recents, Settings,
+                 Session = lo que sonaba al cerrar, para retomarlo),
+                 servicios (AudioEngine, LibraryService, MediaSessionBridge, SleepTimer) y vistas (Router, HomeView,
                  PlaylistView, SearchView, NowPlayingView, ControlsView, ToastView, ConnectionView,
                  ListDialog, KeyboardShortcuts)
-  ui/            piezas de UI sin estado de negocio (dom, icons, cover, format, trackList, transport)
-  lib/           utilidades puras (storage, text)
+  ui/            piezas de UI sin estado de negocio (dom, icons, cover, format, trackList, transport, menu: el «⋯»
+                 de las filas, reorder: arrastrar filas con el asa y Alt+↑/↓)
+  lib/           utilidades puras (storage, text, artists: separar colaboraciones)
   styles/        tokens.css (único sitio con valores), layout.css, components.css
 tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con ID3, FakeAudio) + e2e/
 ```
@@ -92,8 +96,14 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   cifrada (`safeStorage`: DPAPI en Windows, llavero en Linux) y la clave secreta nunca vuelve a la ventana.
 - La biblioteca es el contenido del bucket (`sync.js`): se sincroniza al arrancar, al volver a la ventana
   (como mucho cada 15 s) y con "Actualizar biblioteca". Nuevo, cambiado (ETag) o borrado → `library-changed`.
+- "Tu biblioteca" se ordena (añadidas recientemente, por la fecha de subida `addedAt` del listado; título, artista,
+  álbum o año: `Catalog.library()`, recordado en `Settings`) y se filtra con el campo de su cabecera (handler `librarySort.js`).
 - Las etiquetas se leen descargando solo los primeros 512 KB (más si la etiqueta ID3 es grande). Las que están
   al final de archivos grandes no se leen; con "Datos de internet" se completan desde el nombre del archivo.
+- **Carátulas incrustadas**: al leer las etiquetas, la imagen se guarda en `covers/` (`covers.js`; en Android,
+  `src/android/covers.js`), así no se vuelve a descargar el archivo para pintarla. Si falta, se lee del bucket
+  (máx. 4 a la vez). Un fallo de red **no** cuenta como "sin carátula": el protocolo responde 503 y la vista
+  reintenta una vez; "no tiene" sí se recuerda.
 - **Subir canciones**: botón "Subir canciones" (diálogo del main) o arrastrar archivos/carpetas a la ventana
   (`webUtils.getPathForFile` en el preload). `upload.js` sube de una en una bajo la carpeta de la conexión
   (una carpeta conserva su nombre: "Disco/01.mp3"), **nunca sobrescribe** (mismo archivo → se salta; otro con
@@ -113,6 +123,9 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   por canción (`deleted` al desmarcarla, para que otra copia no la vuelva a marcar). Se guardan en `favorites.json`,
   se suben a los 2 s y llegan como `favorites-changed`. El corazón cambia al momento y, si el main no puede guardarlo,
   vuelve atrás. Los de antes (en `localStorage`, solo de ese equipo) se suben una vez al arrancar con `import()`.
+- **Escuchado recientemente** (`recents.js`, sobre `shared.js`): `metadatos/recientes.json`, un registro por canción
+  con la última vez que sonó (gana la escucha más reciente; se guardan 100 y se ven 12). Se suben a los 2 s y llegan
+  como `recents-changed`; los de antes (en `localStorage`) se suben una vez al arrancar con `import()`.
 - Si una canción falla al sonar se comprueba en el bucket (`library:verify`); si ya no está, se quita.
 - Los tests nunca usan el S3 real: `tests/helpers/fakeS3.js` es un servidor S3 mínimo (listar, rangos, subidas, 403, solo lectura…).
 
@@ -161,7 +174,13 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   (`queue.js`: una pista cada 3,5 s, ~17/min, por debajo del límite de iTunes). Lo no encontrado se marca y no se repite
   (salvo una vez al subir `LOOKUP_VERSION` en `enricher.js`, cuando la búsqueda mejora). Si LRCLIB falla un
   momento (da 503 a ratos), se guardan los datos y solo la letra queda pendiente.
+- LRCLIB da también la letra **sincronizada** (`syncedLyrics`, formato LRC, versión de letra `LYRICS_VERSION`): en
+  Reproduciendo se resalta el verso que suena (`lib/lrc.js`) y pulsar uno salta a él. La letra del archivo no se pisa.
 - Se guarda en `library.json` y las carátulas en `userData/covers/` (compartidas por álbum): funciona sin conexión.
+- **Fotos de artista** (`online/artists.js`): Deezer `/search/artist` (mismo nombre y foto de verdad), de una en una en
+  segundo plano y solo con "Datos de internet". Se guardan en `covers/` y lo buscado en `artists.json` (solo en ese
+  equipo, no van al bucket). La ventana las pide al cambiar la biblioteca (`artists:pictures`) y las nuevas llegan como
+  `artist-pictures-changed`; en Electron se sirven por `media://artist/<archivo>` (solo fotos de artista).
 - **Privacidad**: envía título y artista a esos servicios. Interruptor "Datos de internet" en la sidebar
   (`Settings`, activado por defecto). "Buscar en internet" en Reproduciendo fuerza la búsqueda de una pista.
 - El e2e la desactiva antes de importar: los tests nunca llaman a servicios reales (los unitarios usan `fakeFetch`).

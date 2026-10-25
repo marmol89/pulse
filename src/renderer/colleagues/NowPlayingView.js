@@ -4,15 +4,26 @@ import { h, iconButton, favoriteButton, setFavoriteButton } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { createCover, trackSeed } from '../ui/cover.js';
 import { createSeekBar, createTransport } from '../ui/transport.js';
-import { formatDeviceLabel, trackDetails } from '../ui/format.js';
+import { formatClock, formatDeviceLabel, trackDetails } from '../ui/format.js';
+import { parseLrc, activeLine } from '../lib/lrc.js';
 
 const DEFAULT_DEVICE_LABEL = 'Este equipo';
+/** Opciones del temporizador de apagado: minutos, 'track' (al acabar la canción) o null (desactivado). */
+const SLEEP_OPTIONS = [
+  [null, 'Desactivado'],
+  [15, '15 minutos'],
+  [30, '30 minutos'],
+  [45, '45 minutos'],
+  [60, '1 hora'],
+  ['track', 'Al acabar esta canción'],
+];
 
 /**
  * Pantalla 02 · Reproduciendo (overlay): portada grande, título, artista,
- * progreso, controles, salida de audio ("Altavoz de la sala"), cola, información y letra.
+ * progreso, controles, salida de audio ("Altavoz de la sala"), cola, información y letra
+ * (sincronizada si la hay: el verso que suena se resalta y pulsar uno salta a él).
  * Emite: close-now-playing, toggle-favorite, seek, controles de transporte,
- * show-output-devices, output-device-change, open-collection (cola), lookup-track, choose-list.
+ * show-output-devices, output-device-change, open-collection (cola), lookup-track, choose-list, set-sleep-timer.
  */
 export class NowPlayingView extends Colleague {
   #art;
@@ -28,8 +39,14 @@ export class NowPlayingView extends Colleague {
   #lyrics;
   #lyricsText;
   #lyricsToggle;
+  #lyricLines = [];
+  #activeLine = -1;
   #infoList;
   #lookupButton;
+  #sleepButton;
+  #sleepLabel;
+  #sleepMenu;
+  #sleepState = { mode: 'off', endsAt: 0 };
   #currentPath = null;
 
   constructor(root) {
@@ -70,7 +87,7 @@ export class NowPlayingView extends Colleague {
             h('div', { class: 'now-playing__info' }, h('div', { class: 'now-playing__text' }, this.#title, this.#artist), addToList, this.#favorite),
             this.#seek.element,
             this.#transport.element,
-            h('div', { class: 'now-playing__actions' }, this.#createDevicePicker(), queue),
+            h('div', { class: 'now-playing__actions' }, this.#createDevicePicker(), h('div', { class: 'now-playing__end-actions' }, this.#createSleepPicker(), queue)),
             this.#createInfo(),
             this.#createLyrics(),
           ),
@@ -90,8 +107,7 @@ export class NowPlayingView extends Colleague {
     this.#infoList.replaceChildren(
       ...trackDetails(track).map(([label, value]) => h('div', { class: 'info-card__row' }, h('dt', {}, label), h('dd', {}, value))),
     );
-    this.#lyrics.hidden = !track.lyrics;
-    this.#lyricsText.textContent = track.lyrics ?? '';
+    this.#renderLyrics(track);
     if (!samePath) this.#setLyricsOpen(false);
   }
 
@@ -109,6 +125,7 @@ export class NowPlayingView extends Colleague {
 
   setProgress(current, duration) {
     this.#seek.setProgress(current, duration);
+    this.#syncLyrics(current);
   }
 
   setPlaying(playing) {
@@ -182,6 +199,67 @@ export class NowPlayingView extends Colleague {
     return h('div', { class: 'device', hidden: !canChoose }, this.#device, this.#deviceMenu);
   }
 
+  /** Temporizador de apagado activo ({ mode, endsAt } de SleepTimer): el botón dice hasta cuándo. */
+  setSleepTimer(state) {
+    this.#sleepState = state;
+    const active = state.mode !== 'off';
+    this.#sleepLabel.textContent = state.mode === 'track' ? 'Fin de la canción' : active ? `Hasta las ${formatClock(state.endsAt)}` : '';
+    this.#sleepLabel.hidden = !active;
+    this.#sleepButton.classList.toggle('is-external', active);
+    this.#sleepButton.setAttribute('aria-label', active ? `Temporizador: ${this.#sleepLabel.textContent}` : 'Temporizador de apagado');
+  }
+
+  #createSleepPicker() {
+    this.#sleepLabel = h('span', { class: 'ellipsis', hidden: true });
+    this.#sleepButton = h(
+      'button',
+      { type: 'button', class: 'device__button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': 'Temporizador de apagado', title: 'Temporizador de apagado' },
+      icon('timer'),
+      this.#sleepLabel,
+    );
+    this.#sleepMenu = h('ul', { class: 'device__menu device__menu--end', role: 'menu', 'aria-label': 'Temporizador de apagado', hidden: true });
+    this.#sleepButton.addEventListener('click', () => (this.#sleepMenu.hidden ? this.#openSleepMenu() : this.#closeSleepMenu()));
+    this.#sleepMenu.addEventListener('click', (event) => {
+      const option = event.target.closest('[data-sleep]');
+      if (!option) return;
+      this.#closeSleepMenu();
+      this.#sleepButton.focus(); // el foco no se queda en el menú oculto
+      const [choice] = SLEEP_OPTIONS[Number(option.dataset.sleep)];
+      this.notify(EVENTS.SET_SLEEP_TIMER, choice);
+    });
+    this.#sleepMenu.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault(); // que Esc cierre solo el menú, no el overlay
+      this.#closeSleepMenu();
+      this.#sleepButton.focus();
+    });
+    document.addEventListener('pointerdown', (event) => {
+      if (!this.#sleepMenu.hidden && !event.target.closest('.sleep-timer')) this.#closeSleepMenu();
+    });
+    return h('div', { class: 'device sleep-timer' }, this.#sleepButton, this.#sleepMenu);
+  }
+
+  #openSleepMenu() {
+    const current = this.#sleepState.mode === 'track' ? 'track' : this.#sleepState.mode === 'off' ? null : undefined;
+    this.#sleepMenu.replaceChildren(
+      ...SLEEP_OPTIONS.map(([choice, label], index) =>
+        h(
+          'li',
+          { role: 'none' },
+          h('button', { type: 'button', class: 'device__option', role: 'menuitemradio', 'aria-checked': String(choice === current), 'data-sleep': String(index) }, label),
+        ),
+      ),
+    );
+    this.#sleepMenu.hidden = false;
+    this.#sleepButton.setAttribute('aria-expanded', 'true');
+    this.#sleepMenu.querySelector('button')?.focus();
+  }
+
+  #closeSleepMenu() {
+    this.#sleepMenu.hidden = true;
+    this.#sleepButton.setAttribute('aria-expanded', 'false');
+  }
+
   #closeDeviceMenu() {
     this.#deviceMenu.hidden = true;
     this.#device.setAttribute('aria-expanded', 'false');
@@ -222,5 +300,40 @@ export class NowPlayingView extends Colleague {
     this.#lyricsText.hidden = !open;
     this.#lyricsToggle.textContent = open ? 'Ocultar' : 'Mostrar';
     this.#lyricsToggle.setAttribute('aria-expanded', String(open));
+    if (open) this.#scrollToActive('instant');
+  }
+
+  /** Letra sincronizada: un botón por verso (pulsarlo salta a él); si no, el texto plano. */
+  #renderLyrics(track) {
+    const lines = parseLrc(track.syncedLyrics);
+    this.#lyrics.hidden = !track.lyrics && lines.length === 0;
+    this.#lyricsText.classList.toggle('lyrics__text--synced', lines.length > 0);
+    this.#activeLine = -1;
+    this.#lyricLines = lines.map(({ time, text }) => {
+      const line = h('button', { type: 'button', class: 'lyrics__line' }, text || '♪');
+      line.addEventListener('click', () => this.notify(EVENTS.SEEK, time));
+      return { time, element: line };
+    });
+    if (lines.length > 0) this.#lyricsText.replaceChildren(...this.#lyricLines.map(({ element }) => element));
+    else this.#lyricsText.textContent = track.lyrics ?? '';
+  }
+
+  #syncLyrics(seconds) {
+    const index = activeLine(this.#lyricLines, seconds);
+    if (index === this.#activeLine) return;
+    this.#lyricLines[this.#activeLine]?.element.classList.remove('is-active');
+    this.#lyricLines[this.#activeLine]?.element.removeAttribute('aria-current');
+    this.#activeLine = index;
+    this.#lyricLines[index]?.element.classList.add('is-active');
+    this.#lyricLines[index]?.element.setAttribute('aria-current', 'true');
+    this.#scrollToActive('smooth');
+  }
+
+  /** Centra el verso que suena dentro de la tarjeta de letra (sin mover el resto de la pantalla). */
+  #scrollToActive(behavior) {
+    const line = this.#lyricLines[this.#activeLine]?.element;
+    const box = this.#lyricsText;
+    if (!line || box.hidden) return;
+    box.scrollTo({ top: line.offsetTop - (box.clientHeight - line.offsetHeight) / 2, behavior });
   }
 }
