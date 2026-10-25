@@ -32,9 +32,10 @@ await mkdir(path.join(work, 'perfil', 'covers'), { recursive: true });
 await writeFile(path.join(work, 'perfil', 'covers', 'e2e-kora.jpg'), KORA_PICTURE);
 await writeFile(path.join(work, 'perfil', 'artists.json'), JSON.stringify({ Kora: { coverName: 'e2e-kora.jpg', checkedAt: 1 } }));
 
-const app = await electron.launch({ args: ['.', `--user-data-dir=${path.join(work, 'perfil')}`], cwd: ROOT });
+const launch = () => electron.launch({ args: ['.', `--user-data-dir=${path.join(work, 'perfil')}`], cwd: ROOT });
+let app = await launch();
 try {
-  const page = await app.firstWindow();
+  let page = await app.firstWindow();
   // Sin animaciones: si la ventana queda tapada, Windows no pinta frames y las
   // transiciones se quedarían a medias en la captura.
   const shot = (name) => page.screenshot({ path: path.join(OUTPUT, `${name}.png`), animations: 'disabled' });
@@ -350,6 +351,27 @@ try {
     (await page.locator('.view--collection .track-row:has-text("Fugaz")').count()) === 0,
     'una canción borrada del bucket se quita al intentar reproducirla',
   );
+
+  // Retomar: al cerrar y volver a abrir, la misma pista, en pausa y en el segundo en que se dejó.
+  const elapsed = () => page.textContent('.player .seek-bar__time');
+  await page.click('.nav__item:has-text("Biblioteca")');
+  await page.dblclick('.view--collection .track-row:has-text("Ola Azul")');
+  await page.waitForFunction(() => document.querySelector('.player__title')?.textContent === 'Ola Azul');
+  await page.waitForFunction(() => !['0:00', '0:01'].includes(document.querySelector('.player .seek-bar__time')?.textContent), null, { timeout: 8000 });
+  await page.click('.player .play-button');
+  await page.waitForSelector('.player .play-button[aria-label="Reproducir"]');
+  const leftAt = await elapsed();
+  await app.close();
+  app = await launch();
+  page = await app.firstWindow();
+  const resumed = await page
+    .waitForFunction(() => document.querySelector('.player__title')?.textContent === 'Ola Azul', null, { timeout: 10000 })
+    .then(() => true, () => false);
+  await page.waitForFunction((at) => document.querySelector('.player .seek-bar__time')?.textContent === at, leftAt, { timeout: 5000 }).catch(() => {});
+  const resumedAt = await elapsed();
+  const paused = (await page.getAttribute('.player .play-button', 'aria-label')) === 'Reproducir';
+  check(resumed && paused && resumedAt === leftAt, `al volver a abrir retoma la pista en pausa donde se dejó (${resumedAt}; se dejó en ${leftAt})`);
+  await shot('10-retomar');
 } finally {
   await app.close();
   await s3.close();

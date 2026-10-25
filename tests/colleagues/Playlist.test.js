@@ -34,6 +34,38 @@ describe('Playlist', () => {
     assert.deepEqual(paths([playlist.previous(), playlist.previous(), playlist.previous()]), ['b', 'a', null]);
   });
 
+  test('snapshot() y restore() vuelven a la misma cola, orden, posición y modos', () => {
+    const original = new Playlist({ random: alwaysFirst });
+    original.setQueue(tracks('a', 'b', 'c', 'd'), 'b');
+    original.setShuffle(true);
+    original.next();
+    original.cycleRepeat();
+    const byPath = new Map(tracks('a', 'b', 'c', 'd').map((track) => [track.path, track]));
+
+    const restored = new Playlist();
+    assert.equal(restored.restore(original.snapshot(), (path) => byPath.get(path)).path, original.current().path);
+    assert.deepEqual(restored.snapshot(), original.snapshot());
+    assert.equal(restored.isShuffle(), true);
+    assert.equal(restored.repeatMode(), 'all');
+  });
+
+  test('restore() quita las pistas que ya no están y sigue por la siguiente', () => {
+    const original = new Playlist();
+    original.setQueue(tracks('a', 'b', 'c'), 'b');
+    const byPath = new Map(tracks('a', 'c').map((track) => [track.path, track]));
+    const restored = new Playlist();
+    assert.equal(restored.restore(original.snapshot(), (path) => byPath.get(path)).path, 'c');
+    assert.deepEqual(paths(restored.tracks()), ['a', 'c']);
+    assert.equal(new Playlist().restore(original.snapshot(), () => null), null);
+  });
+
+  test('restore() ignora un orden roto y usa el original', () => {
+    const byPath = new Map(tracks('a', 'b').map((track) => [track.path, track]));
+    const restored = new Playlist();
+    restored.restore({ paths: ['a', 'b'], order: [0, 0], position: 1, shuffle: true, repeat: 'raro' }, (path) => byPath.get(path));
+    assert.deepEqual(restored.snapshot(), { paths: ['a', 'b'], order: [0, 1], position: 1, shuffle: false, repeat: 'off' });
+  });
+
   test('cycleRepeat() recorre off → all → one → off', () => {
     const playlist = new Playlist();
     assert.equal(playlist.repeatMode(), 'off');

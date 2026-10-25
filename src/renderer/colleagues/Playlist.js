@@ -122,6 +122,28 @@ export class Playlist extends Colleague {
     return this.#repeat;
   }
 
+  /** Estado de la cola para guardarlo y retomarlo después: { paths, order, position, shuffle, repeat }. */
+  snapshot() {
+    return { paths: this.#tracks.map((track) => track.path), order: [...this.#order], position: this.#position, shuffle: this.#shuffle, repeat: this.#repeat };
+  }
+
+  /**
+   * Vuelve a una cola guardada con snapshot(). `trackOf(path)` da la pista actual de cada ruta; las que ya no
+   * están en la biblioteca se quitan (como con remove()). Devuelve la pista actual, o null si no queda ninguna.
+   */
+  restore(snapshot, trackOf) {
+    const paths = Array.isArray(snapshot?.paths) ? snapshot.paths : [];
+    const order = Array.isArray(snapshot?.order) ? snapshot.order : [];
+    const valid = order.length === paths.length && new Set(order).size === order.length && order.every((index) => Number.isInteger(index) && index >= 0 && index < paths.length);
+    this.#tracks = paths.map((path) => trackOf(path) ?? { path, missing: true });
+    this.#order = valid ? [...order] : paths.map((_, index) => index);
+    this.#position = this.#tracks.length === 0 ? -1 : Math.min(Math.max(Number(snapshot?.position) || 0, 0), this.#tracks.length - 1);
+    this.#shuffle = Boolean(snapshot?.shuffle) && valid;
+    this.#repeat = REPEAT_MODES.includes(snapshot?.repeat) ? snapshot.repeat : 'off';
+    this.remove(this.#tracks.filter((track) => track.missing).map((track) => track.path));
+    return this.current();
+  }
+
   /** Reconstruye el orden dejando `startIndex` como pista actual (si es válido). */
   #rebuildOrder(startIndex) {
     const indices = this.#tracks.map((_, index) => index);
