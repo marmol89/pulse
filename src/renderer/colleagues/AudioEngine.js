@@ -25,6 +25,7 @@ export class AudioEngine extends Colleague {
   #audio;
   #standby;
   #standbyUrl = null;
+  #queuedNext = null; // la siguiente, a la espera de que el otro elemento termine de apagarse
   #storage;
   #devices;
   #timers;
@@ -109,6 +110,10 @@ export class AudioEngine extends Colleague {
   /** Empieza a cargar la pista que sonará después, sin reproducirla. */
   prepareNext(url) {
     if (!this.#standby || !url || url === this.#standbyUrl) return;
+    if (this.#fades.has(this.#standby)) {
+      this.#queuedNext = url; // aún se está apagando la anterior: no cortarla
+      return;
+    }
     this.#release(this.#standby);
     this.#standby.src = url;
     this.#standbyUrl = url;
@@ -118,25 +123,27 @@ export class AudioEngine extends Colleague {
     const previous = this.#audio;
     const crossfading = this.#endedEarly && autoplay && !previous.paused;
     const preloaded = Boolean(this.#standby) && this.#standbyUrl === url && !this.#standby.error;
+    const swap = Boolean(this.#standby) && (preloaded || crossfading);
+    this.#standbyUrl = null;
+    this.#queuedNext = null;
     this.#endedEarly = false;
     this.#nearEndSent = false;
     this.#hasTrack = true;
     this.#awaitingStart = true;
-    if (preloaded || (crossfading && this.#standby)) {
+    if (swap) {
       this.#audio = this.#standby;
       this.#standby = previous;
       this.#stopFade(this.#audio);
       if (!preloaded) this.#audio.src = url;
       if (crossfading) this.#crossfadeFrom(previous);
       else this.#release(previous);
-      // La precargada ya conoce su duración (no habrá durationchange): la barra no se queda con el tiempo de la anterior.
-      this.#emitTime();
     } else {
       this.#release(this.#standby);
       this.#audio.src = url;
     }
-    this.#standbyUrl = null;
     if (autoplay) this.play();
+    // La precargada ya conoce su duración (no habrá durationchange): la barra no se queda con el tiempo de la anterior.
+    if (swap) this.#emitTime();
   }
 
   /** La pista que termina baja mientras la nueva sube, durante los segundos del fundido. */
@@ -144,7 +151,15 @@ export class AudioEngine extends Colleague {
     this.#gains.set(this.#audio, 0);
     this.#applyVolume(this.#audio);
     this.#fade(this.#audio, 1);
-    this.#fade(previous, 0, () => this.#release(previous));
+    this.#fade(previous, 0, () => this.#releaseFaded(previous));
+  }
+
+  /** Terminó de apagarse: ya se puede precargar ahí la siguiente. */
+  #releaseFaded(element) {
+    this.#release(element);
+    const next = this.#queuedNext;
+    this.#queuedNext = null;
+    if (next) this.prepareNext(next);
   }
 
   #fade(element, target, onDone = () => {}) {
@@ -207,7 +222,7 @@ export class AudioEngine extends Colleague {
   pause() {
     this.#audio.pause();
     // La que se estaba apagando en un fundido no sigue sonando sola.
-    for (const element of [...this.#fades.keys()]) if (element !== this.#audio) this.#release(element);
+    for (const element of [...this.#fades.keys()]) if (element !== this.#audio) this.#releaseFaded(element);
   }
 
   /** Deja de reproducir y olvida la pista (p. ej. porque su archivo ya no existe). */
@@ -217,6 +232,7 @@ export class AudioEngine extends Colleague {
     this.#audio.load();
     this.#release(this.#standby);
     this.#standbyUrl = null;
+    this.#queuedNext = null;
     this.#hasTrack = false;
     this.#awaitingStart = false;
     this.#endedEarly = false;

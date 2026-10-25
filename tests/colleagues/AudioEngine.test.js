@@ -261,6 +261,18 @@ describe('AudioEngine · sin cortes y fundido', () => {
     assert.equal(names(events).filter((name) => name === EVENTS.ENDED).length, 1, 'el final de verdad ya no avisa');
   });
 
+  test('durante el fundido, la siguiente se precarga cuando la anterior termina de apagarse', () => {
+    const { first, second, engine, timers } = setupTwo({ crossfade: 4 });
+    engine.load('media://track/a');
+    playTo(first, 197);
+    engine.load('media://track/b');
+    engine.prepareNext('media://track/c');
+    assert.equal(first.src, 'media://track/a', 'no corta la que se apaga');
+    timers.tick(80);
+    assert.equal(first.src, 'media://track/c');
+    assert.equal(second.src, 'media://track/b');
+  });
+
   test('pausar en mitad del fundido apaga también la que terminaba', () => {
     const { first, engine } = setupTwo({ crossfade: 4 });
     engine.load('media://track/a');
