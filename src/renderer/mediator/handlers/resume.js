@@ -13,7 +13,10 @@ export default {
   [EVENTS.ENDED]: saveQueue,
   [EVENTS.TOGGLE_SHUFFLE]: saveQueue,
   [EVENTS.CYCLE_REPEAT]: saveQueue,
-  [EVENTS.LIBRARY_CHANGED]: saveQueue, // pueden haber quitado pistas de la cola
+  [EVENTS.LIBRARY_CHANGED]: saveQueue,
+  [EVENTS.PLAY_NEXT]: saveQueue,
+  [EVENTS.ENQUEUE]: saveQueue,
+  [EVENTS.REMOVE_FROM_QUEUE]: saveQueue, // pueden haber quitado pistas de la cola
 
   [EVENTS.TIME_UPDATE](ctx, { current }) {
     ctx.session.saveTime(current);

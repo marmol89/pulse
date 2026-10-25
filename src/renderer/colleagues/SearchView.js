@@ -9,7 +9,7 @@ const DEFAULT_HINT = 'Busca entre las canciones de tu biblioteca por título, ar
 
 /**
  * Buscar: campo de búsqueda y resultados. Esc borra la búsqueda.
- * Emite: search, track-selected, toggle-favorite, choose-list.
+ * Emite: search, track-selected, toggle-favorite, choose-list, play-next, enqueue.
  */
 export class SearchView extends Colleague {
   #input;
@@ -44,6 +44,8 @@ export class SearchView extends Colleague {
       onPlay: (path) => this.notify(EVENTS.TRACK_SELECTED, { source: { kind: 'search', key: this.#query }, path }),
       onToggleFavorite: (path) => this.notify(EVENTS.TOGGLE_FAVORITE, path),
       onAddToList: (path) => this.notify(EVENTS.CHOOSE_LIST, path),
+      onPlayNext: (path) => this.notify(EVENTS.PLAY_NEXT, [path]),
+      onEnqueue: (path) => this.notify(EVENTS.ENQUEUE, [path]),
     });
     root.replaceChildren(
       h('h1', { class: 'view-title' }, 'Buscar'),
