@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.5.0](https://github.com/marmol89/pulse/compare/v0.4.0...v0.5.0) (2026-10-25)
+
+
+### Novedades
+
+* «Escuchado recientemente» sincronizado por el bucket ([#26](https://github.com/marmol89/pulse/issues/26)) ([a2bdc4a](https://github.com/marmol89/pulse/commit/a2bdc4a37bb621933b14a33991bd503d632737f1))
+* **android:** descargar canciones para escucharlas sin conexión ([#31](https://github.com/marmol89/pulse/issues/31)) ([859ffd2](https://github.com/marmol89/pulse/commit/859ffd23e4a99a7a4eba5ea96dfe0a17823f4354))
+* cola editable (reproducir a continuación, añadir a la cola, ver la cola) ([#23](https://github.com/marmol89/pulse/issues/23)) ([748efac](https://github.com/marmol89/pulse/commit/748efac67cf65d362cde9641ab15432c2d0a863d))
+* eliminar canciones del bucket con papelera ([#33](https://github.com/marmol89/pulse/issues/33)) ([6cea17a](https://github.com/marmol89/pulse/commit/6cea17a55b8347715f0d26a9119beca426947212))
+* fotos de artista desde Deezer ([#29](https://github.com/marmol89/pulse/issues/29)) ([9b5047a](https://github.com/marmol89/pulse/commit/9b5047a321ab8fba39e82921d23852a0a10a199e))
+* letra sincronizada ([#28](https://github.com/marmol89/pulse/issues/28)) ([10a1021](https://github.com/marmol89/pulse/commit/10a102145e430174839309aa1245005ed3565a03))
+* ordenar y filtrar la biblioteca ([#27](https://github.com/marmol89/pulse/issues/27)) ([7f6d157](https://github.com/marmol89/pulse/commit/7f6d157e8080f76d855c3bf2b24ee7e31fc6338a))
+* reordenar canciones de una lista y de «Ver la cola» ([#24](https://github.com/marmol89/pulse/issues/24)) ([7907657](https://github.com/marmol89/pulse/commit/790765713a50407cfab3dbfc4981ec0458440a20))
+* retomar donde lo dejaste al volver a abrir Pulse ([#22](https://github.com/marmol89/pulse/issues/22)) ([feb7aec](https://github.com/marmol89/pulse/commit/feb7aec1d2722d505585e98e613689bf9df8bca6))
+* sin cortes entre pistas y fundido ([#30](https://github.com/marmol89/pulse/issues/30)) ([9d35803](https://github.com/marmol89/pulse/commit/9d35803d6fcf3769dd18514df649a1d4e56f0d2e))
+* temporizador de apagado ([#25](https://github.com/marmol89/pulse/issues/25)) ([2d4bbd3](https://github.com/marmol89/pulse/commit/2d4bbd3d04ac440652bd0fad3d8eaf8c11f97860))
+
+
+### Correcciones
+
+* las carátulas incrustadas ya no aparecen a poquitos ([#20](https://github.com/marmol89/pulse/issues/20)) ([eb6e609](https://github.com/marmol89/pulse/commit/eb6e60989f087741650a4aa751cafd5979e604cc))
+* vista de Artistas (nombres que se pisan y colaboraciones) ([#21](https://github.com/marmol89/pulse/issues/21)) ([cc1f3f3](https://github.com/marmol89/pulse/commit/cc1f3f3786b087172e2eb3957fc4d36e8ce4bade))
+
 ## [0.4.0](https://github.com/marmol89/pulse/compare/v0.3.0...v0.4.0) (2026-10-25)
 
 

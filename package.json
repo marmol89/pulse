@@ -1,7 +1,7 @@
 {
   "name": "reproductor-mediator",
   "productName": "Pulse",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "description": "Reproductor de música para Windows, Linux y Android con Electron/Capacitor y patrón Mediator",
   "author": "marmol89 <admin@marmol89.com>",
