@@ -45,6 +45,7 @@ export class PlaylistView extends Colleague {
   #shuffle;
   #play;
   #edit;
+  #download;
   #list;
   #empty;
 
@@ -65,6 +66,10 @@ export class PlaylistView extends Colleague {
     });
     this.#edit = h('button', { type: 'button', class: 'button button--secondary collection-actions__edit', hidden: true }, icon('pencil'), 'Editar lista');
     this.#edit.addEventListener('click', () => this.notify(EVENTS.EDIT_LIST, this.#source.id));
+    this.#download = h('button', { type: 'button', class: 'button button--secondary collection-actions__download', hidden: true });
+    this.#download.addEventListener('click', () =>
+      this.notify(this.#download.dataset.state === 'all' ? EVENTS.REMOVE_DOWNLOADS : EVENTS.DOWNLOAD_COLLECTION, this.#source),
+    );
     this.#list = new TrackList({
       onPlay: (path) => this.notify(EVENTS.TRACK_SELECTED, { source: this.#source, path }),
       onToggleFavorite: (path) => this.notify(EVENTS.TOGGLE_FAVORITE, path),
@@ -88,7 +93,7 @@ export class PlaylistView extends Colleague {
           this.#stats,
         ),
       ),
-      h('div', { class: 'collection-actions' }, this.#edit, this.#shuffle, this.#play),
+      h('div', { class: 'collection-actions' }, this.#edit, this.#download, this.#shuffle, this.#play),
       this.#list.element,
       this.#empty,
     );
@@ -106,10 +111,24 @@ export class PlaylistView extends Colleague {
     this.#stats.textContent = collectionStats(tracks);
     const isList = source.kind === 'list';
     this.#edit.hidden = !isList;
+    this.#renderDownload(state.download ?? null, tracks.length);
     this.#list.render(tracks, { ...state, removable: isList });
     this.#empty.hidden = tracks.length > 0;
     this.#empty.textContent = EMPTY_MESSAGES[source.kind] ?? 'No hay canciones aquí.';
     this.#play.disabled = tracks.length === 0;
+  }
+
+  /** "Descargar" (sin conexión) en las colecciones que lo admiten; `download`: 'none' | 'downloading' | 'all' o null. */
+  #renderDownload(download, count) {
+    this.#download.hidden = !download || count === 0;
+    if (this.#download.hidden) return;
+    const labels = { none: ['download', 'Descargar'], downloading: ['download', 'Descargando…'], all: ['downloaded', 'Descargada'] };
+    const [name, label] = labels[download] ?? labels.none;
+    this.#download.dataset.state = download;
+    this.#download.disabled = download === 'downloading';
+    this.#download.setAttribute('aria-pressed', String(download === 'all'));
+    this.#download.title = download === 'all' ? 'Quitar la descarga del móvil' : 'Guardar en el móvil para escucharla sin conexión';
+    this.#download.replaceChildren(icon(name), label);
   }
 
   /** Colección visible (para repintarla si cambia la biblioteca). */

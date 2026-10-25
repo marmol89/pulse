@@ -16,6 +16,19 @@ export function formatDuration(seconds) {
 }
 
 /** plural(1, 'canción', 'canciones') → "1 canción". */
+/** Tamaño legible: "850 KB", "12 MB", "1,4 GB". */
+export function formatBytes(bytes) {
+  const units = ['KB', 'MB', 'GB'];
+  let value = Math.max(0, Number(bytes) || 0) / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  const digits = value < 10 && unit > 0 ? 1 : 0;
+  return `${value.toLocaleString('es', { maximumFractionDigits: digits })} ${units[unit]}`;
+}
+
 export function plural(count, singular, pluralForm) {
   return `${count} ${count === 1 ? singular : pluralForm}`;
 }
