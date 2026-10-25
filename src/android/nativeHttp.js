@@ -1,8 +1,9 @@
 /**
  * Red nativa de Android (plugin CapacitorHttp): las peticiones no salen del WebView, así que no
  * hay CORS ni con iTunes/Deezer/LRCLIB ni con el bucket. El plugin habla en texto: los cuerpos
- * binarios viajan en base64 (`dataType: 'file'`) y las respuestas binarias llegan en base64,
- * salvo el JSON (ya interpretado) y los errores (texto).
+ * binarios viajan en base64 (`dataType: 'file'`), salvo los de tipo application/json, que el plugin
+ * escribe tal cual (texto) sin decodificar; las respuestas binarias llegan en base64, salvo el JSON
+ * (ya interpretado) y los errores (texto).
  */
 
 const BODYLESS = new Set([101, 204, 205, 304]);
@@ -60,8 +61,12 @@ export async function nativeRequest(http, { url, method = 'GET', headers = {}, b
   if (timeout) Object.assign(options, { connectTimeout: timeout, readTimeout: timeout });
   if (bytes && bytes.length > 0) {
     // El plugin solo escribe el cuerpo si hay Content-Type.
-    if (!Object.keys(outgoing).some((name) => name.toLowerCase() === 'content-type')) outgoing['Content-Type'] = 'application/octet-stream';
-    Object.assign(options, { data: bytesToBase64(bytes), dataType: 'file' });
+    const typeHeader = Object.keys(outgoing).find((name) => name.toLowerCase() === 'content-type');
+    if (!typeHeader) outgoing['Content-Type'] = 'application/octet-stream';
+    // Con application/json escribe `data` como texto UTF-8 aunque se pida 'file' (CapacitorHttpUrlConnection.java):
+    // en base64 llegaría al bucket el base64, no el JSON.
+    if (String(outgoing[typeHeader] ?? '').includes('application/json')) Object.assign(options, { data: new TextDecoder().decode(bytes) });
+    else Object.assign(options, { data: bytesToBase64(bytes), dataType: 'file' });
   }
   const response = await http.request(options);
   const status = response.status;

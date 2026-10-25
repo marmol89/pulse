@@ -1,5 +1,6 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { createAndroidApi, collectFiles } from '../../src/android/api.js';
 import { createCapacitorFiles } from '../../src/android/files.js';
 import { createKeystoreCrypto } from '../../src/android/secret.js';
@@ -97,6 +98,30 @@ describe('android/api (window.api sobre el backend compartido)', () => {
     const name = track.cover.split('/').pop();
     assert.deepEqual(Buffer.from(fs.entries.get(`covers/${name}`).data, 'base64'), Buffer.from(cover));
     assert.equal((await api.loadLibrary()).find((item) => item.path === track.path).cover, track.cover, 'ya está: sale directamente');
+  });
+
+  test('las listas se guardan en el móvil y se suben a metadatos/listas.json del bucket', async () => {
+    const [track] = await api.loadLibrary();
+    const created = await api.createList('En el móvil', [track.path]);
+    assert.equal(created.ok, true, created.error);
+    assert.deepEqual((await api.getLists()).map(({ name, tracks }) => ({ name, tracks })), [{ name: 'En el móvil', tracks: [track.path] }]);
+    assert.deepEqual(await api.renameList(created.id, '  '), { ok: false, error: 'Ponle un nombre a la lista' });
+    await (await api.ready).lists.sync();
+    assert.equal(JSON.parse(s3.get('musica', 'metadatos/listas.json').toString()).lists[0].name, 'En el móvil');
+    assert.deepEqual((await api.deleteList(created.id)).lists, []);
+  });
+
+  test('metadatos/biblioteca.json llega al bucket como JSON (no en el base64 de la red nativa)', async () => {
+    await (await api.ready).metadata.flush();
+    const saved = JSON.parse(s3.get('musica', 'metadatos/biblioteca.json').toString());
+    assert.ok(saved.tracks.length > 0);
+  });
+
+  test('tiene los mismos métodos que el preload de Electron', async () => {
+    const preload = await readFile(new URL('../../src/preload/preload.cjs', import.meta.url), 'utf8');
+    const methods = [...preload.matchAll(/^ {2}(\w+): /gm)].map(([, name]) => name);
+    assert.ok(methods.length > 15);
+    for (const name of methods) assert.equal(typeof api[name], 'function', `falta ${name}`);
   });
 
   test('sube archivos elegidos en el móvil (File) sin sobrescribir y avisa del progreso', async () => {

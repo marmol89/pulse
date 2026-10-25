@@ -4,8 +4,8 @@ import { EVENTS } from '../mediator/events.js';
 /**
  * Único colega que habla con el proceso main (window.api, expuesto por el preload).
  * La música vive en un bucket S3; la clave secreta nunca llega a la ventana.
- * Emite: tracks-updated (datos de internet en segundo plano), library-changed (cambios en el bucket)
- * y upload-progress (subida de canciones en curso).
+ * Emite: tracks-updated (datos de internet en segundo plano), library-changed (cambios en el bucket),
+ * upload-progress (subida de canciones en curso) y lists-changed (listas cambiadas desde otro equipo).
  */
 export class LibraryService extends Colleague {
   #api;
@@ -16,6 +16,7 @@ export class LibraryService extends Colleague {
     api.onTracksUpdated?.((tracks) => this.notify(EVENTS.TRACKS_UPDATED, tracks));
     api.onLibraryChanged?.((change) => this.notify(EVENTS.LIBRARY_CHANGED, change));
     api.onUploadProgress?.((progress) => this.notify(EVENTS.UPLOAD_PROGRESS, progress));
+    api.onListsChanged?.((lists) => this.notify(EVENTS.LISTS_CHANGED, lists));
   }
 
   /** Biblioteca guardada (la última sincronización con el bucket). */
@@ -78,6 +79,40 @@ export class LibraryService extends Colleague {
    */
   lookup(id, { force = false } = {}) {
     return this.#api.lookupTrack(id, { force });
+  }
+
+  /**
+   * Listas de canciones (guardadas en el bucket, compartidas con los demás equipos).
+   * Las operaciones devuelven { ok: true, lists, id? } o { ok: false, error } con el motivo en español.
+   * @typedef {{ ok: true, lists: object[], id?: string } | { ok: false, error: string }} ListResult
+   */
+  lists() {
+    return this.#api.getLists();
+  }
+
+  /** @returns {Promise<ListResult>} con el `id` de la nueva */
+  createList(name, paths = []) {
+    return this.#api.createList(name, paths);
+  }
+
+  /** @returns {Promise<ListResult>} */
+  renameList(id, name) {
+    return this.#api.renameList(id, name);
+  }
+
+  /** Añade al final las que no estén ya. @returns {Promise<ListResult>} */
+  addToList(id, paths) {
+    return this.#api.addToList(id, paths);
+  }
+
+  /** @returns {Promise<ListResult>} */
+  removeFromList(id, path) {
+    return this.#api.removeFromList(id, path);
+  }
+
+  /** @returns {Promise<ListResult>} */
+  deleteList(id) {
+    return this.#api.deleteList(id);
   }
 
   /** Activa o desactiva la búsqueda en segundo plano del proceso main. */

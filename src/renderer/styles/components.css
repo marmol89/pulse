@@ -1344,3 +1344,134 @@
 .nav__status.is-off {
   color: var(--color-text-2);
 }
+
+/* ---------- Listas de canciones ---------- */
+
+/* Acciones de cada fila: "Quitar de la lista", "Añadir a una lista" y el corazón */
+.track-row__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.track-row .row-action {
+  opacity: 0;
+}
+
+.track-row:hover .row-action,
+.track-row:focus-within .row-action {
+  opacity: 1;
+}
+
+.row-action--remove:hover {
+  color: var(--color-accent);
+}
+
+/* En pantallas táctiles no hay "pasar el ratón": se ven siempre */
+@media (hover: none) {
+  .track-row .row-action {
+    opacity: 1;
+  }
+}
+
+/* "Tus listas" en la sidebar */
+.nav__item--list .icon {
+  flex: none;
+}
+
+.sidebar__lists-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Tarjeta "Nueva lista" en Inicio */
+.cover--new {
+  display: grid;
+  place-items: center;
+  background: var(--color-surface);
+  color: var(--color-text-2);
+}
+
+.cover--new .icon {
+  width: 36%;
+  height: 36%;
+}
+
+.media-card:hover .cover--new {
+  color: var(--color-text);
+}
+
+/* "Editar lista" a la izquierda; aleatorio y play, a la derecha */
+.collection-actions__edit {
+  margin-right: auto;
+}
+
+/* "Añadir a una lista" junto al corazón en Reproduciendo */
+.now-playing__info .now-playing__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.now-playing__add .icon {
+  width: 26px;
+  height: 26px;
+}
+
+/* Diálogo de las listas (mismo aspecto que el de la conexión) */
+.list-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.list-picker__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  height: 48px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-row);
+  background: var(--color-hover);
+  color: var(--color-text);
+  font-size: var(--fs-chip);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.list-picker__item:hover,
+.list-picker__item:focus-visible {
+  background: var(--color-overlay-light);
+}
+
+.list-picker__item .icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  color: var(--color-primary);
+}
+
+.list-picker__name {
+  flex: 1;
+  min-width: 0;
+}
+
+.list-picker__count {
+  color: var(--color-text-2);
+  font-size: var(--fs-small);
+  font-weight: 400;
+}
+
+.list-dialog__delete {
+  margin-right: auto;
+  color: var(--color-text-2);
+}
+
+.list-dialog__delete.is-confirming {
+  color: var(--color-accent);
+}

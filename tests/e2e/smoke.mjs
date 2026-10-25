@@ -196,6 +196,77 @@ try {
     `los metadatos se guardan en metadatos/biblioteca.json del bucket (${metadataTracks.length} canciones)`,
   );
 
+  // Listas de canciones: se crean en la app y se comparten en metadatos/listas.json del bucket.
+  await page.click('.sidebar__lists .nav__item:has-text("Nueva lista")');
+  await page.waitForSelector('.list-dialog[open]');
+  await page.fill('#list-dialog-name', 'Para correr');
+  await page.click('.list-dialog button[type="submit"]');
+  await page.waitForSelector('.view--collection:not([hidden]) .collection-header__title:has-text("Para correr")');
+  check(await page.isVisible('.collection-actions__edit'), '"Nueva lista" crea la lista y la abre, con "Editar lista"');
+  await shot('10-lista-vacia');
+
+  await page.click('.nav__item:has-text("Biblioteca")');
+  const selva = page.locator('.view--collection .track-row:has-text("Selva")').first();
+  await selva.hover();
+  await selva.locator('[data-action="add"]').click();
+  await page.waitForSelector('.list-dialog[open] .list-picker__item:has-text("Para correr")');
+  await shot('11-anadir-a-lista');
+  await page.click('.list-picker__item:has-text("Para correr")');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'Añadida a «Para correr»');
+  check(true, '"+" en una fila añade la canción a la lista elegida');
+
+  await page.click('.player__cover');
+  await page.click('.now-playing__add');
+  await page.fill('#list-dialog-name', 'En el coche');
+  await page.click('.list-dialog button[type="submit"]');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'Lista «En el coche» creada con 1 canción');
+  check(true, 'desde Reproduciendo se crea una lista con la canción que suena');
+  await page.keyboard.press('Escape');
+
+  await page.click('.sidebar__lists .nav__item:has-text("Para correr")');
+  await page.waitForSelector('.view--collection .track-row:has-text("Selva")');
+  check((await page.locator('.view--collection .track-row').count()) === 1, 'la lista muestra sus canciones');
+  await shot('12-lista');
+
+  const remoteLists = async (match) => {
+    for (let i = 0; i < 40; i += 1) {
+      const body = s3.get('musica', 'metadatos/listas.json');
+      const lists = body ? JSON.parse(body.toString()).lists : [];
+      if (match(lists)) return lists;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    return null;
+  };
+  const uploaded = await remoteLists((lists) => lists.filter((list) => !list.deleted).length === 2);
+  check(
+    uploaded?.find((list) => list.name === 'Para correr')?.tracks.length === 1,
+    'las listas se guardan en metadatos/listas.json del bucket',
+  );
+
+  // Otro equipo añade una lista al bucket: llega con "Actualizar biblioteca".
+  const now = Date.now();
+  const fromPhone = { id: 'del-movil', name: 'Del móvil', tracks: ['s3://musica/Kora/Selva.wav'], createdAt: now, updatedAt: now };
+  s3.put('musica', 'metadatos/listas.json', JSON.stringify({ version: 1, lists: [...uploaded, fromPhone] }));
+  await page.click('.nav__item:has-text("Actualizar biblioteca")');
+  await page.waitForSelector('.sidebar__lists .nav__item:has-text("Del móvil")');
+  check(true, 'una lista creada en otro equipo aparece al actualizar');
+
+  await page.click('.nav__item:has-text("Inicio")');
+  await page.click('.chip:has-text("Listas")');
+  check((await page.locator('.card-grid .media-card').count()) === 4, 'Inicio › Listas muestra las 3 listas y "Nueva lista"');
+  await shot('13-inicio-listas');
+
+  await page.click('.sidebar__lists .nav__item:has-text("Para correr")');
+  await page.click('.collection-actions__edit');
+  await page.click('.list-dialog__delete');
+  await page.click('.list-dialog__delete');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'Lista «Para correr» eliminada');
+  check((await page.locator('.sidebar__lists .nav__item:has-text("Para correr")').count()) === 0, '"Editar lista" › eliminar (con confirmación) la quita');
+  check(
+    (await remoteLists((lists) => lists.some((list) => list.deleted))) !== null,
+    'la lista eliminada queda marcada en el bucket para que los demás equipos también la quiten',
+  );
+
   s3.setReadOnly(true);
   const denied = path.join(work, 'Para subir', 'Sin permiso.wav');
   await writeFile(denied, createWav({ seconds: 1 }));

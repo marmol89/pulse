@@ -12,6 +12,8 @@ import changes from './handlers/changes.js';
 import connection from './handlers/connection.js';
 import uploads from './handlers/uploads.js';
 import errors from './handlers/errors.js';
+import lists from './handlers/lists.js';
+import listTracks from './handlers/listTracks.js';
 
 /**
  * Solo compone: conecta colegas y registra módulos de handlers.
@@ -22,8 +24,8 @@ export class PlayerMediator extends Mediator {
 
   /**
    * @param {{
-   *   audio, playlist, catalog, favorites, recents, settings, library, mediaSession,
-   *   router, home, search, playlistView, nowPlaying, controls, toast, connection, keyboard?
+   *   audio, playlist, catalog, favorites, recents, lists, settings, library, mediaSession,
+   *   router, home, search, playlistView, nowPlaying, controls, toast, connection, listDialog, keyboard?
    * }} colleagues
    */
   constructor(colleagues) {
@@ -43,7 +45,9 @@ export class PlayerMediator extends Mediator {
       .use(changes)
       .use(connection)
       .use(uploads)
-      .use(errors);
+      .use(errors)
+      .use(lists)
+      .use(listTracks);
   }
 
   get context() {

@@ -32,13 +32,14 @@ src/backend/     lógica común a Electron y Android, SIN Node ni Electron (lo c
                  con la clave secreta cifrada por el `crypto` inyectado), service.js
   library/       remote.js (id s3://bucket/clave, etiquetas leyendo el principio del objeto), sync.js
                  (biblioteca = bucket), upload.js (sube lo que da `collect`: {name,size,open}), metadata.js (copia en
-                 metadatos/ del bucket), tracks.js (registro ↔ pista), store.js (library.json: caché local)
+                 metadatos/ del bucket), lists.js (listas de canciones: lists.js aquí y metadatos/listas.json),
+                 tracks.js (registro ↔ pista), store.js (library.json: caché local)
   online/        datos de internet: matching, itunes, deezer, lrclib, http, enricher, queue (ver abajo)
 src/main/        adaptador de Electron (NO forma parte del mediator)
   main.js        ventana, instancia única, sin navegación, --lang=es
   files.js       `files` sobre fs en userData; library/collect.js recorre archivos y carpetas para subir
   protocol/      media://track|cover/<id>: audio desde S3 con rangos, solo pistas de la biblioteca (403 si no)
-  ipc/           library.js (library:*, connection:*) y metadata.js (metadata:*); los usa el preload
+  ipc/           library.js (library:*, connection:*), metadata.js (metadata:*) y lists.js (lists:*); los usa el preload
 src/preload/preload.cjs   window.api (contextBridge, sandbox)
 src/android/     window.api de Android sobre el mismo backend (esbuild → www/api.js, antes que app.js)
   api.js         mismos métodos que el preload; audio con URLs firmadas de S3 (7 días)
@@ -52,9 +53,10 @@ src/renderer/
   app.js         raíz de composición: crea colegas → PlayerMediator → app-ready
   core/          Mediator (solo enruta) y Colleague
   mediator/      PlayerMediator (solo compone), events.js, actions.js, handlers/ (uno por caso de uso)
-  colleagues/    modelos (Catalog, Playlist, Favorites, Recents, Settings), servicios (AudioEngine,
-                 LibraryService, MediaSessionBridge) y vistas (Router, HomeView, PlaylistView,
-                 SearchView, NowPlayingView, ControlsView, ToastView, ConnectionView, KeyboardShortcuts)
+  colleagues/    modelos (Catalog, Playlist = la cola, Lists = listas del usuario, Favorites, Recents, Settings),
+                 servicios (AudioEngine, LibraryService, MediaSessionBridge) y vistas (Router, HomeView,
+                 PlaylistView, SearchView, NowPlayingView, ControlsView, ToastView, ConnectionView,
+                 ListDialog, KeyboardShortcuts)
   ui/            piezas de UI sin estado de negocio (dom, icons, cover, format, trackList, transport)
   lib/           utilidades puras (storage, text)
   styles/        tokens.css (único sitio con valores), layout.css, components.css
@@ -92,6 +94,11 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   cerrar; si falla, se reintenta al minuto. Cada sincronización lo lee primero: lo que tenga el mismo ETag no se
   relee del archivo y los datos de internet más recientes (`lookupStamp`) llegan como `tracks-updated`.
   `library.json` y `covers/` en userData quedan como caché (arranque al momento y sin conexión).
+- **Listas de canciones** (`lists.js`): `metadatos/listas.json` bajo la carpeta de la conexión, compartidas por
+  todos los Pulse de ese bucket. Cada cambio se guarda al momento en `lists.json` y se sube a los 2 s; se traen al
+  arrancar, al volver a la ventana y con "Actualizar biblioteca" (`lists-changed`). Al juntar dos copias gana, por
+  lista, la de `updatedAt` mayor; las borradas quedan como marca (`deleted`) para no resucitar. Si no se puede leer
+  el bucket no se sube nada (no se pisan las de otros). Handlers: `lists.js` y `listTracks.js`.
 - Si una canción falla al sonar se comprueba en el bucket (`library:verify`); si ya no está, se quita.
 - Los tests nunca usan el S3 real: `tests/helpers/fakeS3.js` es un servidor S3 mínimo (listar, rangos, subidas, 403, solo lectura…).
 
@@ -108,6 +115,8 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
 - Detalles que rompen si se tocan: `server.androidScheme: 'http'` (con https el audio http de un MinIO local es
   contenido mixto y se bloquea), `usesCleartextTraffic`, y `stat()` con GET de un byte (CapacitorHttp rechaza
   un HEAD con 404). `files.js` mira si algo existe listando su carpeta: cada rechazo del plugin ensucia la consola.
+  Un cuerpo `application/json` el plugin lo escribe tal cual (sin decodificar el base64 de `dataType: 'file'`):
+  `nativeHttp.js` lo manda como texto.
 - Entorno local: JDK 21 (`JAVA_HOME`) y SDK de Android (`ANDROID_HOME`: platform-tools, platforms;android-36,
   build-tools, emulador). El emulador, **con ventana y la GPU por defecto**
   (`emulator -avd pulse -no-boot-anim -audio none -no-snapshot-save`): sin ventana se cae al reproducir audio.

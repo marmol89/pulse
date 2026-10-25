@@ -1,4 +1,4 @@
-import { h, favoriteButton, setFavoriteButton } from './dom.js';
+import { h, favoriteButton, iconButton, setFavoriteButton } from './dom.js';
 import { icon } from './icons.js';
 import { createCover, trackSeed } from './cover.js';
 import { formatTime } from './format.js';
@@ -6,7 +6,8 @@ import { formatTime } from './format.js';
 /**
  * Lista de pistas (filas de 60 px de la pantalla Playlist). Componente de UI,
  * no colega: avisa a su vista con callbacks y la vista notifica al mediator.
- * Doble clic, Enter o el botón sobre la portada reproducen.
+ * Doble clic, Enter o el botón sobre la portada reproducen. Con `onAddToList`, cada fila tiene
+ * "Añadir a una lista"; con `onRemove` y `removable` al pintar, "Quitar de la lista".
  */
 export class TrackList {
   #element;
@@ -14,15 +15,17 @@ export class TrackList {
   /** Pistas que muestra, en orden (para recalcular datos de la vista al quitar filas). */
   #tracks = new Map();
   #currentPath = null;
+  #canAdd;
+  #removable = false;
 
-  constructor({ onPlay, onToggleFavorite, label = 'Canciones' }) {
+  constructor({ onPlay, onToggleFavorite, onAddToList = null, onRemove = () => {}, label = 'Canciones' }) {
+    this.#canAdd = Boolean(onAddToList);
+    const actions = { play: onPlay, favorite: onToggleFavorite, add: onAddToList, remove: onRemove };
     this.#element = h('ol', { class: 'track-list', 'aria-label': label });
     this.#element.addEventListener('click', (event) => {
       const button = event.target.closest('button[data-action]');
       if (!button) return;
-      const { path } = button.closest('.track-row').dataset;
-      if (button.dataset.action === 'play') onPlay(path);
-      else onToggleFavorite(path);
+      actions[button.dataset.action]?.(button.closest('.track-row').dataset.path);
     });
     this.#element.addEventListener('dblclick', (event) => {
       const row = event.target.closest('.track-row');
@@ -40,8 +43,12 @@ export class TrackList {
     return this.#element;
   }
 
-  /** @param {object[]} tracks @param {{ favorites?: Set<string>, currentPath?: string|null, playing?: boolean }} state */
-  render(tracks, { favorites = new Set(), currentPath = null, playing = false } = {}) {
+  /**
+   * @param {object[]} tracks
+   * @param {{ favorites?: Set<string>, currentPath?: string|null, playing?: boolean, removable?: boolean }} state
+   */
+  render(tracks, { favorites = new Set(), currentPath = null, playing = false, removable = false } = {}) {
+    this.#removable = removable;
     this.#rows.clear();
     this.#tracks.clear();
     this.#currentPath = null;
@@ -117,7 +124,13 @@ export class TrackList {
       { class: 'track-row', tabindex: '0', 'data-path': track.path, title: `${track.title} · ${track.artist}` },
       cover,
       h('div', { class: 'track-row__text' }, h('span', { class: 'track-row__title' }, track.title), h('span', { class: 'track-row__artist' }, track.artist)),
-      favoriteButton(isFavorite, { 'data-action': 'favorite', tabindex: '-1' }),
+      h(
+        'span',
+        { class: 'track-row__actions' },
+        this.#removable && iconButton('close', 'Quitar de la lista', { className: 'row-action row-action--remove', 'data-action': 'remove', tabindex: '-1' }),
+        this.#canAdd && iconButton('plus', 'Añadir a una lista', { className: 'row-action', 'data-action': 'add', tabindex: '-1' }),
+        favoriteButton(isFavorite, { 'data-action': 'favorite', tabindex: '-1' }),
+      ),
       h(
         'span',
         { class: 'track-row__end' },

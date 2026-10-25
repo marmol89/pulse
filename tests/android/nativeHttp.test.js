@@ -28,6 +28,14 @@ test('nativeRequest() envía el cuerpo en base64 con Content-Type y entiende cad
   assert.equal(new TextDecoder().decode(json.body), '{"ok":true}', 'el JSON ya interpretado vuelve a bytes');
 });
 
+test('nativeRequest() manda el JSON como texto: el plugin no decodifica el base64 de application/json', async () => {
+  const http = stubHttp(() => ({ status: 200, headers: {}, data: '' }));
+  const text = '{"lists":["ñ"]}';
+  await nativeRequest(http, { url: 'https://s3.test/b/listas.json', method: 'PUT', headers: { 'content-type': 'application/json' }, body: new TextEncoder().encode(text) });
+  assert.equal(http.calls[0].data, text);
+  assert.equal(http.calls[0].dataType, undefined);
+});
+
 test('createNativeFetch() da Responses normales: binario, error en texto y sin cuerpo', async () => {
   const replies = {
     'https://img.test/a.jpg': { status: 200, headers: { 'content-type': 'image/jpeg' }, data: '/9j/' },
