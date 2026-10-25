@@ -1,12 +1,11 @@
-import { coverFile } from '../paths.js';
 import { UNKNOWN_ARTIST } from '../library/tracks.js';
 import { TransientError } from './http.js';
 import { searchItunes } from './itunes.js';
 import { searchDeezer } from './deezer.js';
 import { findLyrics } from './lrclib.js';
 import { isTitleFromFile, pickBestOf, queriesFromRecord } from './matching.js';
+import { saveImage } from './images.js';
 
-const MAX_COVER_BYTES = 5 * 1024 * 1024;
 /**
  * Versión de la búsqueda. Al mejorarla (2: Deezer y nombres "Título - Artista"), lo que no se
  * encontró con una versión anterior se vuelve a buscar una vez.
@@ -82,14 +81,8 @@ export function createEnricher({ http, files, now = Date.now }) {
    * Guarda la carátula en la caché y devuelve su nombre (el mismo en metadatos/caratulas/ del bucket).
    * Las pistas de un mismo álbum comparten archivo.
    */
-  async function saveCover(url) {
-    if (!url) return null;
-    const name = `${await sha1(url)}.jpg`;
-    if (await files.exists(coverFile(name))) return name;
-    const image = await orFallback(() => http.image(url, MAX_COVER_BYTES), null);
-    if (!image) return null;
-    await files.write(coverFile(name), image.data);
-    return name;
+  function saveCover(url) {
+    return saveImage({ http, files }, url, { isTransient: (error) => error instanceof TransientError });
   }
 }
 
@@ -121,10 +114,4 @@ async function orFallback(task, fallback) {
     if (error instanceof TransientError) throw error;
     return fallback;
   }
-}
-
-/** SHA-1 en hexadecimal con Web Crypto (está en Node y en el WebView). */
-async function sha1(text) {
-  const digest = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(text));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }

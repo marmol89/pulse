@@ -19,9 +19,10 @@ export function trackListState(ctx) {
   };
 }
 
-export function loadTrack(ctx, track, autoplay = true) {
+export function loadTrack(ctx, track, autoplay = true, startAt = 0) {
   if (!track) return false;
-  ctx.audio.load(track.url, autoplay);
+  if (startAt > 0) ctx.audio.load(track.url, autoplay, startAt);
+  else ctx.audio.load(track.url, autoplay);
   showTrack(ctx, track);
   eachTrackListView(ctx, (view) => view.highlight(track.path));
   return true;
@@ -91,7 +92,7 @@ export function applyTrackUpdates(ctx, tracks) {
 export function resolveCollection(ctx, source) {
   switch (source.kind) {
     case 'queue':
-      return { source, title: 'Cola de reproducción', byline: 'Reproduciendo ahora', tracks: ctx.playlist.tracks() };
+      return { source, title: 'Cola de reproducción', byline: 'Reproduciendo ahora', tracks: ctx.playlist.ordered() };
     case 'favorites':
       return { source, title: 'Tus favoritos', byline: 'Creado por ti', tracks: ctx.catalog.byPaths(ctx.favorites.list()) };
     case 'recents':
@@ -102,6 +103,8 @@ export function resolveCollection(ctx, source) {
       const list = ctx.lists.get(source.id);
       return { source, title: list?.name ?? 'Lista eliminada', byline: 'Tu lista · en tu bucket', tracks: list ? ctx.catalog.byPaths(list.tracks) : [] };
     }
+    case 'library':
+      return ctx.catalog.collection({ ...source, sort: ctx.settings.librarySort() ?? undefined });
     default:
       return ctx.catalog.collection(source);
   }
@@ -109,10 +112,28 @@ export function resolveCollection(ctx, source) {
 
 /** Convierte una colección en la cola y empieza a sonar (por `startPath` si se indica). */
 export function playCollection(ctx, source, startPath = null) {
+  // En "Ver la cola" se salta a esa pista sin rehacer la cola (en aleatorio se volvería a barajar).
+  if (source.kind === 'queue') return loadTrack(ctx, ctx.playlist.jumpTo(startPath ?? ctx.playlist.ordered()[0]?.path));
   const collection = resolveCollection(ctx, source);
   const track = ctx.playlist.setQueue(collection.tracks, startPath);
   if (track) ctx.nowPlaying.setContext(collection.title);
+  ctx.session.saveQueue(ctx.playlist.snapshot(), collection.title);
   return loadTrack(ctx, track);
+}
+
+/** Al abrir Pulse, la cola y la pista de la última vez, en pausa y en el segundo en que se dejó. */
+export function restoreSession(ctx) {
+  const saved = ctx.session.load();
+  if (!saved || ctx.playlist.current()) return false; // ya suena otra cosa
+  const track = ctx.playlist.restore(saved.queue, (path) => ctx.catalog.get(path));
+  if (!track) {
+    ctx.session.clear();
+    return false;
+  }
+  ctx.nowPlaying.setContext(saved.context);
+  showModes(ctx);
+  ctx.session.saveQueue(ctx.playlist.snapshot()); // sin las que ya no están
+  return loadTrack(ctx, track, false, saved.time);
 }
 
 export function renderCollection(ctx, source) {
@@ -133,9 +154,29 @@ export function openCollection(ctx, source) {
 
 /** Inicio y, si está abierta, la colección visible reflejan la biblioteca actual. */
 export function refreshLibraryViews(ctx) {
+  repaintLibraryViews(ctx);
+  requestArtistPictures(ctx);
+}
+
+function repaintLibraryViews(ctx) {
   refreshHome(ctx);
   const source = ctx.playlistView.source();
   if (source) renderCollection(ctx, source);
+}
+
+/** Pide las fotos de los artistas de la biblioteca: llegan las guardadas y, más tarde, las que se encuentren. */
+export async function requestArtistPictures(ctx) {
+  const names = ctx.catalog.artists().map((artist) => artist.name);
+  if (names.length === 0) return;
+  try {
+    showArtistPictures(ctx, await ctx.library.getArtistPictures(names));
+  } catch {
+    // sin fotos: se ven las carátulas de sus canciones
+  }
+}
+
+export function showArtistPictures(ctx, pictures) {
+  if (ctx.catalog.setArtistPictures(pictures)) repaintLibraryViews(ctx);
 }
 
 export function refreshHome(ctx) {

@@ -1,24 +1,9 @@
 import { basename } from '../backend/paths.js';
+import { coverFileName } from '../backend/library/covers.js';
+
+export { coverFileName, fingerprint } from '../backend/library/covers.js';
 
 const BATCH_MS = 1500; // agrupa los avisos de carátulas listas
-
-/** Huella corta y estable de un texto (FNV-1a de 32 bits, dos veces): nombres de archivo. */
-export function fingerprint(text) {
-  let a = 0x811c9dc5;
-  let b = 0x01000193;
-  for (let i = 0; i < text.length; i += 1) {
-    const code = text.charCodeAt(i);
-    a = Math.imul(a ^ code, 0x01000193) >>> 0;
-    b = Math.imul(b ^ code, 0x811c9dc5) >>> 0;
-  }
-  return `${a.toString(16).padStart(8, '0')}${b.toString(16).padStart(8, '0')}`;
-}
-
-/** Archivo de covers/ con la carátula de un registro: la incrustada (por pista y versión) o la de internet. */
-export function coverFileName(record) {
-  if (record.hasCover) return `embedded-${fingerprint(`${record.path}#${record.etag ?? ''}`)}.jpg`;
-  return record.coverName ? basename(record.coverName) : null;
-}
 
 /**
  * Carátulas en Android: en vez del protocolo media://, archivos de covers/ que el WebView carga
@@ -31,7 +16,7 @@ export function coverFileName(record) {
  */
 export function createCoverCache({ files, toUrl, readEmbedded, readCover, getRecord, onReady, batchMs = BATCH_MS, timers = globalThis }) {
   const present = new Set();
-  const failed = new Set(); // no se reintenta en esta sesión
+  const failed = new Set(); // no la tiene: no se reintenta en esta sesión
   const pending = new Map(); // nombre → id de la pista que la pidió
   const ready = new Set();
   let working = null;
@@ -53,10 +38,11 @@ export function createCoverCache({ files, toUrl, readEmbedded, readCover, getRec
   async function work() {
     while (pending.size > 0) {
       const [name, id] = pending.entries().next().value;
-      const ok = await fetchOne(name, id).catch(() => false);
+      // Un fallo de red no cuenta como "no la tiene": se vuelve a pedir la próxima vez que se pinte.
+      const ok = await fetchOne(name, id).catch(() => null);
       pending.delete(name); // hasta aquí sigue "pedida": no se descarga dos veces
       if (!ok) {
-        failed.add(name);
+        if (ok === false) failed.add(name);
         continue;
       }
       present.add(name);
