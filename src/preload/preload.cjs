@@ -26,6 +26,13 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('library:upload-progress', listener);
   },
 
+  // Papelera del bucket. Devuelven { ok, ... } o { ok: false, error }.
+  /** Mueve una canción a la papelera del bucket (desaparece de la biblioteca). */
+  trashTrack: (id) => ipcRenderer.invoke('trash:move', id),
+  getTrash: () => ipcRenderer.invoke('trash:list'),
+  restoreFromTrash: (key) => ipcRenderer.invoke('trash:restore', key),
+  emptyTrash: () => ipcRenderer.invoke('trash:empty'),
+
   // Conexión S3 (la clave secreta nunca vuelve a la ventana)
   getConnection: () => ipcRenderer.invoke('connection:get'),
   saveConnection: (input) => ipcRenderer.invoke('connection:save', input),

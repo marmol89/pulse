@@ -183,12 +183,36 @@ export class LibraryService extends Colleague {
     return this.#api.importRecents(paths);
   }
 
-  /** Activa o desactiva la búsqueda en segundo plano del proceso main. */
+  /**
+   * Papelera del bucket: mover una canción a ella, ver lo que hay, restaurar y vaciar.
+   * @typedef {{ key: string, name: string, size: number, deletedAt: number }} TrashItem
+   * @returns {Promise<{ ok: true, removed: string[] } | { ok: false, error: string }>}
+   */
+  trashTrack(path) {
+    return this.#api.trashTrack(path);
+  }
+
+  /** @returns {Promise<{ ok: true, items: TrashItem[] } | { ok: false, error: string }>} */
+  getTrash() {
+    return this.#api.getTrash();
+  }
+
+  /** La canción vuelve a su carpeta y llega como library-changed. @returns {Promise<{ ok: true, items: TrashItem[] } | { ok: false, error: string }>} */
+  restoreFromTrash(key) {
+    return this.#api.restoreFromTrash(key);
+  }
+
+  /** @returns {Promise<{ ok: true, removed: number, items: [] } | { ok: false, error: string }>} */
+  emptyTrash() {
+    return this.#api.emptyTrash();
+  }
+
   /** Fotos de artista ya guardadas ({ nombre: URL }); las que faltan se buscan y llegan como artist-pictures-changed. */
   async getArtistPictures(names) {
     return (await this.#api.getArtistPictures?.(names)) ?? {};
   }
 
+  /** Activa o desactiva la búsqueda en segundo plano del proceso main. */
   setOnlineLookup(enabled) {
     return this.#api.setOnlineLookup(enabled);
   }

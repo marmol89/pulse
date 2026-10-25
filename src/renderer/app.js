@@ -22,6 +22,7 @@ import { ControlsView } from './colleagues/ControlsView.js';
 import { ToastView } from './colleagues/ToastView.js';
 import { ConnectionView } from './colleagues/ConnectionView.js';
 import { ListDialog } from './colleagues/ListDialog.js';
+import { TrashDialog } from './colleagues/TrashDialog.js';
 import { KeyboardShortcuts } from './colleagues/KeyboardShortcuts.js';
 
 /** Raíz de composición: crea los colegas, los conecta con el mediator y arranca la app. */
@@ -52,6 +53,7 @@ const mediator = new PlayerMediator({
   toast: new ToastView($('#toast')),
   connection: new ConnectionView($('#connection')),
   listDialog: new ListDialog($('#list-dialog')),
+  trashDialog: new TrashDialog($('#trash-dialog')),
   keyboard: new KeyboardShortcuts(window),
 });
 

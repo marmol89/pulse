@@ -100,6 +100,7 @@ export class PlaylistView extends Colleague {
       onToggleFavorite: (path) => this.notify(EVENTS.TOGGLE_FAVORITE, path),
       onAddToList: (path) => this.notify(EVENTS.CHOOSE_LIST, path),
       onPlayNext: (path) => this.notify(EVENTS.PLAY_NEXT, [path]),
+      onTrash: (path) => this.notify(EVENTS.TRASH_TRACK, path),
       onEnqueue: (path) => this.notify(EVENTS.ENQUEUE, [path]),
       onMove: (path, to) =>
         this.#source.kind === 'queue' ? this.notify(EVENTS.MOVE_IN_QUEUE, { path, to }) : this.notify(EVENTS.MOVE_IN_LIST, { id: this.#source.id, path, to }),

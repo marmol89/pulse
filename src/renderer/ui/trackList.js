@@ -10,7 +10,7 @@ import { enableReorder } from './reorder.js';
  * no colega: avisa a su vista con callbacks y la vista notifica al mediator.
  * Doble clic, Enter o el botón sobre la portada reproducen. Con `onAddToList`, cada fila tiene
  * "Añadir a una lista"; con `onPlayNext` y `onEnqueue`, un menú "⋯" con "Reproducir a continuación" y
- * "Añadir a la cola"; con `onRemove` y `removable` al pintar (su texto: "Quitar de la lista"), el botón de quitar;
+ * "Añadir a la cola" (y, con `onTrash`, "Eliminar del bucket"); con `onRemove` y `removable` al pintar (su texto: "Quitar de la lista"), el botón de quitar;
  * con `onMove` y `reorderable` al pintar, un asa para arrastrar las filas (y Alt+↑/↓).
  */
 export class TrackList {
@@ -24,7 +24,7 @@ export class TrackList {
   #removable = '';
   #reorderable = false;
 
-  constructor({ onPlay, onToggleFavorite, onAddToList = null, onPlayNext = null, onEnqueue = null, onRemove = () => {}, onMove = null, label = 'Canciones' }) {
+  constructor({ onPlay, onToggleFavorite, onAddToList = null, onPlayNext = null, onEnqueue = null, onTrash = null, onRemove = () => {}, onMove = null, label = 'Canciones' }) {
     this.#canAdd = Boolean(onAddToList);
     this.#canQueue = Boolean(onPlayNext && onEnqueue);
     const more = (path, button) =>
@@ -33,6 +33,7 @@ export class TrackList {
         [
           { label: 'Reproducir a continuación', icon: 'next', onSelect: () => onPlayNext(path) },
           { label: 'Añadir a la cola', icon: 'queue-add', onSelect: () => onEnqueue(path) },
+          ...(onTrash ? [{ label: 'Eliminar del bucket', icon: 'trash', onSelect: () => onTrash(path) }] : []),
         ],
         { label: `Opciones de ${this.#tracks.get(path)?.title ?? 'la canción'}` },
       );

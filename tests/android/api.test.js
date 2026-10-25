@@ -150,6 +150,19 @@ describe('android/api (window.api sobre el backend compartido)', () => {
     assert.equal((await api.loadLibrary()).length, 2);
   });
 
+  test('"Eliminar del bucket" la mueve a la papelera por la red nativa, y se puede restaurar', async () => {
+    assert.deepEqual(await api.trashTrack('s3://musica/Nueva.wav'), { ok: true, removed: ['s3://musica/Nueva.wav'] });
+    assert.equal(s3.get('musica', 'Nueva.wav'), undefined);
+    assert.ok(s3.get('musica', 'papelera/Nueva.wav'));
+    assert.equal((await api.loadLibrary()).length, 1);
+    const { items } = await api.getTrash();
+    assert.deepEqual(items.map((item) => item.name), ['Nueva.wav']);
+
+    assert.deepEqual(await api.restoreFromTrash('papelera/Nueva.wav'), { ok: true, items: [] });
+    assert.ok(s3.get('musica', 'Nueva.wav'));
+    assert.equal((await api.loadLibrary()).length, 2, 'al restaurarla se sincroniza');
+  });
+
   test('nunca pide al Filesystem algo que no existe (cada rechazo sale como error en la consola)', () => {
     assert.equal(fs.calls.rejected, 0);
   });

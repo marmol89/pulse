@@ -58,6 +58,7 @@ const ICONS = {
   },
   plus: { viewBox: '-12 -12 24 24', stroke: 2.2, body: '<path d="M0 -8 V8"/><path d="M-8 0 H8"/>' },
   pencil: { viewBox: '-12 -12 24 24', stroke: 2, body: '<path d="M-8 8 L-7 3 L5 -9 L9 -5 L-3 7 Z"/><path d="M2 -6 L6 -2"/>' },
+  trash: { viewBox: '-12 -12 24 24', stroke: 2, body: '<path d="M-9 -6 H9"/><path d="M-3 -6 V-9 H3 V-6"/><path d="M-6 -6 L-5 9 H5 L6 -6"/><path d="M-2 -2 V5"/><path d="M2 -2 V5"/>' },
   close: { viewBox: '-12 -12 24 24', stroke: 2.2, body: '<path d="M-7 -7 L7 7"/><path d="M7 -7 L-7 7"/>' },
   timer: { viewBox: '-12 -12 24 24', stroke: 2, body: '<path d="M-1 -9 A9 9 0 1 0 9 2 A7 7 0 0 1 -1 -9 Z"/>' },
   grip: { viewBox: '-12 -12 24 24', stroke: 2.2, body: '<path d="M-7 -5 H7"/><path d="M-7 0 H7"/><path d="M-7 5 H7"/>' },
