@@ -134,6 +134,24 @@ try {
   check(true, '"Ver la cola" deja quitar canciones');
   await shot('04c-cola');
 
+  // Reordenar arrastrando el asa (pointer events) y con Alt+↑.
+  const queueOrder = () => page.$$eval('.view--collection .track-row .track-row__title', (rows) => rows.map((row) => row.textContent));
+  const beforeDrag = await queueOrder();
+  const lastTitle = beforeDrag.at(-1);
+  const grip = await page.locator(`.view--collection .track-row:has-text("${lastTitle}") .track-row__grip`).boundingBox();
+  const firstRow = await page.locator('.view--collection .track-row').first().boundingBox();
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2, firstRow.y + 5, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForFunction((title) => document.querySelector('.view--collection .track-row .track-row__title')?.textContent === title, lastTitle, { timeout: 3000 }).catch(() => {});
+  const afterDrag = await queueOrder();
+  check(afterDrag[0] === lastTitle && afterDrag.length === beforeDrag.length, `arrastrar el asa cambia el orden de la cola (${afterDrag.join(', ')})`);
+  await page.focus(`.view--collection .track-row:has-text("${afterDrag[1]}")`);
+  await page.keyboard.press('Alt+ArrowUp');
+  await page.waitForFunction((title) => document.querySelector('.view--collection .track-row .track-row__title')?.textContent === title, afterDrag[1], { timeout: 3000 }).catch(() => {});
+  check((await queueOrder())[0] === afterDrag[1], 'Alt+↑ sube la canción con el foco');
+
   await page.click('.player__cover');
   await page.waitForSelector('.now-playing.is-open');
   check(await page.isVisible('.lyrics'), 'Reproduciendo muestra la tarjeta de letra si la pista tiene letra');
