@@ -150,10 +150,26 @@ try {
   check(loadedCovers && savedCovers.length >= 2, `las carátulas incrustadas se ven y quedan guardadas en covers/ (${savedCovers.length})`);
   await shot('08-albumes');
 
-  s3.put('musica', 'Nuevas/Selva (directo).wav', createWav({ seconds: 3, tags: { title: 'Selva (directo)', artist: 'Kora' } }));
+  const guest = 'Invitada Con Un Nombre Larguísimo Que No Cabe';
+  s3.put('musica', 'Nuevas/Selva (directo).wav', createWav({ seconds: 3, tags: { title: 'Selva (directo)', artist: `Kora, ${guest} & Aurora Vega` } }));
   await page.click('.nav__item:has-text("Actualizar biblioteca")');
   await page.waitForFunction(() => document.querySelector('.toast')?.textContent === '1 canción nueva');
   check(true, '"Actualizar biblioteca" trae la canción subida al bucket');
+
+  // Artistas: una colaboración cuenta para cada artista y los nombres largos no se salen de su tarjeta.
+  await page.click('.chip:has-text("Artistas")');
+  const artistCards = await page.$$eval('.card-grid .media-card', (cards) =>
+    cards.map((card) => {
+      const title = card.querySelector('.media-card__title');
+      const box = card.getBoundingClientRect();
+      const text = title.getBoundingClientRect();
+      return { name: title.textContent, count: card.querySelector('.media-card__subtitle').textContent, inside: text.left >= box.left - 1 && text.right <= box.right + 1 };
+    }),
+  );
+  const cardOf = (name) => artistCards.find((card) => card.name === name);
+  check(cardOf('Kora')?.count === '2 canciones' && cardOf('Aurora Vega')?.count === '3 canciones' && Boolean(cardOf(guest)), 'Artistas separa las colaboraciones');
+  check(artistCards.every((card) => card.inside), 'Artistas: los nombres largos no se salen de su tarjeta');
+  await shot('08b-artistas');
 
   // Subir canciones del ordenador: el diálogo de archivos del proceso main se sustituye por uno falso.
   const upload = path.join(work, 'Para subir', 'Brisa.wav');

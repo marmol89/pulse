@@ -62,7 +62,7 @@ src/renderer/
                  PlaylistView, SearchView, NowPlayingView, ControlsView, ToastView, ConnectionView,
                  ListDialog, KeyboardShortcuts)
   ui/            piezas de UI sin estado de negocio (dom, icons, cover, format, trackList, transport)
-  lib/           utilidades puras (storage, text)
+  lib/           utilidades puras (storage, text, artists: separar colaboraciones)
   styles/        tokens.css (único sitio con valores), layout.css, components.css
 tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con ID3, FakeAudio) + e2e/
 ```
