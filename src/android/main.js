@@ -14,6 +14,7 @@ import { NativeMediaMetadata, createNativeMediaSession } from './mediaSession.js
  */
 const files = createCapacitorFiles(Filesystem, Directory.Data);
 let coversFolder = '';
+let dataFolder = '';
 
 window.api = createAndroidApi({
   files,
@@ -21,9 +22,13 @@ window.api = createAndroidApi({
   http: CapacitorHttp,
   // Las carátulas de covers/ se cargan como archivos locales del WebView.
   coverUrl: (name) => Capacitor.convertFileSrc(`${coversFolder}/${encodeURIComponent(name)}`),
+  // Canciones descargadas (downloads/): Filesystem las baja directamente al disco y el <audio> las lee de ahí.
+  fileUrl: (path) => Capacitor.convertFileSrc(`${dataFolder}/${path.split('/').map(encodeURIComponent).join('/')}`),
+  downloadFile: (url, path) => Filesystem.downloadFile({ url, path, directory: Directory.Data, recursive: true }),
   async prepare() {
     await SecureStorage.setKeyPrefix('pulse.');
     coversFolder = (await files.uri('covers')).replace(/\/+$/, '');
+    dataFolder = (await files.uri('')).replace(/\/+$/, '');
   },
   document,
   userAgent: `Pulse/${__PULSE_VERSION__} (reproductor de música para Android)`,
