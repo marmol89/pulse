@@ -3,7 +3,7 @@
  * instala dist/Pulse-X.Y.Z-debug.apk desde cero, conecta la app con un S3 falso que corre en este
  * equipo (el emulador lo ve en 10.0.2.2), recorre las pantallas, reproduce desde una URL firmada,
  * salta, sube una canción y guarda capturas en tests/e2e/output/android-*.png. Nunca usa tu S3 real.
- * Uso: npm run android:apk && npm run test:e2e:android   (con el emulador arrancado; audio silenciado)
+ * Uso: npm run android:apk && npm run test:e2e:android   (con el emulador arrancado; volumen multimedia a 0)
  */
 import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -36,6 +36,11 @@ if (!device) {
   console.error('No hay ningún emulador ni móvil conectado (adb devices).');
   process.exit(1);
 }
+// Silencio con el volumen multimedia del sistema, no con el de Pulse: Chromium no abre salida de audio para un
+// <audio> silenciado, y sin ella Android no ve a Pulse sonando ni le pasa las teclas de los auriculares.
+const MUSIC_STREAM = '--stream 3';
+const volumeBefore = (await device.shell(`cmd media_session volume ${MUSIC_STREAM} --get`)).toString().match(/volume is (\d+)/)?.[1];
+await device.shell(`cmd media_session volume ${MUSIC_STREAM} --set 0`);
 try {
   // Desde cero: sin conexión guardada ni biblioteca de una prueba anterior.
   await device.installApk(await readFile(apk));
@@ -51,12 +56,9 @@ try {
   };
   watch(page);
 
-  // Antes de conectar: audio silenciado y sin datos de internet.
+  // Antes de conectar: sin datos de internet.
   await page.waitForSelector('.connection[open]', { timeout: 30000 });
-  await page.evaluate(() => {
-    localStorage.setItem('pulse.muted', 'true');
-    localStorage.setItem('pulse.onlineLookup', 'false');
-  });
+  await page.evaluate(() => localStorage.setItem('pulse.onlineLookup', 'false'));
   await page.reload();
   await page.waitForSelector('.connection[open]');
   check(true, 'la primera vez se abre el formulario de conexión');
@@ -195,6 +197,7 @@ try {
   check(logs.length === 0, 'sin errores de consola');
   for (const log of logs) console.log(`   ${log}`);
 } finally {
+  if (volumeBefore) await device.shell(`cmd media_session volume ${MUSIC_STREAM} --set ${volumeBefore}`);
   await s3.close();
   device.close();
 }
