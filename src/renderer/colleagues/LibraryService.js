@@ -21,6 +21,7 @@ export class LibraryService extends Colleague {
     api.onFavoritesChanged?.((paths) => this.notify(EVENTS.FAVORITES_CHANGED, paths));
     api.onRecentsChanged?.((paths) => this.notify(EVENTS.RECENTS_CHANGED, paths));
     api.onArtistPicturesChanged?.((pictures) => this.notify(EVENTS.ARTIST_PICTURES_CHANGED, pictures));
+    api.onDownloadsChanged?.((summary) => this.notify(EVENTS.DOWNLOADS_CHANGED, summary));
   }
 
   /** Biblioteca guardada (la última sincronización con el bucket). */
@@ -138,6 +139,28 @@ export class LibraryService extends Colleague {
   }
 
   /** Sube los favoritos que solo estaban en este equipo (de la más antigua a la más reciente). @returns {Promise<FavoriteResult>} */
+  /** ¿Se pueden descargar canciones en esta plataforma? (Android sí; Electron escucha siempre desde S3). */
+  canDownload() {
+    return typeof this.#api.downloadTracks === 'function';
+  }
+
+  /** Las descargas devuelven { paths, pending, bytes }; el final de cada una llega como downloads-changed. */
+  getDownloads() {
+    return this.#api.getDownloads();
+  }
+
+  downloadTracks(paths) {
+    return this.#api.downloadTracks(paths);
+  }
+
+  removeDownloads(paths) {
+    return this.#api.removeDownloads(paths);
+  }
+
+  clearDownloads() {
+    return this.#api.clearDownloads();
+  }
+
   importFavorites(paths) {
     return this.#api.importFavorites(paths);
   }

@@ -18,6 +18,7 @@ import { createEnrichmentQueue } from '../backend/online/queue.js';
 import { createArtistPictures } from '../backend/online/artists.js';
 import { createNativeFetch, createS3RequestHandler } from './nativeHttp.js';
 import { coverFileName, createCoverCache } from './covers.js';
+import { createDownloads } from './downloads.js';
 import { pickFiles } from './picker.js';
 
 /** Lo máximo que permite una URL firmada de S3: se vuelve a firmar cada vez que llega a la interfaz. */
@@ -44,13 +45,14 @@ export function collectFiles(files) {
  * pero el "proceso main" es el backend compartido corriendo aquí mismo, con los plugins nativos.
  * La clave secreta tampoco sale de este módulo hacia la interfaz.
  *
- * @param {{ files, crypto, http, coverUrl: (name: string) => string, document, userAgent: string,
+ * @param {{ files, crypto, http, coverUrl: (name: string) => string, fileUrl: (path: string) => string,
+ *   downloadFile: (url: string, path: string) => Promise<void>, document, userAgent: string,
  *   App?: { addListener }, prepare?: () => Promise<void>, presign?: typeof presignUrl, timers?: object }} deps
  *   `http`: plugin CapacitorHttp · `crypto`: createKeystoreCrypto() · `files`: createCapacitorFiles() ·
  *   `prepare`: lo que hay que resolver antes de arrancar (carpeta de las carátulas, prefijo del Keystore)
  */
 export function createAndroidApi(deps) {
-  const listeners = { changed: new Set(), updated: new Set(), progress: new Set(), lists: new Set(), favorites: new Set(), recents: new Set(), artists: new Set() };
+  const listeners = { changed: new Set(), updated: new Set(), progress: new Set(), lists: new Set(), favorites: new Set(), recents: new Set(), artists: new Set(), downloads: new Set() };
   const emit = (kind, payload) => {
     for (const listener of listeners[kind]) listener(payload);
   };
@@ -127,10 +129,17 @@ export function createAndroidApi(deps) {
     onTracksUpdated: subscribe('updated'),
     getArtistPictures: call(({ artistPictures, pictureUrls }, names) => pictureUrls(artistPictures.request(Array.isArray(names) ? names : []))),
     onArtistPicturesChanged: subscribe('artists'),
+
+    // Descargas para escuchar sin conexión (solo Android)
+    getDownloads: call(({ downloads }) => downloads.summary()),
+    downloadTracks: call(({ downloads }, paths) => downloads.add(Array.isArray(paths) ? paths : [])),
+    removeDownloads: call(({ downloads }, paths) => downloads.remove(Array.isArray(paths) ? paths : [])),
+    clearDownloads: call(({ downloads }) => downloads.clear()),
+    onDownloadsChanged: subscribe('downloads'),
   };
 }
 
-async function start({ files, crypto, http, coverUrl, userAgent, App, prepare, presign = presignUrl, timers = globalThis }, emit) {
+async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downloadFile = async () => {}, userAgent, App, prepare, presign = presignUrl, timers = globalThis }, emit) {
   await prepare?.();
   const trackOf = (record) => toTrack(record, NO_URLS);
   let metadata = null;
@@ -163,13 +172,30 @@ async function start({ files, crypto, http, coverUrl, userAgent, App, prepare, p
   });
   await covers.load();
 
-  /** Pistas para la interfaz con las URLs de Android: audio firmado y carátula en covers/. */
-  async function present(tracks) {
+  // Canciones descargadas: se escuchan del móvil aunque no haya conexión.
+  const signedUrl = async (record) => {
     const storage = s3.storage();
+    const target = parseTrackId(record.path);
+    return storage && target?.bucket === storage.bucket ? presign(storage, target.key) : '';
+  };
+  const downloads = createDownloads({
+    files,
+    download: downloadFile,
+    signedUrl,
+    getRecord: (id) => store.get(id),
+    toUrl: fileUrl,
+    onChange: (summary) => emit('downloads', summary),
+    // Con la URL nueva (la local o, si se quitó, la firmada), para que el <audio> la use la próxima vez.
+    onTracks: (ids) => emitTracks('updated')(ids.map((id) => store.get(id)).filter(Boolean).map(trackOf)),
+  });
+  await downloads.load();
+
+  /** Pistas para la interfaz con las URLs de Android: la descargada o el audio firmado, y carátula en covers/. */
+  async function present(tracks) {
     return Promise.all(
       tracks.map(async (track) => {
-        const target = parseTrackId(track.path);
-        const url = storage && target?.bucket === storage.bucket ? await presign(storage, target.key) : '';
+        const record = store.get(track.path);
+        const url = downloads.urlFor(record) ?? (await signedUrl(track));
         return { ...track, url, cover: track.cover === null ? null : covers.url(store.get(track.path) ?? {}) };
       }),
     );
@@ -196,6 +222,7 @@ async function start({ files, crypto, http, coverUrl, userAgent, App, prepare, p
     pullMetadata: () => metadata.pull(),
     onChange: (change) => {
       present(change.added).then((added) => emit('changed', { ...change, added }));
+      if (change.removed.length > 0) downloads.remove(change.removed).then((summary) => emit('downloads', summary));
       if (change.added.length > 0) queue.wake();
     },
     onUpdated: emitTracks('updated'),
@@ -230,5 +257,5 @@ async function start({ files, crypto, http, coverUrl, userAgent, App, prepare, p
     if (recents.hasPending()) recents.sync();
   });
 
-  return { store, s3, librarySync, uploader, queue, covers, metadata, lists, favorites, recents, present, trackOf, artistPictures, pictureUrls };
+  return { store, s3, librarySync, uploader, queue, covers, metadata, lists, favorites, recents, downloads, present, trackOf, artistPictures, pictureUrls };
 }

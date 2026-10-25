@@ -136,8 +136,14 @@ export function restoreSession(ctx) {
   return loadTrack(ctx, track, false, saved.time);
 }
 
+/** Colecciones que se pueden descargar para escucharlas sin conexión (donde la plataforma lo permite). */
+const DOWNLOADABLE = new Set(['list', 'favorites', 'album']);
+
 export function renderCollection(ctx, source) {
-  ctx.playlistView.render(resolveCollection(ctx, source), trackListState(ctx));
+  const collection = resolveCollection(ctx, source);
+  const paths = collection.tracks.map((track) => track.path);
+  const download = ctx.downloads.supported() && DOWNLOADABLE.has(source.kind) ? ctx.downloads.stateOf(paths) : null;
+  ctx.playlistView.render(collection, { ...trackListState(ctx), download });
 }
 
 /** Elemento de la sidebar que se resalta con cada colección. */

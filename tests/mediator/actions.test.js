@@ -80,7 +80,7 @@ describe('actions', () => {
 
     const [[collection, state]] = callsOf(ctx.playlistView.render);
     assert.equal(collection.title, 'Tu biblioteca');
-    assert.deepEqual(state, { favorites: new Set(), currentPath: null, playing: false });
+    assert.deepEqual(state, { favorites: new Set(), currentPath: null, playing: false, download: null });
     assert.equal(ctx.router.closeOverlay.mock.callCount(), 1);
     assert.deepEqual(callsOf(ctx.router.show), [['collection', 'library']]);
   });

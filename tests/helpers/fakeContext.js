@@ -7,6 +7,7 @@ import { Settings } from '../../src/renderer/colleagues/Settings.js';
 import { Lists } from '../../src/renderer/colleagues/Lists.js';
 import { SleepTimer } from '../../src/renderer/colleagues/SleepTimer.js';
 import { Session } from '../../src/renderer/colleagues/Session.js';
+import { Downloads } from '../../src/renderer/colleagues/Downloads.js';
 import { createStorage, createMemoryBackend } from '../../src/renderer/lib/storage.js';
 
 /**
@@ -56,8 +57,9 @@ export function fakeContext(overrides = {}) {
     recents: new Recents(storage),
     lists: new Lists(),
     settings: new Settings(storage),
+    downloads: new Downloads(),
     session: new Session(storage),
-    library: spy({ load: [], sync: { added: 0, removed: 0 }, verify: true, connection: null, importCredentials: null, lookup: null, lists: [], favorites: [], setFavorite: { ok: true, favorites: [] }, importFavorites: { ok: true, favorites: [] }, recents: [], addRecent: { ok: true, recents: [] }, importRecents: { ok: true, recents: [] } }),
+    library: spy({ load: [], sync: { added: 0, removed: 0 }, verify: true, connection: null, importCredentials: null, lookup: null, canDownload: false, lists: [], favorites: [], setFavorite: { ok: true, favorites: [] }, importFavorites: { ok: true, favorites: [] }, recents: [], addRecent: { ok: true, recents: [] }, importRecents: { ok: true, recents: [] } }),
     mediaSession: spy(),
     sleepTimer: new SleepTimer({ timers: { setTimeout: () => 1, clearTimeout() {} }, now: () => 0 }),
     router: spy(),

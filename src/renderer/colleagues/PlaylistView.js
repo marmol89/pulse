@@ -57,6 +57,7 @@ export class PlaylistView extends Colleague {
   #shuffle;
   #play;
   #edit;
+  #download;
   #tools;
   #filter;
   #sort;
@@ -80,6 +81,10 @@ export class PlaylistView extends Colleague {
     });
     this.#edit = h('button', { type: 'button', class: 'button button--secondary collection-actions__edit', hidden: true }, icon('pencil'), 'Editar lista');
     this.#edit.addEventListener('click', () => this.notify(EVENTS.EDIT_LIST, this.#source.id));
+    this.#download = h('button', { type: 'button', class: 'button button--secondary collection-actions__download', hidden: true });
+    this.#download.addEventListener('click', () =>
+      this.notify(this.#download.dataset.state === 'all' ? EVENTS.REMOVE_DOWNLOADS : EVENTS.DOWNLOAD_COLLECTION, this.#source),
+    );
     this.#filter = h('input', { type: 'search', class: 'library-tools__input', placeholder: 'Filtrar canciones', 'aria-label': 'Filtrar canciones', spellcheck: 'false' });
     this.#filter.addEventListener('input', () => this.notify(EVENTS.FILTER_LIBRARY, this.#filter.value));
     this.#sort = h('select', { class: 'library-tools__sort', 'aria-label': 'Ordenar por' }, ...LIBRARY_SORTS.map(([value, label]) => h('option', { value }, label)));
@@ -118,7 +123,7 @@ export class PlaylistView extends Colleague {
           this.#stats,
         ),
       ),
-      h('div', { class: 'collection-actions' }, this.#edit, this.#tools, this.#shuffle, this.#play),
+      h('div', { class: 'collection-actions' }, this.#edit, this.#tools, this.#download, this.#shuffle, this.#play),
       this.#list.element,
       this.#empty,
     );
@@ -138,6 +143,7 @@ export class PlaylistView extends Colleague {
     this.#stats.textContent = collectionStats(tracks);
     const isList = source.kind === 'list';
     this.#edit.hidden = !isList;
+    this.#renderDownload(state.download ?? null, tracks.length);
     this.#renderTools(source);
     this.#list.render(tracks, { ...state, removable: REMOVE_LABELS[source.kind] ?? false, reorderable: source.kind in REMOVE_LABELS });
     this.#empty.hidden = tracks.length > 0;
@@ -145,6 +151,19 @@ export class PlaylistView extends Colleague {
       ? `Ninguna canción coincide con «${source.filter.trim()}».`
       : (EMPTY_MESSAGES[source.kind] ?? 'No hay canciones aquí.');
     this.#play.disabled = tracks.length === 0;
+  }
+
+  /** "Descargar" (sin conexión) en las colecciones que lo admiten; `download`: 'none' | 'downloading' | 'all' o null. */
+  #renderDownload(download, count) {
+    this.#download.hidden = !download || count === 0;
+    if (this.#download.hidden) return;
+    const labels = { none: ['download', 'Descargar'], downloading: ['download', 'Descargando…'], all: ['downloaded', 'Descargada'] };
+    const [name, label] = labels[download] ?? labels.none;
+    this.#download.dataset.state = download;
+    this.#download.disabled = download === 'downloading';
+    this.#download.setAttribute('aria-pressed', String(download === 'all'));
+    this.#download.title = download === 'all' ? 'Quitar la descarga del móvil' : 'Guardar en el móvil para escucharla sin conexión';
+    this.#download.replaceChildren(icon(name), label);
   }
 
   /** Filtro y orden solo en "Tu biblioteca"; al entrar de nuevo, el filtro empieza vacío. */

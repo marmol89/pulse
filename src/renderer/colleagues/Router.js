@@ -2,6 +2,7 @@ import { Colleague } from '../core/Colleague.js';
 import { EVENTS } from '../mediator/events.js';
 import { h } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
+import { formatBytes, plural } from '../ui/format.js';
 
 const NAV_ITEMS = [
   ['home', 'Inicio', 'home'],
@@ -29,6 +30,8 @@ export class Router extends Colleague {
   #listsNav;
   #activeNav = 'home';
   #onlineSwitch;
+  #downloadsRow;
+  #downloadsHint;
   #crossfade;
   #connectionStatus;
   #current = 'home';
@@ -96,12 +99,18 @@ export class Router extends Colleague {
     return this.#overlay.classList.contains('is-open');
   }
 
-  /** Refleja si se buscan carátulas e información en internet. */
+  /** Descargas del móvil ({ count, bytes }); la fila solo aparece donde se puede descargar. */
+  setDownloads({ count, bytes }) {
+    this.#downloadsRow.hidden = false;
+    this.#downloadsHint.textContent = count > 0 ? `${plural(count, 'canción', 'canciones')} · ${formatBytes(bytes)}` : 'Ninguna';
+  }
+
   /** Segundos de fundido elegidos (0: sin fundido). */
   setCrossfade(seconds) {
     this.#crossfade.value = String(seconds);
   }
 
+  /** Refleja si se buscan carátulas e información en internet. */
   setOnlineLookup(enabled) {
     this.#onlineSwitch.checked = enabled;
   }
@@ -167,6 +176,15 @@ export class Router extends Colleague {
       this.#onlineSwitch,
     );
 
+    this.#downloadsHint = h('span', { class: 'switch-row__hint' });
+    const clearDownloads = h('button', { type: 'button', class: 'link-button' }, 'Borrar');
+    clearDownloads.addEventListener('click', () => this.notify(EVENTS.CLEAR_DOWNLOADS));
+    this.#downloadsRow = h(
+      'div',
+      { class: 'switch-row downloads-row', hidden: true, title: 'Canciones guardadas en este móvil para escucharlas sin conexión' },
+      h('span', { class: 'switch-row__text' }, h('span', { class: 'switch-row__title' }, 'Descargas'), this.#downloadsHint),
+      clearDownloads,
+    );
     this.#crossfade = h(
       'select',
       { class: 'setting-row__select', id: 'crossfade-select' },
@@ -187,7 +205,7 @@ export class Router extends Colleague {
       h('div', { class: 'brand' }, h('span', { class: 'brand__logo' }, icon('pulse')), 'Pulse'),
       nav,
       h('div', { class: 'sidebar__section sidebar__lists' }, h('h2', { class: 'sidebar__heading' }, 'Tus listas'), newList, this.#listsNav),
-      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, onlineRow, crossfadeRow),
+      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, onlineRow, crossfadeRow, this.#downloadsRow),
       h('p', { class: 'sidebar__hint' }, 'También puedes arrastrar canciones o carpetas a la ventana para subirlas a tu bucket.'),
     );
     this.#setActiveNav('home');

@@ -75,6 +75,12 @@ export const EVENTS = Object.freeze({
   // Escuchado recientemente (en el bucket, como los favoritos)
   RECENTS_CHANGED: 'recents-changed', // (paths[]) — llegaron cambios de otro equipo (la última que sonó primero)
 
+  // Descargas para escuchar sin conexión (solo Android)
+  DOWNLOAD_COLLECTION: 'download-collection', // (source)
+  REMOVE_DOWNLOADS: 'remove-downloads', // (source)
+  CLEAR_DOWNLOADS: 'clear-downloads', // ()
+  DOWNLOADS_CHANGED: 'downloads-changed', // ({ paths, pending, bytes }) — terminó una descarga
+
   // Listas de canciones del usuario (en el bucket, compartidas con todos los Pulse conectados a él)
   LISTS_CHANGED: 'lists-changed', // (List[]) — llegaron cambios de otro equipo
   NEW_LIST: 'new-list', // (paths?) — "Nueva lista": pedir el nombre (con esas canciones dentro)

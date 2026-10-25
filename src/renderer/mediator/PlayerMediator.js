@@ -20,6 +20,7 @@ import resume from './handlers/resume.js';
 import sleep from './handlers/sleep.js';
 import librarySort from './handlers/librarySort.js';
 import crossfade from './handlers/crossfade.js';
+import downloads from './handlers/downloads.js';
 
 /**
  * Solo compone: conecta colegas y registra módulos de handlers.
@@ -59,7 +60,8 @@ export class PlayerMediator extends Mediator {
       .use(resume)
       .use(sleep)
       .use(librarySort)
-      .use(crossfade);
+      .use(crossfade)
+      .use(downloads);
   }
 
   get context() {
