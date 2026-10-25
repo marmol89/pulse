@@ -14,7 +14,7 @@ function renamed(key, n) {
  * Clave libre para subir: la misma si no existe; null si ya está ese archivo (mismo tamaño);
  * si hay otro distinto con ese nombre, "Nombre (2).mp3", "(3)"… Nunca sobrescribe.
  */
-async function freeKey(storage, key, size) {
+export async function freeKey(storage, key, size) {
   for (let n = 1; n <= MAX_RENAMES; n += 1) {
     const candidate = n === 1 ? key : renamed(key, n);
     const existing = await storage.stat(candidate);

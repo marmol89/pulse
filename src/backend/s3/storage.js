@@ -1,8 +1,11 @@
-import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { isAudioFile } from '../library/tracks.js';
 
 // Los errores ya llegan a quien llama, y una subida fallida (un stream no se reintenta) se cuenta en
 // el resultado: el SDK no necesita avisar por consola de ninguna de las dos cosas.
+/** Carpeta (bajo la de la conexión) donde van las canciones eliminadas: no forman parte de la biblioteca. */
+export const TRASH_FOLDER = 'papelera/';
+
 const SDK_LOGGER = {
   debug() {},
   info() {},
@@ -13,7 +16,8 @@ const SDK_LOGGER = {
 };
 
 /**
- * Acceso al bucket de música (S3 o compatible, como MinIO): leer y subir canciones; nunca borra.
+ * Acceso al bucket de música (S3 o compatible, como MinIO): leer y subir canciones. Solo borra al mover una
+ * canción a la papelera (`copy` + `remove`, en library/trash.js) y al vaciarla.
  * Estilo path ("https://servidor/bucket/clave"), que es lo que esperan MinIO y similares.
  *
  * `requestHandler` cambia cómo salen las peticiones (en Android, por la red nativa: sin CORS).
@@ -45,14 +49,18 @@ export function createS3Storage({ endpoint, accessKeyId, secretAccessKey, bucket
       return Buckets.map((entry) => entry.Name);
     },
 
-    /** Todos los archivos de audio del bucket (bajo el prefijo), con tamaño, ETag y fecha de subida (ms). */
-    async listAudio() {
+    /**
+     * Todos los archivos de audio del bucket (bajo el prefijo), con tamaño, ETag y fecha de subida (ms), sin
+     * los de la papelera. Con `trash`, solo los de la papelera.
+     */
+    async listAudio({ trash = false } = {}) {
+      const trashPrefix = `${prefix}${TRASH_FOLDER}`;
       const objects = [];
       let token;
       do {
-        const page = await client.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix || undefined, ContinuationToken: token }));
+        const page = await client.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: (trash ? trashPrefix : prefix) || undefined, ContinuationToken: token }));
         for (const item of page.Contents ?? []) {
-          if (isAudioFile(item.Key)) objects.push({ key: item.Key, size: item.Size ?? 0, etag: item.ETag ?? '', lastModified: item.LastModified ? new Date(item.LastModified).getTime() : 0 });
+          if (isAudioFile(item.Key) && (trash || !item.Key.startsWith(trashPrefix))) objects.push({ key: item.Key, size: item.Size ?? 0, etag: item.ETag ?? '', lastModified: item.LastModified ? new Date(item.LastModified).getTime() : 0 });
         }
         token = page.IsTruncated ? page.NextContinuationToken : undefined;
       } while (token);
@@ -115,6 +123,17 @@ export function createS3Storage({ endpoint, accessKeyId, secretAccessKey, bucket
       await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentLength: size, ContentType: contentType }));
     },
 
+    /** Copia un objeto dentro del bucket (sin descargarlo). */
+    async copy(fromKey, toKey) {
+      const source = `${bucket}/${fromKey.split('/').map(encodeURIComponent).join('/')}`;
+      await client.send(new CopyObjectCommand({ Bucket: bucket, Key: toKey, CopySource: source }));
+    },
+
+    /** Borra un objeto. Solo lo usan la papelera (library/trash.js) y vaciarla. */
+    async remove(key) {
+      await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+    },
+
     destroy() {
       client.destroy();
     },
@@ -128,6 +147,11 @@ export function describeUploadError(error) {
     return 'Tus claves no tienen permiso para subir canciones a este bucket';
   }
   return describeS3Error(error);
+}
+
+/** Mensaje en español para un error al eliminar o restaurar: sin permiso, o el de describeS3Error. */
+export function describeDeleteError(error) {
+  return describeUploadError(error).replace('para subir canciones a', 'para eliminar ni restaurar canciones en');
 }
 
 /** Mensaje en español para un error de conexión con S3. */

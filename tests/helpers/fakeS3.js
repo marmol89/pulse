@@ -3,10 +3,11 @@ import { createHash } from 'node:crypto';
 
 /**
  * Servidor S3 mínimo (estilo path, como MinIO) para tests y e2e sin red ni credenciales reales.
- * Entiende: ListBuckets, ListObjectsV2 (con paginación), HeadObject, GetObject con Range y PutObject.
+ * Entiende: ListBuckets, ListObjectsV2 (con paginación), HeadObject, GetObject con Range, PutObject, CopyObject
+ * (PUT con x-amz-copy-source) y DeleteObject.
  * También lee con URLs firmadas (X-Amz-Credential en la query, como las del <audio> de Android).
  * Las peticiones firmadas con otra clave de acceso reciben 403 InvalidAccessKeyId; con `readOnly`,
- * las subidas reciben 403 AccessDenied (claves sin permiso de escritura).
+ * las subidas, copias y borrados reciben 403 AccessDenied (claves sin permiso de escritura).
  * Cada objeto lleva su fecha de subida (LastModified): los iniciales, el 1 de enero de 2026; los demás, la de su subida.
  */
 export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = { musica: {} }, pageSize = 1000, readOnly = false, host = '127.0.0.1' } = {}) {
@@ -33,6 +34,14 @@ export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = {
     const bucket = data.get(bucketName);
     if (!bucket) return xml(res, 404, `<Error><Code>NoSuchBucket</Code><Message>No existe</Message></Error>`);
     if (!key) return list(res, bucketName, bucket, url.searchParams, pageSize, (name) => modified.get(`${bucketName}/${name}`));
+    if (req.method === 'PUT' && req.headers['x-amz-copy-source']) {
+      return copy(res, data, bucket, key, req.headers['x-amz-copy-source'], state.readOnly, () => modified.set(`${bucketName}/${key}`, new Date()));
+    }
+    if (req.method === 'DELETE') {
+      if (state.readOnly) return xml(res, 403, `<Error><Code>AccessDenied</Code><Message>Acceso denegado</Message></Error>`);
+      bucket.delete(key);
+      return res.writeHead(204).end();
+    }
     if (req.method === 'PUT') return put(req, res, bucket, key, state.readOnly, () => modified.set(`${bucketName}/${key}`, new Date()));
     const body = bucket.get(key);
     if (!body) {
@@ -51,6 +60,10 @@ export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = {
     put(bucketName, key, body, date = new Date()) {
       data.get(bucketName).set(key, Buffer.from(body));
       modified.set(`${bucketName}/${key}`, date);
+    },
+    /** Claves de un bucket, en orden. */
+    keys(bucketName) {
+      return [...data.get(bucketName).keys()].sort();
     },
     /** Contenido de un objeto (Buffer) o undefined. */
     get(bucketName, key) {
@@ -86,6 +99,17 @@ async function put(req, res, bucket, key, readOnly, onStored) {
   bucket.set(key, body);
   onStored();
   res.writeHead(200, { ETag: etag(body) }).end();
+}
+
+/** CopyObject: la fuente llega como "bucket/clave" con la clave codificada como en una URL. */
+function copy(res, data, bucket, key, header, readOnly, onStored) {
+  if (readOnly) return xml(res, 403, `<Error><Code>AccessDenied</Code><Message>Acceso denegado</Message></Error>`);
+  const [sourceBucket, ...sourceParts] = decodeURIComponent(String(header).replace(/^\//, '')).split('/');
+  const body = data.get(sourceBucket)?.get(sourceParts.join('/'));
+  if (!body) return xml(res, 404, `<Error><Code>NoSuchKey</Code><Message>No existe</Message></Error>`);
+  bucket.set(key, body);
+  onStored();
+  return xml(res, 200, `<CopyObjectResult><LastModified>${new Date().toISOString()}</LastModified><ETag>${escape(etag(body))}</ETag></CopyObjectResult>`);
 }
 
 const INITIAL_DATE = new Date('2026-01-01T00:00:00.000Z');
