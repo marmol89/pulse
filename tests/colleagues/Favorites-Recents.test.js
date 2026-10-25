@@ -22,10 +22,24 @@ describe('Favorites', () => {
     assert.deepEqual(favorites.list(), ['/b.mp3', '/a.mp3']);
   });
 
-  test('persiste entre instancias', () => {
-    const storage = memoryStorage();
-    new Favorites(storage).toggle('/a.mp3');
-    assert.equal(new Favorites(storage).has('/a.mp3'), true);
+  test('set() toma la copia recibida (las más recientes primero) y dice qué rutas cambiaron', () => {
+    const favorites = new Favorites(memoryStorage());
+    favorites.toggle('/a.mp3');
+    favorites.toggle('/b.mp3');
+    assert.deepEqual(favorites.set(['/c.mp3', '/b.mp3']), ['/a.mp3', '/c.mp3']);
+    assert.deepEqual(favorites.list(), ['/c.mp3', '/b.mp3']);
+    assert.deepEqual(favorites.set(['/c.mp3', '/b.mp3']), []);
+  });
+
+  test('los de cuando solo eran de este equipo se ven hasta subirlos; después se olvidan', () => {
+    const storage = createStorage(createMemoryBackend({ 'pulse.favorites': JSON.stringify(['/a.mp3', '/b.mp3']) }));
+    const favorites = new Favorites(storage);
+    assert.deepEqual(favorites.list(), ['/b.mp3', '/a.mp3']);
+    assert.deepEqual(favorites.legacy(), ['/a.mp3', '/b.mp3']);
+    favorites.toggle('/c.mp3');
+    assert.deepEqual(new Favorites(storage).legacy(), ['/a.mp3', '/b.mp3'], 'el corazón ya no se guarda aquí');
+    favorites.forgetLegacy();
+    assert.deepEqual(new Favorites(storage).legacy(), []);
   });
 });
 

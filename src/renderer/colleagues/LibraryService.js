@@ -5,7 +5,7 @@ import { EVENTS } from '../mediator/events.js';
  * Único colega que habla con el proceso main (window.api, expuesto por el preload).
  * La música vive en un bucket S3; la clave secreta nunca llega a la ventana.
  * Emite: tracks-updated (datos de internet en segundo plano), library-changed (cambios en el bucket),
- * upload-progress (subida de canciones en curso) y lists-changed (listas cambiadas desde otro equipo).
+ * upload-progress (subida de canciones en curso), lists-changed y favorites-changed (cambiados desde otro equipo).
  */
 export class LibraryService extends Colleague {
   #api;
@@ -17,6 +17,7 @@ export class LibraryService extends Colleague {
     api.onLibraryChanged?.((change) => this.notify(EVENTS.LIBRARY_CHANGED, change));
     api.onUploadProgress?.((progress) => this.notify(EVENTS.UPLOAD_PROGRESS, progress));
     api.onListsChanged?.((lists) => this.notify(EVENTS.LISTS_CHANGED, lists));
+    api.onFavoritesChanged?.((paths) => this.notify(EVENTS.FAVORITES_CHANGED, paths));
   }
 
   /** Biblioteca guardada (la última sincronización con el bucket). */
@@ -113,6 +114,24 @@ export class LibraryService extends Colleague {
   /** @returns {Promise<ListResult>} */
   deleteList(id) {
     return this.#api.deleteList(id);
+  }
+
+  /**
+   * Favoritos (guardados en el bucket, compartidos con los demás equipos): rutas, las más recientes primero.
+   * @typedef {{ ok: true, favorites: string[] } | { ok: false, error: string }} FavoriteResult
+   */
+  favorites() {
+    return this.#api.getFavorites();
+  }
+
+  /** Marca (`favorite`) o desmarca. @returns {Promise<FavoriteResult>} */
+  setFavorite(path, favorite) {
+    return this.#api.setFavorite(path, favorite);
+  }
+
+  /** Sube los favoritos que solo estaban en este equipo (de la más antigua a la más reciente). @returns {Promise<FavoriteResult>} */
+  importFavorites(paths) {
+    return this.#api.importFavorites(paths);
   }
 
   /** Activa o desactiva la búsqueda en segundo plano del proceso main. */
