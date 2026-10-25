@@ -206,6 +206,23 @@ try {
   check((await page.textContent('.downloads-row')).includes('1 canción'), '"Tu música" cuenta lo descargado');
   await page.click('.nav__item--menu');
 
+  // Papelera por la red nativa (CopyObject y un DELETE que responde 204 sin cuerpo).
+  await page.click('.nav__item:has-text("Biblioteca")');
+  await page.click('.view--collection .track-row:has-text("Brisa") [data-action="more"]');
+  await page.click('.menu__item:has-text("Eliminar del bucket")');
+  await page.waitForSelector('.trash-dialog[open] button[type="submit"]:not([hidden])');
+  await page.click('.trash-dialog button[type="submit"]');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'Movida a la papelera del bucket', null, { timeout: 15000 });
+  check(!s3.get('musica', 'Brisa.wav') && Boolean(s3.get('musica', 'papelera/Brisa.wav')), '"Eliminar del bucket" la mueve a la papelera desde el móvil');
+  await page.click('.nav__item--menu');
+  await page.click('.nav__item:has-text("Papelera")');
+  await page.waitForSelector('.trash-dialog[open] .trash-item:has-text("Brisa.wav")');
+  await shot('09-papelera');
+  await page.click('.trash-item:has-text("Brisa") .trash-item__restore');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent.startsWith('Restaurada'), null, { timeout: 15000 });
+  await page.click('.trash-dialog .link-button:has-text("Cerrar")');
+  check(Boolean(s3.get('musica', 'Brisa.wav')) && !s3.get('musica', 'papelera/Brisa.wav'), 'desde "Papelera" se restaura en el bucket');
+
   check(logs.length === 0, 'sin errores de consola');
   for (const log of logs) console.log(`   ${log}`);
 
