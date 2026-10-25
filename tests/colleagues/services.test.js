@@ -16,6 +16,13 @@ describe('Settings', () => {
     assert.equal(settings.setOnlineLookup(false), false);
     assert.equal(new Settings(storage).onlineLookup(), false);
   });
+
+  test('el orden de la biblioteca se recuerda (null: el de siempre)', () => {
+    const storage = createStorage(createMemoryBackend());
+    assert.equal(new Settings(storage).librarySort(), null);
+    assert.equal(new Settings(storage).setLibrarySort('artist'), 'artist');
+    assert.equal(new Settings(storage).librarySort(), 'artist');
+  });
 });
 
 describe('LibraryService', () => {
@@ -45,6 +52,18 @@ describe('LibraryService', () => {
     push({ removed: ['/borrada.mp3'], added: [] });
 
     assert.deepEqual(mediator.events, [[EVENTS.LIBRARY_CHANGED, { removed: ['/borrada.mp3'], added: [] }]]);
+  });
+
+  test('fotos de artista: las guardadas al pedirlas y las nuevas como artist-pictures-changed', async () => {
+    let push;
+    const library = new LibraryService({ getArtistPictures: async (names) => ({ [names[0]]: 'media://artist/k.jpg' }), onArtistPicturesChanged: (callback) => (push = callback) });
+    const mediator = recordingMediator();
+    library.setMediator(mediator);
+
+    assert.deepEqual(await library.getArtistPictures(['Kora']), { Kora: 'media://artist/k.jpg' });
+    assert.deepEqual(await new LibraryService({}).getArtistPictures(['Kora']), {}, 'sin soporte en la plataforma');
+    push({ Selva: 'media://artist/s.jpg' });
+    assert.deepEqual(mediator.events, [[EVENTS.ARTIST_PICTURES_CHANGED, { Selva: 'media://artist/s.jpg' }]]);
   });
 
   test('subir: el diálogo, lo arrastrado (solo lo que viene del disco) y el progreso', async () => {

@@ -10,6 +10,7 @@ const CONCURRENCY = 4; // pistas leídas a la vez
  * Antes de leer archivos usa los metadatos guardados en el bucket (`pullMetadata`): lo que ya
  * está ahí no se vuelve a leer, y los datos de internet más recientes llegan con `onUpdated`.
  * `toTrack` convierte un registro en la pista que ve la interfaz (con las URLs de cada plataforma).
+ * `onPicture(registro, carátula)` recibe las carátulas incrustadas leídas, para guardarlas en el equipo.
  */
 export function createLibrarySync({
   store,
@@ -17,6 +18,7 @@ export function createLibrarySync({
   toTrack,
   onChange,
   onUpdated = () => {},
+  onPicture,
   pullMetadata = async () => [],
   readRecord = readRemoteRecord,
   now = Date.now,
@@ -30,8 +32,13 @@ export function createLibrarySync({
     if (!storage) return { removed: [], added: [] };
     const objects = new Map((await storage.listAudio()).map((object) => [trackId(storage.bucket, object.key), object]));
     const present = new Set(objects.keys());
+    // La fecha de subida (para ordenar por "Añadidas recientemente") llega con el listado: no hace falta releer nada.
+    const dated = (record) => withUploadDate(record, objects.get(record.path));
     const { known, improved } = fromMetadata(await pullMetadata(), objects);
-    store.add([...known, ...improved]);
+    store.add([...known, ...improved].map(dated));
+    const redated = store.all().filter((record) => objects.get(record.path)?.etag === record.etag && dated(record) !== record);
+    store.add(redated.map(dated));
+    improved.push(...redated);
     const pending = [...objects].filter(([id, object]) => store.get(id)?.etag !== object.etag).map(([, object]) => object);
     // También se quitan las de otro bucket (si cambió la conexión) o de versiones locales antiguas.
     const removed = store
@@ -39,15 +46,15 @@ export function createLibrarySync({
       .map((record) => record.path)
       .filter((id) => !present.has(id));
     // Si un objeto no se puede descargar ahora (red, S3), no se guarda: se reintenta en la próxima.
-    const records = (await mapLimit(pending, CONCURRENCY, (object) => readRecord(storage, object).catch(() => null))).filter(Boolean);
+    const records = (await mapLimit(pending, CONCURRENCY, (object) => readRecord(storage, object, { onPicture }).catch(() => null))).filter(Boolean);
     store.remove(removed);
     store.add(records);
-    const added = [...known, ...records];
+    const added = [...known, ...records].map((record) => store.get(record.path) ?? record);
     if (removed.length + added.length + improved.length > 0) await store.save();
     lastSyncAt = now();
     const change = { removed, added: added.map(toTrack) };
     if (removed.length + added.length > 0) onChange(change);
-    if (improved.length > 0) onUpdated(improved.map(toTrack));
+    if (improved.length > 0) onUpdated(improved.map((record) => toTrack(store.get(record.path) ?? record)));
     return change;
   }
 
@@ -93,6 +100,12 @@ export function createLibrarySync({
       return false;
     },
   };
+}
+
+/** El registro con la fecha de subida de su objeto (el mismo registro si ya la tenía o no se sabe). */
+function withUploadDate(record, object) {
+  const addedAt = object?.lastModified;
+  return addedAt && record.addedAt !== addedAt ? { ...record, addedAt } : record;
 }
 
 async function mapLimit(items, limit, task) {

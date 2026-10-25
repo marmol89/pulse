@@ -13,6 +13,7 @@ export function registerListsIpc({ lists }) {
   ipcMain.handle('lists:create', (_event, name, tracks) => listResult(() => lists.create(name, paths(tracks))));
   ipcMain.handle('lists:rename', (_event, id, name) => listResult(() => lists.rename(text(id), name)));
   ipcMain.handle('lists:add', (_event, id, tracks) => listResult(() => lists.add(text(id), paths(tracks))));
+  ipcMain.handle('lists:move-track', (_event, id, path, to) => listResult(() => lists.moveTrack(text(id), text(path), Number(to))));
   ipcMain.handle('lists:remove-track', (_event, id, path) => listResult(() => lists.removeTrack(text(id), text(path))));
   ipcMain.handle('lists:delete', (_event, id) => listResult(() => lists.remove(text(id))));
 }

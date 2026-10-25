@@ -8,14 +8,16 @@ import { createUploader } from '../backend/library/upload.js';
 import { createMetadataStore } from '../backend/library/metadata.js';
 import { createListStore, listResult } from '../backend/library/lists.js';
 import { createFavoriteStore, favoriteResult } from '../backend/library/favorites.js';
+import { createRecentStore, recentResult } from '../backend/library/recents.js';
 import { createConnectionStore } from '../backend/s3/connection.js';
 import { createS3Service } from '../backend/s3/service.js';
 import { createS3Storage } from '../backend/s3/storage.js';
 import { createHttp } from '../backend/online/http.js';
 import { createEnricher } from '../backend/online/enricher.js';
 import { createEnrichmentQueue } from '../backend/online/queue.js';
+import { createArtistPictures } from '../backend/online/artists.js';
 import { createNativeFetch, createS3RequestHandler } from './nativeHttp.js';
-import { createCoverCache } from './covers.js';
+import { coverFileName, createCoverCache } from './covers.js';
 import { createDownloads } from './downloads.js';
 import { pickFiles } from './picker.js';
 
@@ -50,7 +52,7 @@ export function collectFiles(files) {
  *   `prepare`: lo que hay que resolver antes de arrancar (carpeta de las carátulas, prefijo del Keystore)
  */
 export function createAndroidApi(deps) {
-  const listeners = { changed: new Set(), updated: new Set(), progress: new Set(), lists: new Set(), favorites: new Set(), downloads: new Set() };
+  const listeners = { changed: new Set(), updated: new Set(), progress: new Set(), lists: new Set(), favorites: new Set(), recents: new Set(), artists: new Set(), downloads: new Set() };
   const emit = (kind, payload) => {
     for (const listener of listeners[kind]) listener(payload);
   };
@@ -69,8 +71,8 @@ export function createAndroidApi(deps) {
 
     // Biblioteca (en el bucket S3)
     loadLibrary: call(({ store, present, trackOf }) => present(store.all().map(trackOf))),
-    syncLibrary: call(async ({ librarySync, lists, favorites }) => {
-      const [{ added, removed }] = await Promise.all([librarySync.sync(), lists.sync(), favorites.sync()]);
+    syncLibrary: call(async ({ librarySync, lists, favorites, recents }) => {
+      const [{ added, removed }] = await Promise.all([librarySync.sync(), lists.sync(), favorites.sync(), recents.sync()]);
       return { added: added.length, removed: removed.length };
     }),
     verifyTrack: call(({ librarySync }, id) => (typeof id === 'string' ? librarySync.verify(id) : false)),
@@ -97,6 +99,7 @@ export function createAndroidApi(deps) {
     createList: call(({ lists }, name, paths) => listResult(() => lists.create(name, Array.isArray(paths) ? paths : []))),
     renameList: call(({ lists }, id, name) => listResult(() => lists.rename(String(id), name))),
     addToList: call(({ lists }, id, paths) => listResult(() => lists.add(String(id), Array.isArray(paths) ? paths : []))),
+    moveInList: call(({ lists }, id, path, to) => listResult(() => lists.moveTrack(String(id), String(path), Number(to)))),
     removeFromList: call(({ lists }, id, path) => listResult(() => lists.removeTrack(String(id), String(path)))),
     deleteList: call(({ lists }, id) => listResult(() => lists.remove(String(id)))),
     onListsChanged: subscribe('lists'),
@@ -107,14 +110,25 @@ export function createAndroidApi(deps) {
     importFavorites: call(({ favorites }, paths) => favoriteResult(() => favorites.import(Array.isArray(paths) ? paths : []))),
     onFavoritesChanged: subscribe('favorites'),
 
+    // Recientes (compartidos como los favoritos)
+    getRecents: call(({ recents }) => recents.all()),
+    addRecent: call(({ recents }, path) => recentResult(() => recents.add(path))),
+    importRecents: call(({ recents }, paths) => recentResult(() => recents.import(Array.isArray(paths) ? paths : []))),
+    onRecentsChanged: subscribe('recents'),
+
     // Datos de internet
     lookupTrack: call(async ({ store, queue, present }, id, options = {}) => {
       if (typeof id !== 'string' || !store.has(id)) throw new TypeError('Pista desconocida');
       const result = await queue.lookupNow(id, { force: options?.force === true, lyrics: true });
       return result && { ...result, track: (await present([result.track]))[0] };
     }),
-    setOnlineLookup: call(({ queue }, enabled) => queue.setEnabled(enabled === true)),
+    setOnlineLookup: call(({ queue, artistPictures }, enabled) => {
+      artistPictures.setEnabled(enabled === true);
+      return queue.setEnabled(enabled === true);
+    }),
     onTracksUpdated: subscribe('updated'),
+    getArtistPictures: call(({ artistPictures, pictureUrls }, names) => pictureUrls(artistPictures.request(Array.isArray(names) ? names : []))),
+    onArtistPicturesChanged: subscribe('artists'),
 
     // Descargas para escuchar sin conexión (solo Android)
     getDownloads: call(({ downloads }) => downloads.summary()),
@@ -144,11 +158,13 @@ async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downlo
   await lists.load();
   const favorites = createFavoriteStore({ files, getStorage: () => s3.storage(), onChange: (all) => emit('favorites', all), timers });
   await favorites.load();
+  const recents = createRecentStore({ files, getStorage: () => s3.storage(), onChange: (all) => emit('recents', all), timers });
+  await recents.load();
 
   const covers = createCoverCache({
     files,
     toUrl: coverUrl,
-    readEmbedded: (record) => (s3.storage() ? readRemoteCover(s3.storage(), record) : null),
+    readEmbedded: (record) => (s3.storage() ? readRemoteCover(s3.storage(), record) : Promise.reject(new Error('Sin conexión'))),
     readCover: (name) => metadata.readCover(name),
     getRecord: (id) => store.get(id),
     onReady: (ids) => present(ids.map((id) => store.get(id)).filter(Boolean).map(trackOf)).then((tracks) => emit('updated', tracks)),
@@ -186,8 +202,19 @@ async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downlo
   }
   const emitTracks = (kind) => (tracks) => present(tracks).then((presented) => emit(kind, presented));
 
-  const enricher = createEnricher({ http: createHttp(createNativeFetch(http), { userAgent }), files });
+  const onlineHttp = createHttp(createNativeFetch(http), { userAgent });
+  const enricher = createEnricher({ http: onlineHttp, files });
   const queue = createEnrichmentQueue({ store, enricher, toTrack: trackOf, onUpdated: emitTracks('updated'), timers });
+  // Fotos de artista: en covers/, como las carátulas, y el WebView las carga directamente.
+  const pictureUrls = (pictures) => Object.fromEntries(Object.entries(pictures).map(([name, coverName]) => [name, coverUrl(coverName)]));
+  const artistPictures = createArtistPictures({
+    files,
+    http: onlineHttp,
+    getRecords: () => store.all(),
+    onUpdated: (pictures) => emit('artists', pictureUrls(pictures)),
+    timers,
+  });
+  await artistPictures.load();
   const librarySync = createLibrarySync({
     store,
     getStorage: () => s3.storage(),
@@ -199,6 +226,12 @@ async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downlo
       if (change.added.length > 0) queue.wake();
     },
     onUpdated: emitTracks('updated'),
+    // La carátula incrustada se guarda al leer las etiquetas: así no hay que volver a descargar el archivo.
+    onPicture: async (record, picture) => {
+      const name = coverFileName(record);
+      await files.write(`covers/${name}`, picture.data);
+      covers.markPresent(name);
+    },
   });
   const uploader = createUploader({
     getStorage: () => s3.storage(),
@@ -213,6 +246,7 @@ async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downlo
     librarySync.syncSoon();
     lists.syncSoon();
     favorites.syncSoon();
+    recents.syncSoon();
   };
   syncSoon();
   App?.addListener('resume', syncSoon);
@@ -220,7 +254,8 @@ async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downlo
     metadata.flush();
     if (lists.hasPending()) lists.sync();
     if (favorites.hasPending()) favorites.sync();
+    if (recents.hasPending()) recents.sync();
   });
 
-  return { store, s3, librarySync, uploader, queue, covers, metadata, lists, favorites, downloads, present, trackOf };
+  return { store, s3, librarySync, uploader, queue, covers, metadata, lists, favorites, recents, downloads, present, trackOf, artistPictures, pictureUrls };
 }

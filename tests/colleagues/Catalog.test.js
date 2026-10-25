@@ -71,6 +71,31 @@ describe('Catalog', () => {
     ]);
   });
 
+  test('artists() cuenta una colaboración para cada uno de sus artistas', () => {
+    const solo = track('/m/solo.mp3', { title: 'Solo', artist: 'Farruko' });
+    const juntos = track('/m/juntos.mp3', { title: 'Juntos', artist: 'Farruko, Victor Cardenas', cover: 'media://cover/juntos' });
+    const catalog = catalogWith(solo, juntos);
+    assert.deepEqual(catalog.artists().map((a) => [a.name, a.count]), [
+      ['Farruko', 2],
+      ['Victor Cardenas', 1],
+    ]);
+    assert.equal(catalog.artists()[0].sample, juntos, 'la muestra es una con carátula');
+    assert.deepEqual(catalog.collection({ kind: 'artist', key: 'Farruko' }).tracks, [solo, juntos]);
+    assert.deepEqual(catalog.collection({ kind: 'artist', key: 'Victor Cardenas' }).tracks, [juntos]);
+  });
+
+  test('las fotos de artista van a su tarjeta y a su colección (sin distinguir mayúsculas ni tildes)', () => {
+    const catalog = catalogWith(neon, ola);
+    assert.equal(catalog.setArtistPictures({ 'aurora vega': 'media://artist/a.jpg', Nadie: 'media://artist/n.jpg' }), true);
+    assert.equal(catalog.setArtistPictures({ 'Aurora Vega': 'media://artist/a.jpg', 'Marea Sur': '' }), false, 'nada nuevo');
+    assert.deepEqual(catalog.artists().map((a) => [a.name, a.picture]), [
+      ['Aurora Vega', 'media://artist/a.jpg'],
+      ['Marea Sur', null],
+    ]);
+    assert.equal(catalog.collection({ kind: 'artist', key: 'Aurora Vega' }).cover, 'media://artist/a.jpg');
+    assert.equal(catalog.collection({ kind: 'artist', key: 'Marea Sur' }).cover, null);
+  });
+
   test('collection() resuelve biblioteca, álbum (por número de pista), artista, género y búsqueda', () => {
     const catalog = catalogWith(neon, intro, ola, selva, atardecer);
 
@@ -85,5 +110,27 @@ describe('Catalog', () => {
     assert.equal(catalog.collection({ kind: 'genre', key: 'Lo-fi chill' }).tracks.length, 2);
     assert.deepEqual(catalog.collection({ kind: 'search', key: 'selva' }).tracks, [selva]);
     assert.deepEqual(catalog.collection({ kind: 'desconocido' }).tracks, []);
+  });
+
+  test('la biblioteca se ordena: por defecto, las añadidas recientemente primero', () => {
+    const dated = (item, addedAt, year = 0) => ({ ...item, addedAt, year });
+    const catalog = catalogWith(dated(neon, 3, 2020), dated(intro, 3, 2020), dated(ola, 1, 2024), dated(selva, 5), atardecer);
+    const titles = (sort) => catalog.collection({ kind: 'library', sort }).tracks.map((item) => item.title);
+
+    assert.deepEqual(titles(), ['Selva', 'Intro', 'Luces de Neón', 'Ola Azul', 'Atardecer'], 'empate: por título; sin fecha, al final');
+    assert.deepEqual(titles('desconocido'), titles());
+    assert.deepEqual(titles('title'), ['Atardecer', 'Intro', 'Luces de Neón', 'Ola Azul', 'Selva']);
+    assert.deepEqual(titles('artist'), ['Intro', 'Luces de Neón', 'Selva', 'Atardecer', 'Ola Azul'], 'en cada artista, por álbum y número');
+    assert.deepEqual(titles('album'), ['Selva', 'Atardecer', 'Ola Azul', 'Intro', 'Luces de Neón'], 'sin álbum primero');
+    assert.deepEqual(titles('year'), ['Ola Azul', 'Intro', 'Luces de Neón', 'Selva', 'Atardecer'], 'las más nuevas primero');
+  });
+
+  test('el filtro de la biblioteca busca todas las palabras sin cambiar el orden', () => {
+    const catalog = catalogWith(neon, intro, ola, selva, atardecer);
+    const titles = (filter) => catalog.collection({ kind: 'library', sort: 'title', filter }).tracks.map((item) => item.title);
+    assert.deepEqual(titles('aurora'), ['Intro', 'Luces de Neón']);
+    assert.deepEqual(titles('neon aurora'), ['Intro', 'Luces de Neón'], 'sin tildes y por álbum también');
+    assert.deepEqual(titles('  '), titles(''));
+    assert.deepEqual(titles('nada de esto'), []);
   });
 });

@@ -60,6 +60,18 @@ describe('library/lists', () => {
     assert.equal(JSON.parse(files.text(LISTS_FILE)).lists[0].deleted, true, 'queda la marca de borrada');
   });
 
+  test('moveTrack() cambia el orden y la lista gana en el bucket por updatedAt', async () => {
+    const C = 's3://musica/c.mp3';
+    const { lists } = device();
+    const { id } = await lists.create('Orden', [A, B, C]);
+    const before = lists.all()[0].updatedAt;
+    clock += 10;
+    assert.deepEqual((await lists.moveTrack(id, C, 0))[0].tracks, [C, A, B]);
+    assert.deepEqual((await lists.moveTrack(id, C, 99))[0].tracks, [A, B, C], 'más allá del final: la última');
+    assert.ok(lists.all()[0].updatedAt > before);
+    await assert.rejects(lists.moveTrack(id, 's3://musica/otra.mp3', 0), /ya no está en la lista/);
+  });
+
   test('rechaza nombres vacíos y listas que no existen', async () => {
     const { lists } = device();
     await assert.rejects(lists.create('   '), /nombre/);

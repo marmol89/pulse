@@ -139,9 +139,31 @@ describe('online/enricher', () => {
     const old = { ...complete, online: { checkedAt: 5, status: 'found', lyricsCheckedAt: 5 } };
     const { record: updated } = await enricher.enrich(old, { lyrics: true });
     const again = await enricher.enrich(updated, { lyrics: true });
-    assert.equal(updated.online.lyricsVersion, 2);
+    assert.equal(updated.online.lyricsVersion, 3);
     assert.equal(again.changed, false);
     assert.equal(calls(LRCLIB), 1);
+  });
+
+  test('a una letra de LRCLIB sin sincronizar se le busca una vez la sincronizada; la del archivo no se toca', async () => {
+    const { enricher, calls } = setup({ [LRCLIB]: [lrclibResult({ syncedLyrics: '[00:01.00] Hola' })] });
+    const before = { ...complete, lyrics: 'Hola', online: { checkedAt: 5, status: 'found', lyricsSource: 'LRCLIB', lyricsCheckedAt: 5, lyricsVersion: 2 } };
+
+    const { record: updated } = await enricher.enrich(before, { lyrics: true });
+    const again = await enricher.enrich(updated, { lyrics: true });
+    const fromFile = await enricher.enrich({ ...complete, lyrics: 'Del archivo', online: { checkedAt: 5, status: 'found' } }, { lyrics: true });
+
+    assert.equal(updated.syncedLyrics, '[00:01.00] Hola');
+    assert.equal(updated.online.lyricsVersion, 3);
+    assert.equal(again.changed, false);
+    assert.equal(fromFile.changed, false);
+    assert.equal(calls(LRCLIB), 1);
+  });
+
+  test('si la letra de LRCLIB ya no aparece, se queda la que había', async () => {
+    const { enricher } = setup({ [LRCLIB]: [] });
+    const before = { ...complete, lyrics: 'Hola', online: { checkedAt: 5, status: 'found', lyricsSource: 'LRCLIB', lyricsCheckedAt: 5, lyricsVersion: 2 } };
+    const { record: updated } = await enricher.enrich(before, { lyrics: true });
+    assert.deepEqual([updated.lyrics, updated.online.lyricsSource, updated.online.lyricsVersion], ['Hola', 'LRCLIB', 3]);
   });
 
   test('si el archivo ya tiene carátula no descarga otra', async () => {

@@ -7,9 +7,11 @@ import { createHash } from 'node:crypto';
  * También lee con URLs firmadas (X-Amz-Credential en la query, como las del <audio> de Android).
  * Las peticiones firmadas con otra clave de acceso reciben 403 InvalidAccessKeyId; con `readOnly`,
  * las subidas reciben 403 AccessDenied (claves sin permiso de escritura).
+ * Cada objeto lleva su fecha de subida (LastModified): los iniciales, el 1 de enero de 2026; los demás, la de su subida.
  */
 export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = { musica: {} }, pageSize = 1000, readOnly = false, host = '127.0.0.1' } = {}) {
   const data = new Map(Object.entries(buckets).map(([name, objects]) => [name, new Map(Object.entries(objects).map(([key, body]) => [key, Buffer.from(body)]))]));
+  const modified = new Map(); // "bucket/clave" → fecha de subida (si no, la de los objetos iniciales)
   const requests = [];
   const state = { readOnly, offline: false };
 
@@ -30,8 +32,8 @@ export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = {
     }
     const bucket = data.get(bucketName);
     if (!bucket) return xml(res, 404, `<Error><Code>NoSuchBucket</Code><Message>No existe</Message></Error>`);
-    if (!key) return list(res, bucketName, bucket, url.searchParams, pageSize);
-    if (req.method === 'PUT') return put(req, res, bucket, key, state.readOnly);
+    if (!key) return list(res, bucketName, bucket, url.searchParams, pageSize, (name) => modified.get(`${bucketName}/${name}`));
+    if (req.method === 'PUT') return put(req, res, bucket, key, state.readOnly, () => modified.set(`${bucketName}/${key}`, new Date()));
     const body = bucket.get(key);
     if (!body) {
       if (req.method === 'HEAD') return res.writeHead(404).end();
@@ -46,8 +48,9 @@ export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = {
     endpoint,
     requests,
     config: { endpoint, accessKeyId, secretAccessKey: 'secreto-de-prueba', bucket: Object.keys(buckets)[0], prefix: '' },
-    put(bucketName, key, body) {
+    put(bucketName, key, body, date = new Date()) {
       data.get(bucketName).set(key, Buffer.from(body));
+      modified.set(`${bucketName}/${key}`, date);
     },
     /** Contenido de un objeto (Buffer) o undefined. */
     get(bucketName, key) {
@@ -68,7 +71,7 @@ export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = {
   };
 }
 
-async function put(req, res, bucket, key, readOnly) {
+async function put(req, res, bucket, key, readOnly, onStored) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   if (readOnly) return xml(res, 403, `<Error><Code>AccessDenied</Code><Message>Acceso denegado</Message></Error>`);
@@ -81,8 +84,11 @@ async function put(req, res, bucket, key, readOnly) {
     return xml(res, 400, `<Error><Code>IncompleteBody</Code><Message>Tamaño incorrecto</Message></Error>`);
   }
   bucket.set(key, body);
+  onStored();
   res.writeHead(200, { ETag: etag(body) }).end();
 }
+
+const INITIAL_DATE = new Date('2026-01-01T00:00:00.000Z');
 
 function etag(body) {
   return `"${createHash('md5').update(body).digest('hex')}"`;
@@ -96,7 +102,7 @@ function escape(text) {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function list(res, name, bucket, params, pageSize) {
+function list(res, name, bucket, params, pageSize, modifiedOf) {
   const prefix = params.get('prefix') ?? '';
   const maxKeys = Math.min(Number(params.get('max-keys') ?? 1000), pageSize);
   const keys = [...bucket.keys()].filter((key) => key.startsWith(prefix)).sort();
@@ -105,7 +111,7 @@ function list(res, name, bucket, params, pageSize) {
   const truncated = start + maxKeys < keys.length;
   const contents = page.map((key) => {
     const body = bucket.get(key);
-    return `<Contents><Key>${escape(key)}</Key><LastModified>2026-01-01T00:00:00.000Z</LastModified><ETag>${escape(etag(body))}</ETag><Size>${body.length}</Size><StorageClass>STANDARD</StorageClass></Contents>`;
+    return `<Contents><Key>${escape(key)}</Key><LastModified>${(modifiedOf(key) ?? INITIAL_DATE).toISOString()}</LastModified><ETag>${escape(etag(body))}</ETag><Size>${body.length}</Size><StorageClass>STANDARD</StorageClass></Contents>`;
   });
   xml(
     res,

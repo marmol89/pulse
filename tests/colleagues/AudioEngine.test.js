@@ -33,6 +33,32 @@ describe('AudioEngine', () => {
     assert.equal(audio.playCalls, 0);
   });
 
+  test('fadeOut() baja el volumen poco a poco, pausa y lo deja como estaba', async () => {
+    const { audio, engine, storage } = setup();
+    engine.setVolume(0.5);
+    engine.load('media://track/a', true);
+    const volumes = [];
+    const timers = { setTimeout: (task) => setImmediate(() => (volumes.push(audio.volume), task())) };
+    await engine.fadeOut(100, { steps: 4, timers });
+    assert.deepEqual(volumes, [0.5, 0.375, 0.25, 0.125]);
+    assert.equal(engine.isPlaying(), false);
+    assert.equal(audio.volume, 0.5);
+    assert.equal(storage.get('volume'), 0.5, 'el volumen guardado no cambia');
+    await engine.fadeOut(100, { timers }); // sin sonar: no hace nada
+  });
+
+  test('load() con startAt empieza en ese segundo cuando el audio conoce su duración', () => {
+    const { audio, engine } = setup();
+    engine.load('media://track/a', false, 42);
+    assert.equal(audio.currentTime, 0);
+    audio.emit('loadedmetadata');
+    assert.equal(audio.currentTime, 42);
+    engine.load('media://track/b', false);
+    audio.currentTime = 0;
+    audio.emit('loadedmetadata');
+    assert.equal(audio.currentTime, 0, 'la siguiente pista empieza desde el principio');
+  });
+
   test('track-started se emite una vez por pista cargada, no al reanudar', () => {
     const { audio, engine, events } = setup();
     engine.load('media://track/a');
@@ -155,5 +181,160 @@ describe('AudioEngine', () => {
   test('sin mediaDevices no hay dispositivos que listar', async () => {
     const { engine } = setup();
     assert.deepEqual(await engine.outputDevices(), []);
+  });
+});
+
+/** Intervalos manuales: tick(n) avanza n pasos de 50 ms. */
+function manualTimers() {
+  const intervals = new Map();
+  let next = 1;
+  return {
+    setInterval: (callback) => {
+      intervals.set(next, callback);
+      return next++;
+    },
+    clearInterval: (id) => intervals.delete(id),
+    tick(steps = 1) {
+      for (let i = 0; i < steps; i += 1) for (const callback of [...intervals.values()]) callback();
+    },
+    active: () => intervals.size,
+  };
+}
+
+function setupTwo({ crossfade = 0 } = {}) {
+  const storage = createStorage(createMemoryBackend());
+  storage.set('crossfade', crossfade);
+  const [first, second] = [new FakeAudio(), new FakeAudio()];
+  const timers = manualTimers();
+  const engine = new AudioEngine(first, storage, null, { standby: second, timers });
+  const mediator = recordingMediator();
+  engine.setMediator(mediator);
+  return { first, second, engine, timers, storage, events: mediator.events };
+}
+
+/** El elemento llega a `current` de `duration` segundos. */
+function playTo(element, current, duration = 200) {
+  element.duration = duration;
+  element.currentTime = current;
+  element.emit('timeupdate');
+}
+
+describe('AudioEngine · sin cortes y fundido', () => {
+  test('a 20 s del final avisa una vez con near-end; volver atrás lo rearma', () => {
+    const { first, engine, events } = setupTwo();
+    engine.load('media://track/a');
+    playTo(first, 100);
+    playTo(first, 181);
+    playTo(first, 185);
+    playTo(first, 50);
+    playTo(first, 190);
+    assert.equal(names(events).filter((name) => name === EVENTS.NEAR_END).length, 2);
+  });
+
+  test('la siguiente precargada empieza en el otro elemento; los eventos del que ya no suena no cuentan', () => {
+    const { first, second, engine, events } = setupTwo();
+    engine.load('media://track/a');
+    engine.prepareNext('media://track/b');
+    assert.equal(second.src, 'media://track/b');
+    assert.equal(second.playCalls, 0, 'precarga sin sonar');
+
+    first.emit('ended');
+    engine.load('media://track/b');
+
+    assert.equal(second.paused, false);
+    assert.equal(first.paused, true);
+    assert.equal(first.src, '', 'la anterior se vacía');
+    events.length = 0;
+    first.emit('timeupdate');
+    first.emit('ended');
+    assert.deepEqual(events, []);
+    second.emit('playing');
+    assert.deepEqual(names(events), [EVENTS.TRACK_STARTED]);
+  });
+
+  test('si se elige otra pista, la precargada se descarta y suena la elegida en el mismo elemento', () => {
+    const { first, second, engine } = setupTwo();
+    engine.load('media://track/a');
+    engine.prepareNext('media://track/b');
+    engine.load('media://track/z');
+    assert.equal(first.src, 'media://track/z');
+    assert.equal(second.src, '');
+  });
+
+  test('con fundido, ended llega antes y las dos pistas se cruzan', () => {
+    const { first, second, engine, timers, events } = setupTwo({ crossfade: 4 });
+    engine.setVolume(0.5);
+    engine.load('media://track/a');
+    playTo(first, 180);
+    engine.prepareNext('media://track/b');
+    playTo(first, 195);
+    assert.equal(names(events).filter((name) => name === EVENTS.ENDED).length, 0);
+    playTo(first, 196.5);
+    assert.equal(names(events).filter((name) => name === EVENTS.ENDED).length, 1, 'quedan 3,5 s < 4 s de fundido');
+
+    engine.load('media://track/b');
+    assert.equal(second.volume, 0, 'la nueva empieza en silencio');
+    assert.equal(first.paused, false, 'la anterior sigue sonando mientras baja');
+    timers.tick(40); // la mitad de 4 s
+    assert.equal(second.volume, 0.25);
+    assert.equal(first.volume, 0.25);
+    timers.tick(40);
+    assert.equal(second.volume, 0.5);
+    assert.equal(first.paused, true);
+    assert.equal(first.src, '');
+    assert.equal(timers.active(), 0);
+    first.emit('ended');
+    assert.equal(names(events).filter((name) => name === EVENTS.ENDED).length, 1, 'el final de verdad ya no avisa');
+  });
+
+  test('durante el fundido, la siguiente se precarga cuando la anterior termina de apagarse', () => {
+    const { first, second, engine, timers } = setupTwo({ crossfade: 4 });
+    engine.load('media://track/a');
+    playTo(first, 197);
+    engine.load('media://track/b');
+    engine.prepareNext('media://track/c');
+    assert.equal(first.src, 'media://track/a', 'no corta la que se apaga');
+    timers.tick(80);
+    assert.equal(first.src, 'media://track/c');
+    assert.equal(second.src, 'media://track/b');
+  });
+
+  test('pausar en mitad del fundido apaga también la que terminaba', () => {
+    const { first, engine } = setupTwo({ crossfade: 4 });
+    engine.load('media://track/a');
+    playTo(first, 197);
+    engine.load('media://track/b');
+    engine.pause();
+    assert.equal(first.paused, true);
+    assert.equal(first.src, '');
+  });
+
+  test('sin fundido o en pistas cortas, ended llega al final de verdad', () => {
+    const short = setupTwo({ crossfade: 8 });
+    short.engine.load('media://track/a');
+    playTo(short.first, 18, 20);
+    assert.equal(names(short.events).includes(EVENTS.ENDED), false, 'una pista de 20 s no se funde');
+
+    const plain = setupTwo();
+    plain.engine.load('media://track/a');
+    playTo(plain.first, 199.9);
+    plain.first.emit('ended');
+    assert.equal(names(plain.events).filter((name) => name === EVENTS.ENDED).length, 1);
+  });
+
+  test('el fundido se recuerda (0–8 s) y sin segundo elemento no hay', () => {
+    const { engine, storage } = setupTwo();
+    assert.equal(engine.crossfade(), 0);
+    assert.equal(engine.setCrossfade(12), 8);
+    assert.equal(storage.get('crossfade'), 8);
+    assert.equal(setup().engine.setCrossfade(4), 0);
+  });
+
+  test('volumen, silencio y salida de audio valen para los dos elementos', async () => {
+    const { first, second, engine } = setupTwo();
+    engine.setVolume(0.3);
+    engine.toggleMute();
+    await engine.setOutputDevice('usb');
+    assert.deepEqual([first.volume, second.volume, first.muted, second.muted, first.sinkId, second.sinkId], [0.3, 0.3, true, true, 'usb', 'usb']);
   });
 });

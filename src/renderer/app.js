@@ -9,8 +9,10 @@ import { Recents } from './colleagues/Recents.js';
 import { Lists } from './colleagues/Lists.js';
 import { Settings } from './colleagues/Settings.js';
 import { Downloads } from './colleagues/Downloads.js';
+import { Session } from './colleagues/Session.js';
 import { LibraryService } from './colleagues/LibraryService.js';
 import { MediaSessionBridge } from './colleagues/MediaSessionBridge.js';
+import { SleepTimer } from './colleagues/SleepTimer.js';
 import { Router } from './colleagues/Router.js';
 import { HomeView } from './colleagues/HomeView.js';
 import { SearchView } from './colleagues/SearchView.js';
@@ -28,7 +30,7 @@ const $ = (selector) => document.querySelector(selector);
 
 const mediator = new PlayerMediator({
   // Modelos y servicios
-  audio: new AudioEngine(new Audio(), storage),
+  audio: new AudioEngine(new Audio(), storage, undefined, { standby: new Audio() }),
   playlist: new Playlist(),
   catalog: new Catalog(),
   favorites: new Favorites(storage),
@@ -36,8 +38,10 @@ const mediator = new PlayerMediator({
   lists: new Lists(),
   settings: new Settings(storage),
   downloads: new Downloads(),
+  session: new Session(storage),
   library: new LibraryService(window.api),
   mediaSession: new MediaSessionBridge(),
+  sleepTimer: new SleepTimer(),
   // Vistas
   router: new Router($('#app')),
   home: new HomeView($('#view-home')),

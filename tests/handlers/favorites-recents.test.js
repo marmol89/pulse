@@ -99,4 +99,40 @@ describe('handlers/recents', () => {
     recents[EVENTS.TRACK_STARTED](ctx);
     assert.deepEqual(ctx.recents.list(), []);
   });
+
+  test('track-started lo guarda en el bucket y se queda con la copia de vuelta', async () => {
+    const ctx = fakeContext({ library: spy({ addRecent: { ok: true, recents: ['b', 'x'] } }) });
+    ctx.catalog.add(tracks('a', 'b'));
+    ctx.playlist.setQueue(tracks('a', 'b'), 'b');
+    await recents[EVENTS.TRACK_STARTED](ctx);
+    assert.deepEqual(callsOf(ctx.library.addRecent), [['b']]);
+    assert.deepEqual(ctx.recents.list(), ['b', 'x']);
+  });
+
+  test('sin conexión se queda en esta sesión', async () => {
+    const ctx = fakeContext({ library: spy({ addRecent: { ok: false, error: 'Conecta tu bucket' } }) });
+    ctx.playlist.setQueue(tracks('a'), 'a');
+    await recents[EVENTS.TRACK_STARTED](ctx);
+    assert.deepEqual(ctx.recents.list(), ['a']);
+  });
+
+  test('app-ready sube una vez los de antes y pinta los del bucket', async () => {
+    const ctx = fakeContext({ library: spy({ importRecents: { ok: true, recents: ['b', 'a', 'x'] } }) });
+    ctx.recents.add('b'); // como si vinieran de localStorage
+    let forgotten = false;
+    ctx.recents.legacy = () => (forgotten ? [] : ['a', 'b']);
+    ctx.recents.forgetLegacy = () => (forgotten = true);
+    await recents[EVENTS.APP_READY](ctx);
+    assert.deepEqual(callsOf(ctx.library.importRecents), [[['a', 'b']]]);
+    assert.equal(forgotten, true);
+    assert.deepEqual(ctx.recents.list(), ['b', 'a', 'x']);
+  });
+
+  test('recents-changed repinta Inicio y "Escuchado recientemente" si está abierta', () => {
+    const ctx = fakeContext({ playlistView: spy({ source: { kind: 'recents' } }) });
+    ctx.catalog.add(tracks('a', 'b'));
+    recents[EVENTS.RECENTS_CHANGED](ctx, ['b', 'a']);
+    assert.deepEqual(callsOf(ctx.home.render)[0][0].recents.map((track) => track.path), ['b', 'a']);
+    assert.deepEqual(callsOf(ctx.playlistView.render)[0][0].tracks.map((track) => track.path), ['b', 'a']);
+  });
 });
