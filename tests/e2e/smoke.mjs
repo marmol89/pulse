@@ -306,13 +306,17 @@ try {
 
   check(logs.length === 0, `sin errores de consola${logs.length ? `:\n  ${logs.join('\n  ')}` : ''}`);
 
-  // Canción borrada del bucket con la app abierta (aquí el 404 en la consola es lo esperado).
-  s3.remove('musica', 'Los Prismas/Atardecer.wav');
+  // Canción borrada del bucket con la app abierta (aquí el 404 en la consola es lo esperado). Tiene que ser una que
+  // no haya sonado: el Mix y la cola pasan por casi todas, y Chromium vuelve a tocar desde su caché lo ya descargado.
+  s3.put('musica', 'Nuevas/Fugaz.wav', createWav({ seconds: 3, tags: { title: 'Fugaz', artist: 'Kora' } }));
+  await page.click('.nav__item:has-text("Actualizar biblioteca")');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === '1 canción nueva');
+  s3.remove('musica', 'Nuevas/Fugaz.wav');
   await page.click('.nav__item:has-text("Biblioteca")');
-  await page.dblclick('.view--collection .track-row:has-text("Atardecer")');
+  await page.dblclick('.view--collection .track-row:has-text("Fugaz")');
   await page.waitForFunction(() => document.querySelector('.toast')?.textContent.includes('ya no está en el bucket'));
   check(
-    (await page.locator('.view--collection .track-row:has-text("Atardecer")').count()) === 0,
+    (await page.locator('.view--collection .track-row:has-text("Fugaz")').count()) === 0,
     'una canción borrada del bucket se quita al intentar reproducirla',
   );
 } finally {
