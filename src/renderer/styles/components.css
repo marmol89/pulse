@@ -591,6 +591,12 @@
   text-align: center;
 }
 
+/* Centrados, el título y el subtítulo no pueden pasar del ancho de la tarjeta (si no, se pisan con la de al lado). */
+.media-card__title,
+.media-card__subtitle {
+  max-width: 100%;
+}
+
 /* Géneros: barra de color a la izquierda */
 .genre-grid {
   display: grid;
