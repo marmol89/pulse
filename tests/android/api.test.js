@@ -111,6 +111,15 @@ describe('android/api (window.api sobre el backend compartido)', () => {
     assert.deepEqual((await api.deleteList(created.id)).lists, []);
   });
 
+  test('los favoritos se guardan en el móvil y se suben a metadatos/favoritos.json del bucket', async () => {
+    const [track] = await api.loadLibrary();
+    assert.deepEqual(await api.setFavorite(track.path, true), { ok: true, favorites: [track.path] });
+    assert.deepEqual(await api.getFavorites(), [track.path]);
+    await (await api.ready).favorites.sync();
+    assert.equal(JSON.parse(s3.get('musica', 'metadatos/favoritos.json').toString()).favorites[0].id, track.path);
+    assert.deepEqual((await api.setFavorite(track.path, false)).favorites, []);
+  });
+
   test('metadatos/biblioteca.json llega al bucket como JSON (no en el base64 de la red nativa)', async () => {
     await (await api.ready).metadata.flush();
     const saved = JSON.parse(s3.get('musica', 'metadatos/biblioteca.json').toString());
