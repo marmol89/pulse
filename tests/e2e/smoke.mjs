@@ -5,13 +5,13 @@
  * cambios en el bucket, subir canciones del ordenador, la copia en metadatos/ y guarda capturas en tests/e2e/output/. Nunca usa tu S3 real.
  * Uso: npm run test:e2e   (abre la ventana unos segundos; el audio va silenciado)
  */
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { _electron as electron } from 'playwright-core';
 import { createWav } from '../helpers/audio.js';
-import { FIXTURES, bucketObjects } from './fixtures.js';
+import { FIXTURES, bucketObjects, KORA_PICTURE } from './fixtures.js';
 import { startFakeS3 } from '../helpers/fakeS3.js';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
@@ -27,9 +27,15 @@ const work = await mkdtemp(path.join(tmpdir(), 'pulse-e2e-'));
 const s3 = await startFakeS3({ buckets: { musica: bucketObjects() } });
 await mkdir(OUTPUT, { recursive: true });
 
-const app = await electron.launch({ args: ['.', `--user-data-dir=${path.join(work, 'perfil')}`], cwd: ROOT });
+// Una foto de artista ya encontrada en otra sesión (sin internet en la prueba): artists.json y covers/.
+await mkdir(path.join(work, 'perfil', 'covers'), { recursive: true });
+await writeFile(path.join(work, 'perfil', 'covers', 'e2e-kora.jpg'), KORA_PICTURE);
+await writeFile(path.join(work, 'perfil', 'artists.json'), JSON.stringify({ Kora: { coverName: 'e2e-kora.jpg', checkedAt: 1 } }));
+
+const launch = () => electron.launch({ args: ['.', `--user-data-dir=${path.join(work, 'perfil')}`], cwd: ROOT });
+let app = await launch();
 try {
-  const page = await app.firstWindow();
+  let page = await app.firstWindow();
   // Sin animaciones: si la ventana queda tapada, Windows no pinta frames y las
   // transiciones se quedarían a medias en la captura.
   const shot = (name) => page.screenshot({ path: path.join(OUTPUT, `${name}.png`), animations: 'disabled' });
@@ -110,6 +116,42 @@ try {
   await page.waitForFunction(() => document.querySelector('.player__title')?.textContent === 'Luces de Neón');
   check(true, 'doble clic en una fila la reproduce');
 
+  // Cola editable: "⋯" › "Reproducir a continuación" y "Ver la cola" desde Reproduciendo.
+  await page.click('.view--collection .track-row:has-text("Atardecer") [data-action="more"]');
+  await page.waitForSelector('.menu .menu__item');
+  await shot('04b-menu-fila');
+  await page.click('.menu__item:has-text("Reproducir a continuación")');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'Sonará a continuación');
+  await page.click('.player__cover');
+  await page.waitForSelector('.now-playing.is-open');
+  await page.click('.now-playing [aria-label="Ver la cola"]');
+  await page.waitForSelector('.view--collection:not([hidden]) .track-row.is-active');
+  const queueTitles = await page.$$eval('.view--collection .track-row .track-row__title', (rows) => rows.map((row) => row.textContent));
+  const playingAt = queueTitles.indexOf('Luces de Neón');
+  check(playingAt >= 0 && queueTitles[playingAt + 1] === 'Atardecer', `"Reproducir a continuación" la pone detrás de la que suena (${queueTitles.join(', ')})`);
+  await page.click('.view--collection .track-row:has-text("Atardecer") [data-action="remove"]');
+  await page.waitForFunction(() => ![...document.querySelectorAll('.view--collection .track-row__title')].some((row) => row.textContent === 'Atardecer'));
+  check(true, '"Ver la cola" deja quitar canciones');
+  await shot('04c-cola');
+
+  // Reordenar arrastrando el asa (pointer events) y con Alt+↑.
+  const queueOrder = () => page.$$eval('.view--collection .track-row .track-row__title', (rows) => rows.map((row) => row.textContent));
+  const beforeDrag = await queueOrder();
+  const lastTitle = beforeDrag.at(-1);
+  const grip = await page.locator(`.view--collection .track-row:has-text("${lastTitle}") .track-row__grip`).boundingBox();
+  const firstRow = await page.locator('.view--collection .track-row').first().boundingBox();
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2, firstRow.y + 5, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForFunction((title) => document.querySelector('.view--collection .track-row .track-row__title')?.textContent === title, lastTitle, { timeout: 3000 }).catch(() => {});
+  const afterDrag = await queueOrder();
+  check(afterDrag[0] === lastTitle && afterDrag.length === beforeDrag.length, `arrastrar el asa cambia el orden de la cola (${afterDrag.join(', ')})`);
+  await page.focus(`.view--collection .track-row:has-text("${afterDrag[1]}")`);
+  await page.keyboard.press('Alt+ArrowUp');
+  await page.waitForFunction((title) => document.querySelector('.view--collection .track-row .track-row__title')?.textContent === title, afterDrag[1], { timeout: 3000 }).catch(() => {});
+  check((await queueOrder())[0] === afterDrag[1], 'Alt+↑ sube la canción con el foco');
+
   await page.click('.player__cover');
   await page.waitForSelector('.now-playing.is-open');
   check(await page.isVisible('.lyrics'), 'Reproduciendo muestra la tarjeta de letra si la pista tiene letra');
@@ -154,12 +196,38 @@ try {
   await page.click('.nav__item:has-text("Inicio")');
   await page.click('.chip:has-text("Álbumes")');
   check((await page.locator('.card-grid .media-card').count()) === 4, 'Álbumes agrupa 4 álbumes');
+  const loadedCovers = await page
+    .waitForFunction(() => [...document.querySelectorAll('.card-grid .cover__image')].filter((image) => image.complete && image.naturalWidth > 0).length >= 2, null, { timeout: 5000 })
+    .then(() => true, () => false);
+  const savedCovers = (await readdir(path.join(work, 'perfil', 'covers')).catch(() => [])).filter((name) => name.startsWith('embedded-'));
+  check(loadedCovers && savedCovers.length >= 2, `las carátulas incrustadas se ven y quedan guardadas en covers/ (${savedCovers.length})`);
   await shot('08-albumes');
 
-  s3.put('musica', 'Nuevas/Selva (directo).wav', createWav({ seconds: 3, tags: { title: 'Selva (directo)', artist: 'Kora' } }));
+  const guest = 'Invitada Con Un Nombre Larguísimo Que No Cabe';
+  s3.put('musica', 'Nuevas/Selva (directo).wav', createWav({ seconds: 3, tags: { title: 'Selva (directo)', artist: `Kora, ${guest} & Aurora Vega` } }));
   await page.click('.nav__item:has-text("Actualizar biblioteca")');
   await page.waitForFunction(() => document.querySelector('.toast')?.textContent === '1 canción nueva');
   check(true, '"Actualizar biblioteca" trae la canción subida al bucket');
+
+  // Artistas: una colaboración cuenta para cada artista y los nombres largos no se salen de su tarjeta.
+  await page.click('.chip:has-text("Artistas")');
+  const artistCards = await page.$$eval('.card-grid .media-card', (cards) =>
+    cards.map((card) => {
+      const title = card.querySelector('.media-card__title');
+      const box = card.getBoundingClientRect();
+      const text = title.getBoundingClientRect();
+      return { name: title.textContent, count: card.querySelector('.media-card__subtitle').textContent, inside: text.left >= box.left - 1 && text.right <= box.right + 1 };
+    }),
+  );
+  const cardOf = (name) => artistCards.find((card) => card.name === name);
+  check(cardOf('Kora')?.count === '2 canciones' && cardOf('Aurora Vega')?.count === '3 canciones' && Boolean(cardOf(guest)), 'Artistas separa las colaboraciones');
+  check(artistCards.every((card) => card.inside), 'Artistas: los nombres largos no se salen de su tarjeta');
+  await page.waitForFunction(() => {
+    const image = [...document.querySelectorAll('.card-grid .media-card')].find((card) => card.querySelector('.media-card__title').textContent === 'Kora')?.querySelector('img');
+    return image?.src.startsWith('media://artist/') && image.complete && image.naturalWidth > 0;
+  });
+  check(true, 'Artistas muestra la foto guardada del artista (media://artist/)');
+  await shot('08b-artistas');
 
   // Subir canciones del ordenador: el diálogo de archivos del proceso main se sustituye por uno falso.
   const upload = path.join(work, 'Para subir', 'Brisa.wav');
@@ -330,6 +398,27 @@ try {
     (await page.locator('.view--collection .track-row:has-text("Fugaz")').count()) === 0,
     'una canción borrada del bucket se quita al intentar reproducirla',
   );
+
+  // Retomar: al cerrar y volver a abrir, la misma pista, en pausa y en el segundo en que se dejó.
+  const elapsed = () => page.textContent('.player .seek-bar__time');
+  await page.click('.nav__item:has-text("Biblioteca")');
+  await page.dblclick('.view--collection .track-row:has-text("Ola Azul")');
+  await page.waitForFunction(() => document.querySelector('.player__title')?.textContent === 'Ola Azul');
+  await page.waitForFunction(() => !['0:00', '0:01'].includes(document.querySelector('.player .seek-bar__time')?.textContent), null, { timeout: 8000 });
+  await page.click('.player .play-button');
+  await page.waitForSelector('.player .play-button[aria-label="Reproducir"]');
+  const leftAt = await elapsed();
+  await app.close();
+  app = await launch();
+  page = await app.firstWindow();
+  const resumed = await page
+    .waitForFunction(() => document.querySelector('.player__title')?.textContent === 'Ola Azul', null, { timeout: 10000 })
+    .then(() => true, () => false);
+  await page.waitForFunction((at) => document.querySelector('.player .seek-bar__time')?.textContent === at, leftAt, { timeout: 5000 }).catch(() => {});
+  const resumedAt = await elapsed();
+  const paused = (await page.getAttribute('.player .play-button', 'aria-label')) === 'Reproducir';
+  check(resumed && paused && resumedAt === leftAt, `al volver a abrir retoma la pista en pausa donde se dejó (${resumedAt}; se dejó en ${leftAt})`);
+  await shot('10-retomar');
 } finally {
   await app.close();
   await s3.close();

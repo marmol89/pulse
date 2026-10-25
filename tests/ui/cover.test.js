@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { coverStyle, hashString, trackSeed } from '../../src/renderer/ui/cover.js';
+import { coverStyle, hashString, retryUrl, trackSeed } from '../../src/renderer/ui/cover.js';
 
 describe('ui/cover', () => {
   test('coverStyle() es determinista y usa gradientes y formas del diseño', () => {
@@ -26,5 +26,10 @@ describe('ui/cover', () => {
     assert.equal(trackSeed({ album: 'Neón', title: 'Intro', path: '/a' }), 'Neón');
     assert.equal(trackSeed({ album: '', title: 'Intro', path: '/a' }), 'Intro');
     assert.equal(trackSeed({ album: '', title: '', path: '/a' }), '/a');
+  });
+
+  test('retryUrl() añade la marca de reintento sin perder la versión de la carátula', () => {
+    assert.equal(retryUrl('media://cover/a'), 'media://cover/a?retry=1');
+    assert.equal(retryUrl('media://cover/a?v=42'), 'media://cover/a?v=42&retry=1');
   });
 });

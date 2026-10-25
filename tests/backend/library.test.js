@@ -62,6 +62,10 @@ describe('library/tracks', () => {
     assert.equal(await readRecordCover(null, none), null);
     assert.deepEqual(await readRecordCover({ hasCover: true, coverName: 'b.jpg' }, embedded), { format: 'image/png', data: new Uint8Array([1]) });
     assert.equal((await readRecordCover({ hasCover: true, coverName: 'b.jpg' }, none)).format, 'image/jpeg', 'si falla la incrustada, la de internet');
+
+    const broken = { readEmbedded: async () => Promise.reject(new Error('S3 ocupado')), readCover };
+    assert.equal((await readRecordCover({ hasCover: true, coverName: 'b.jpg' }, broken)).format, 'image/jpeg');
+    await assert.rejects(readRecordCover({ hasCover: true }, broken), /S3 ocupado/, 'sin otra, el fallo no se confunde con "no tiene"');
   });
 });
 
@@ -112,6 +116,32 @@ describe('library/remote', () => {
     assert.equal(record.key, 'pop/neon.wav');
     assert.equal(record.etag, object.etag);
     assert.deepEqual(await readRemoteCover(storage, record), { format: 'image/png', data: new Uint8Array(cover) });
+  });
+
+  test('readRemoteRecord() pasa a onPicture la carátula que ya ha leído', async () => {
+    const [object] = (await storage.listAudio()).filter((o) => o.key === 'pop/neon.wav');
+    const pictures = [];
+    const record = await readRemoteRecord(storage, object, { onPicture: (rec, picture) => pictures.push([rec.path, picture]) });
+    assert.deepEqual(pictures, [[record.path, { format: 'image/png', data: new Uint8Array(cover) }]]);
+    const failing = await readRemoteRecord(storage, object, {
+      onPicture: () => {
+        throw new Error('disco lleno');
+      },
+    });
+    assert.equal(failing.title, 'Luces de Neón', 'si no se puede guardar, el registro sigue');
+  });
+
+  test('readRemoteCover() no recuerda un fallo de descarga: la siguiente vez lo vuelve a intentar', async () => {
+    const [object] = (await storage.listAudio()).filter((o) => o.key === 'pop/neon.wav');
+    const record = { ...(await readRemoteRecord(storage, object)), etag: '"otra-version"' };
+    let fail = true;
+    const flaky = {
+      bucket: 'musica',
+      readStart: (key, length) => (fail ? Promise.reject(new Error('ECONNRESET')) : storage.readStart(key, length)),
+    };
+    await assert.rejects(readRemoteCover(flaky, record), /ECONNRESET/);
+    fail = false;
+    assert.equal((await readRemoteCover(flaky, record)).format, 'image/png');
   });
 
   test('readRemoteRecord() usa el nombre del archivo si no puede leer las etiquetas', async () => {

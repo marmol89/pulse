@@ -47,6 +47,18 @@ describe('AudioEngine', () => {
     await engine.fadeOut(100, { timers }); // sin sonar: no hace nada
   });
 
+  test('load() con startAt empieza en ese segundo cuando el audio conoce su duración', () => {
+    const { audio, engine } = setup();
+    engine.load('media://track/a', false, 42);
+    assert.equal(audio.currentTime, 0);
+    audio.emit('loadedmetadata');
+    assert.equal(audio.currentTime, 42);
+    engine.load('media://track/b', false);
+    audio.currentTime = 0;
+    audio.emit('loadedmetadata');
+    assert.equal(audio.currentTime, 0, 'la siguiente pista empieza desde el principio');
+  });
+
   test('track-started se emite una vez por pista cargada, no al reanudar', () => {
     const { audio, engine, events } = setup();
     engine.load('media://track/a');

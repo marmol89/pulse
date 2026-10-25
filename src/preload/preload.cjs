@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('api', {
   createList: (name, paths) => ipcRenderer.invoke('lists:create', name, paths),
   renameList: (id, name) => ipcRenderer.invoke('lists:rename', id, name),
   addToList: (id, paths) => ipcRenderer.invoke('lists:add', id, paths),
+  moveInList: (id, path, to) => ipcRenderer.invoke('lists:move-track', id, path, to),
   removeFromList: (id, path) => ipcRenderer.invoke('lists:remove-track', id, path),
   deleteList: (id) => ipcRenderer.invoke('lists:delete', id),
   /** Listas cambiadas desde otro equipo. Devuelve la función para dejar de escuchar. */
@@ -60,6 +61,13 @@ contextBridge.exposeInMainWorld('api', {
   // Datos de internet (carátulas, álbum, año, género, letra)
   lookupTrack: (id, options) => ipcRenderer.invoke('metadata:lookup', id, options),
   setOnlineLookup: (enabled) => ipcRenderer.invoke('metadata:set-enabled', enabled),
+  /** Fotos de artista ya guardadas ({ nombre: URL }); las que faltan se buscan y llegan con onArtistPicturesChanged. */
+  getArtistPictures: (names) => ipcRenderer.invoke('artists:pictures', names),
+  onArtistPicturesChanged: (callback) => {
+    const listener = (_event, pictures) => callback(pictures);
+    ipcRenderer.on('artists:pictures-changed', listener);
+    return () => ipcRenderer.removeListener('artists:pictures-changed', listener);
+  },
   /** Pistas completadas en segundo plano. Devuelve la función para dejar de escuchar. */
   onTracksUpdated: (callback) => {
     const listener = (_event, tracks) => callback(tracks);

@@ -14,8 +14,9 @@ import { createS3Storage } from '../backend/s3/storage.js';
 import { createHttp } from '../backend/online/http.js';
 import { createEnricher } from '../backend/online/enricher.js';
 import { createEnrichmentQueue } from '../backend/online/queue.js';
+import { createArtistPictures } from '../backend/online/artists.js';
 import { createNativeFetch, createS3RequestHandler } from './nativeHttp.js';
-import { createCoverCache } from './covers.js';
+import { coverFileName, createCoverCache } from './covers.js';
 import { pickFiles } from './picker.js';
 
 /** Lo máximo que permite una URL firmada de S3: se vuelve a firmar cada vez que llega a la interfaz. */
@@ -48,7 +49,7 @@ export function collectFiles(files) {
  *   `prepare`: lo que hay que resolver antes de arrancar (carpeta de las carátulas, prefijo del Keystore)
  */
 export function createAndroidApi(deps) {
-  const listeners = { changed: new Set(), updated: new Set(), progress: new Set(), lists: new Set(), favorites: new Set() };
+  const listeners = { changed: new Set(), updated: new Set(), progress: new Set(), lists: new Set(), favorites: new Set(), artists: new Set() };
   const emit = (kind, payload) => {
     for (const listener of listeners[kind]) listener(payload);
   };
@@ -95,6 +96,7 @@ export function createAndroidApi(deps) {
     createList: call(({ lists }, name, paths) => listResult(() => lists.create(name, Array.isArray(paths) ? paths : []))),
     renameList: call(({ lists }, id, name) => listResult(() => lists.rename(String(id), name))),
     addToList: call(({ lists }, id, paths) => listResult(() => lists.add(String(id), Array.isArray(paths) ? paths : []))),
+    moveInList: call(({ lists }, id, path, to) => listResult(() => lists.moveTrack(String(id), String(path), Number(to)))),
     removeFromList: call(({ lists }, id, path) => listResult(() => lists.removeTrack(String(id), String(path)))),
     deleteList: call(({ lists }, id) => listResult(() => lists.remove(String(id)))),
     onListsChanged: subscribe('lists'),
@@ -111,8 +113,13 @@ export function createAndroidApi(deps) {
       const result = await queue.lookupNow(id, { force: options?.force === true, lyrics: true });
       return result && { ...result, track: (await present([result.track]))[0] };
     }),
-    setOnlineLookup: call(({ queue }, enabled) => queue.setEnabled(enabled === true)),
+    setOnlineLookup: call(({ queue, artistPictures }, enabled) => {
+      artistPictures.setEnabled(enabled === true);
+      return queue.setEnabled(enabled === true);
+    }),
     onTracksUpdated: subscribe('updated'),
+    getArtistPictures: call(({ artistPictures, pictureUrls }, names) => pictureUrls(artistPictures.request(Array.isArray(names) ? names : []))),
+    onArtistPicturesChanged: subscribe('artists'),
   };
 }
 
@@ -139,7 +146,7 @@ async function start({ files, crypto, http, coverUrl, userAgent, App, prepare, p
   const covers = createCoverCache({
     files,
     toUrl: coverUrl,
-    readEmbedded: (record) => (s3.storage() ? readRemoteCover(s3.storage(), record) : null),
+    readEmbedded: (record) => (s3.storage() ? readRemoteCover(s3.storage(), record) : Promise.reject(new Error('Sin conexión'))),
     readCover: (name) => metadata.readCover(name),
     getRecord: (id) => store.get(id),
     onReady: (ids) => present(ids.map((id) => store.get(id)).filter(Boolean).map(trackOf)).then((tracks) => emit('updated', tracks)),
@@ -160,8 +167,19 @@ async function start({ files, crypto, http, coverUrl, userAgent, App, prepare, p
   }
   const emitTracks = (kind) => (tracks) => present(tracks).then((presented) => emit(kind, presented));
 
-  const enricher = createEnricher({ http: createHttp(createNativeFetch(http), { userAgent }), files });
+  const onlineHttp = createHttp(createNativeFetch(http), { userAgent });
+  const enricher = createEnricher({ http: onlineHttp, files });
   const queue = createEnrichmentQueue({ store, enricher, toTrack: trackOf, onUpdated: emitTracks('updated'), timers });
+  // Fotos de artista: en covers/, como las carátulas, y el WebView las carga directamente.
+  const pictureUrls = (pictures) => Object.fromEntries(Object.entries(pictures).map(([name, coverName]) => [name, coverUrl(coverName)]));
+  const artistPictures = createArtistPictures({
+    files,
+    http: onlineHttp,
+    getRecords: () => store.all(),
+    onUpdated: (pictures) => emit('artists', pictureUrls(pictures)),
+    timers,
+  });
+  await artistPictures.load();
   const librarySync = createLibrarySync({
     store,
     getStorage: () => s3.storage(),
@@ -172,6 +190,12 @@ async function start({ files, crypto, http, coverUrl, userAgent, App, prepare, p
       if (change.added.length > 0) queue.wake();
     },
     onUpdated: emitTracks('updated'),
+    // La carátula incrustada se guarda al leer las etiquetas: así no hay que volver a descargar el archivo.
+    onPicture: async (record, picture) => {
+      const name = coverFileName(record);
+      await files.write(`covers/${name}`, picture.data);
+      covers.markPresent(name);
+    },
   });
   const uploader = createUploader({
     getStorage: () => s3.storage(),
@@ -195,5 +219,5 @@ async function start({ files, crypto, http, coverUrl, userAgent, App, prepare, p
     if (favorites.hasPending()) favorites.sync();
   });
 
-  return { store, s3, librarySync, uploader, queue, covers, metadata, lists, favorites, present, trackOf };
+  return { store, s3, librarySync, uploader, queue, covers, metadata, lists, favorites, present, trackOf, artistPictures, pictureUrls };
 }

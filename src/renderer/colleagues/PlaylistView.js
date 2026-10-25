@@ -25,6 +25,8 @@ const EMPTY_MESSAGES = {
   queue: 'La cola está vacía.',
   list: 'Esta lista está vacía. Pulsa «+» en cualquier canción (o «Añadir a una lista» en Reproduciendo) para añadirla.',
 };
+/** Colecciones de las que se pueden quitar canciones (y cambiar su orden), con el texto del botón. */
+const REMOVE_LABELS = { list: 'Quitar de la lista', queue: 'Quitar de la cola' };
 /** Colecciones cuya portada es la carátula de sus pistas; el resto usa una generada. */
 const TRACK_COVER_KINDS = new Set(['album', 'artist']);
 
@@ -33,7 +35,7 @@ const TRACK_COVER_KINDS = new Set(['album', 'artist']);
  * aleatorio + play y la lista de pistas de cualquier colección.
  * En una lista del usuario, además: "Editar lista" y quitar canciones.
  * Emite: navigate-back, play-collection, toggle-shuffle, track-selected, toggle-favorite, choose-list,
- * edit-list, remove-from-list.
+ * edit-list, remove-from-list, move-in-list, play-next, enqueue, remove-from-queue, move-in-queue.
  */
 export class PlaylistView extends Colleague {
   #source = null;
@@ -69,7 +71,12 @@ export class PlaylistView extends Colleague {
       onPlay: (path) => this.notify(EVENTS.TRACK_SELECTED, { source: this.#source, path }),
       onToggleFavorite: (path) => this.notify(EVENTS.TOGGLE_FAVORITE, path),
       onAddToList: (path) => this.notify(EVENTS.CHOOSE_LIST, path),
-      onRemove: (path) => this.notify(EVENTS.REMOVE_FROM_LIST, { id: this.#source.id, path }),
+      onPlayNext: (path) => this.notify(EVENTS.PLAY_NEXT, [path]),
+      onEnqueue: (path) => this.notify(EVENTS.ENQUEUE, [path]),
+      onMove: (path, to) =>
+        this.#source.kind === 'queue' ? this.notify(EVENTS.MOVE_IN_QUEUE, { path, to }) : this.notify(EVENTS.MOVE_IN_LIST, { id: this.#source.id, path, to }),
+      onRemove: (path) =>
+        this.#source.kind === 'queue' ? this.notify(EVENTS.REMOVE_FROM_QUEUE, path) : this.notify(EVENTS.REMOVE_FROM_LIST, { id: this.#source.id, path }),
     });
     this.#empty = h('p', { class: 'hint', hidden: true });
 
@@ -99,14 +106,16 @@ export class PlaylistView extends Colleague {
     const { source, title, byline, tracks } = collection;
     this.#source = source;
     const sample = TRACK_COVER_KINDS.has(source.kind) ? (tracks.find((track) => track.cover) ?? null) : null;
-    this.#cover.replaceChildren(createCover({ src: sample?.cover ?? null, seed: title, className: 'cover--collection' }));
+    // La foto del artista, si la hay; si no, la carátula de una de sus canciones.
+    const src = collection.cover ?? sample?.cover ?? null;
+    this.#cover.replaceChildren(createCover({ src, seed: title, className: 'cover--collection' }));
     this.#eyebrow.textContent = KIND_LABELS[source.kind] ?? '';
     this.#title.textContent = title;
     this.#byline.textContent = byline;
     this.#stats.textContent = collectionStats(tracks);
     const isList = source.kind === 'list';
     this.#edit.hidden = !isList;
-    this.#list.render(tracks, { ...state, removable: isList });
+    this.#list.render(tracks, { ...state, removable: REMOVE_LABELS[source.kind] ?? false, reorderable: source.kind in REMOVE_LABELS });
     this.#empty.hidden = tracks.length > 0;
     this.#empty.textContent = EMPTY_MESSAGES[source.kind] ?? 'No hay canciones aquí.';
     this.#play.disabled = tracks.length === 0;

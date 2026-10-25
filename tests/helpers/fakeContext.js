@@ -6,6 +6,7 @@ import { Recents } from '../../src/renderer/colleagues/Recents.js';
 import { Settings } from '../../src/renderer/colleagues/Settings.js';
 import { Lists } from '../../src/renderer/colleagues/Lists.js';
 import { SleepTimer } from '../../src/renderer/colleagues/SleepTimer.js';
+import { Session } from '../../src/renderer/colleagues/Session.js';
 import { createStorage, createMemoryBackend } from '../../src/renderer/lib/storage.js';
 
 /**
@@ -55,6 +56,7 @@ export function fakeContext(overrides = {}) {
     recents: new Recents(storage),
     lists: new Lists(),
     settings: new Settings(storage),
+    session: new Session(storage),
     library: spy({ load: [], sync: { added: 0, removed: 0 }, verify: true, connection: null, importCredentials: null, lookup: null, lists: [], favorites: [], setFavorite: { ok: true, favorites: [] }, importFavorites: { ok: true, favorites: [] } }),
     mediaSession: spy(),
     sleepTimer: new SleepTimer({ timers: { setTimeout: () => 1, clearTimeout() {} }, now: () => 0 }),

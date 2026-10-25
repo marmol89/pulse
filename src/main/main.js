@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { registerMediaScheme, handleMediaProtocol } from './protocol/media.js';
 import { createLibraryStore } from '../backend/library/store.js';
 import { readRecordCover } from '../backend/library/tracks.js';
-import { readRemoteCover } from '../backend/library/remote.js';
+import { createEmbeddedCovers } from '../backend/library/covers.js';
 import { createLibrarySync } from '../backend/library/sync.js';
 import { createUploader } from '../backend/library/upload.js';
 import { collectPaths } from './library/collect.js';
@@ -18,8 +18,9 @@ import { createS3Service } from '../backend/s3/service.js';
 import { createHttp } from '../backend/online/http.js';
 import { createEnricher } from '../backend/online/enricher.js';
 import { createEnrichmentQueue } from '../backend/online/queue.js';
+import { createArtistPictures } from '../backend/online/artists.js';
 import { registerLibraryIpc } from './ipc/library.js';
-import { registerMetadataIpc } from './ipc/metadata.js';
+import { artistPictureUrls, registerMetadataIpc } from './ipc/metadata.js';
 import { registerListsIpc } from './ipc/lists.js';
 import { registerFavoritesIpc } from './ipc/favorites.js';
 import { createNodeFiles } from './files.js';
@@ -52,6 +53,9 @@ async function start() {
   });
   const enricher = createEnricher({ http, files });
   const queue = createEnrichmentQueue({ store, enricher, toTrack: mediaTrack, onUpdated: (tracks) => broadcast('library:tracks-updated', tracks) });
+  // Fotos de artista de Deezer (artists.json y covers/).
+  const artistPictures = createArtistPictures({ files, http, getRecords: () => store.all(), onUpdated: (pictures) => broadcast('artists:pictures-changed', artistPictureUrls(pictures)) });
+  await artistPictures.load();
 
   // La música vive en un bucket S3. La clave secreta se cifra con el almacén seguro del sistema.
   const connections = createConnectionStore(files, {
@@ -71,6 +75,8 @@ async function start() {
   // Favoritos: favorites.json aquí y metadatos/favoritos.json en el bucket, igual que las listas.
   const favorites = createFavoriteStore({ files, getStorage: () => s3.storage(), onChange: (all) => broadcast('favorites:changed', all) });
   await favorites.load();
+  // Carátulas incrustadas en covers/ de userData: se descargan del bucket una sola vez.
+  const embeddedCovers = createEmbeddedCovers({ files, getStorage: () => s3.storage() });
   const librarySync = createLibrarySync({
     store,
     getStorage: () => s3.storage(),
@@ -81,6 +87,7 @@ async function start() {
       if (change.added.length > 0) queue.wake();
     },
     onUpdated: (tracks) => broadcast('library:tracks-updated', tracks),
+    onPicture: (record, picture) => embeddedCovers.save(record, picture),
   });
 
   const uploader = createUploader({
@@ -94,9 +101,10 @@ async function start() {
     isAllowed: (id) => store.has(id),
     readCover: (id) =>
       readRecordCover(store.get(id), {
-        readEmbedded: (record) => readRemoteCover(s3.storage(), record),
+        readEmbedded: (record) => embeddedCovers.get(record),
         readCover: (name) => metadata.readCover(name),
       }),
+    readArtist: (name) => artistPictures.read(name),
     openTrack: (id, range) => {
       const storage = s3.storage();
       const key = store.get(id)?.key;
@@ -104,7 +112,7 @@ async function start() {
     },
   });
   registerLibraryIpc({ store, s3, librarySync, uploader, lists, favorites });
-  registerMetadataIpc({ store, queue });
+  registerMetadataIpc({ store, queue, artistPictures });
   registerListsIpc({ lists });
   registerFavoritesIpc({ favorites });
   if (app.isPackaged) Menu.setApplicationMenu(null);

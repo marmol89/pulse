@@ -13,6 +13,11 @@ export const MEDIA_URLS = {
   cover: (record) => `${mediaUrl('cover', record.path)}${coverVersion(record)}`,
 };
 
+/** Foto de artista (un archivo de covers/, ver backend/online/artists.js). */
+export function artistPictureUrl(coverName) {
+  return mediaUrl('artist', coverName);
+}
+
 /** Registro → pista para la ventana, con URLs media://. */
 export function mediaTrack(record) {
   return toTrack(record, MEDIA_URLS);
