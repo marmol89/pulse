@@ -150,6 +150,17 @@ try {
     return [];
   };
   check((await listsInBucket()).length === 1, 'la lista se sube a metadatos/listas.json del bucket');
+  await page.locator('.view--collection .track-row:has-text("Selva") .favorite-button').click();
+  const favoritesInBucket = async () => {
+    for (let i = 0; i < 40; i += 1) {
+      const body = s3.get('musica', 'metadatos/favoritos.json');
+      const favorites = body ? JSON.parse(body.toString()).favorites : [];
+      if (favorites.some((record) => !record.deleted && record.id.endsWith('/Selva.wav'))) return true;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    return false;
+  };
+  check(await favoritesInBucket(), 'el corazón se sube a metadatos/favoritos.json del bucket');
   await page.click('.nav__item:has-text("Inicio")');
   await page.waitForSelector('.section[aria-label="Tus listas"] .media-card:has-text("Para correr")');
   await shot('06-inicio-listas');
