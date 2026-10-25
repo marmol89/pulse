@@ -11,9 +11,10 @@ import { createHash } from 'node:crypto';
 export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = { musica: {} }, pageSize = 1000, readOnly = false, host = '127.0.0.1' } = {}) {
   const data = new Map(Object.entries(buckets).map(([name, objects]) => [name, new Map(Object.entries(objects).map(([key, body]) => [key, Buffer.from(body)]))]));
   const requests = [];
-  const state = { readOnly };
+  const state = { readOnly, offline: false };
 
   const server = createServer((req, res) => {
+    if (state.offline) return req.socket.destroy(); // como si no hubiera red
     const url = new URL(req.url, 'http://localhost');
     const signedUrl = req.method === 'GET' && String(url.searchParams.get('X-Amz-Credential') ?? '').startsWith(`${accessKeyId}/`);
     requests.push({ method: req.method, path: decodeURIComponent(url.pathname), range: req.headers.range ?? null, signedUrl });
@@ -54,6 +55,11 @@ export async function startFakeS3({ accessKeyId = 'clave-de-prueba', buckets = {
     },
     setReadOnly(value) {
       state.readOnly = value;
+    },
+    /** Sin red: corta las conexiones abiertas y las nuevas. */
+    setOffline(value) {
+      state.offline = value;
+      if (value) server.closeAllConnections();
     },
     remove(bucketName, key) {
       data.get(bucketName).delete(key);

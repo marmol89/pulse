@@ -194,8 +194,26 @@ try {
   await page.waitForSelector('.feature-card', { timeout: 30000 });
   check(!(await page.isVisible('.connection[open]')), 'al reabrir no pide la conexión otra vez');
 
+  // Sin conexión: se descarga la lista en el móvil y suena aunque el bucket no responda.
+  await page.click('.section[aria-label="Tus listas"] .media-card:has-text("Para correr")');
+  await page.waitForSelector('.view--collection:not([hidden]) .collection-actions__download:not([hidden])');
+  await page.click('.collection-actions__download');
+  await page.waitForSelector('.collection-actions__download[data-state="all"]', { timeout: 30000 });
+  check(true, '"Descargar" guarda la lista en el móvil');
+  await shot('08-lista-descargada');
+  await page.click('.nav__item--menu');
+  await page.waitForSelector('.sidebar.is-menu-open');
+  check((await page.textContent('.downloads-row')).includes('1 canción'), '"Tu música" cuenta lo descargado');
+  await page.click('.nav__item--menu');
+
   check(logs.length === 0, 'sin errores de consola');
   for (const log of logs) console.log(`   ${log}`);
+
+  s3.setOffline(true);
+  await page.click('.view--collection:not([hidden]) .collection-actions .play-button');
+  await page.waitForFunction(() => document.querySelector('.player .seek-bar__time')?.textContent === '0:00', null, { timeout: 15000 });
+  await page.waitForFunction(() => document.querySelector('.player .seek-bar__time')?.textContent >= '0:02', null, { timeout: 15000 });
+  check(true, 'sin conexión con el bucket, la canción descargada suena desde el móvil');
 } finally {
   if (volumeBefore) await device.shell(`cmd media_session volume ${MUSIC_STREAM} --set ${volumeBefore}`);
   await s3.close();
