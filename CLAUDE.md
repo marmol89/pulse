@@ -127,7 +127,9 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
 - Entorno local: JDK 21 (`JAVA_HOME`) y SDK de Android (`ANDROID_HOME`: platform-tools, platforms;android-36,
   build-tools, emulador). El emulador, **con ventana y la GPU por defecto**
   (`emulator -avd pulse -no-boot-anim -audio none -no-snapshot-save`): sin ventana se cae al reproducir audio.
-  El e2e levanta el S3 falso en `0.0.0.0` y el emulador lo ve en `10.0.2.2`.
+  El e2e levanta el S3 falso en `0.0.0.0` y el emulador lo ve en `10.0.2.2`. Silencia bajando a 0 el volumen
+  multimedia del sistema (y lo restaura), **no** con el silencio de Pulse: con el `<audio>` silenciado Chromium no
+  abre salida de audio, Android no ve a Pulse sonando y no le pasa las teclas de los auriculares.
 - **Segundo plano**: sin un servicio en primer plano, Android silencia el audio del WebView al salir de la app
   ("AudioHardening" en logcat). `PlaybackService` (`mediaPlayback`) vive mientras hay pista: notificación con
   controles, MediaSession (pantalla de bloqueo, auriculares) y wake lock solo mientras suena. El WebView no trae la
