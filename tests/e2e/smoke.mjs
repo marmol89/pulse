@@ -106,6 +106,20 @@ try {
   check((await page.locator('.view--collection .track-row').count()) === FIXTURES.length, 'Biblioteca lista todas las pistas y resalta la actual');
   await shot('04-biblioteca');
 
+  const rowTitles = () => page.$$eval('.view--collection .track-row__title', (titles) => titles.map((title) => title.textContent));
+  await page.fill('.library-tools__input', 'aurora');
+  await page.waitForFunction(() => document.querySelectorAll('.view--collection .track-row').length === 2);
+  check((await rowTitles()).join() === 'Intro,Luces de Neón', 'el filtro de la biblioteca deja solo las canciones que coinciden');
+  await shot('04d-biblioteca-filtrada');
+  await page.fill('.library-tools__input', 'nada de esto');
+  await page.waitForSelector('.view--collection .hint:not([hidden]):has-text("Ninguna canción coincide")');
+  check(true, 'sin coincidencias, la biblioteca lo dice');
+  await page.fill('.library-tools__input', '');
+  await page.selectOption('.library-tools__sort', 'artist');
+  await page.waitForFunction(() => document.querySelectorAll('.view--collection .track-row__title')[1]?.textContent === 'Intro');
+  check((await rowTitles()).slice(0, 4).join() === 'pista sin etiquetas,Intro,Luces de Neón,Selva', 'ordenar por artista agrupa las de cada artista');
+  await page.selectOption('.library-tools__sort', 'added');
+
   await page.dblclick('.view--collection .track-row:has-text("Luces de Neón")');
   await page.waitForFunction(() => document.querySelector('.player__title')?.textContent === 'Luces de Neón');
   check(true, 'doble clic en una fila la reproduce');
