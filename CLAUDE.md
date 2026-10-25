@@ -154,6 +154,8 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   (`queue.js`: una pista cada 3,5 s, ~17/min, por debajo del límite de iTunes). Lo no encontrado se marca y no se repite
   (salvo una vez al subir `LOOKUP_VERSION` en `enricher.js`, cuando la búsqueda mejora). Si LRCLIB falla un
   momento (da 503 a ratos), se guardan los datos y solo la letra queda pendiente.
+- LRCLIB da también la letra **sincronizada** (`syncedLyrics`, formato LRC, versión de letra `LYRICS_VERSION`): en
+  Reproduciendo se resalta el verso que suena (`lib/lrc.js`) y pulsar uno salta a él. La letra del archivo no se pisa.
 - Se guarda en `library.json` y las carátulas en `userData/covers/` (compartidas por álbum): funciona sin conexión.
 - **Privacidad**: envía título y artista a esos servicios. Interruptor "Datos de internet" en la sidebar
   (`Settings`, activado por defecto). "Buscar en internet" en Reproduciendo fuerza la búsqueda de una pista.
