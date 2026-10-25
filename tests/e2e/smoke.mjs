@@ -267,6 +267,33 @@ try {
     'la lista eliminada queda marcada en el bucket para que los demás equipos también la quiten',
   );
 
+  // Favoritos: el corazón del principio está en metadatos/favoritos.json y los de otro equipo llegan al actualizar.
+  const remoteFavorites = async (match) => {
+    for (let i = 0; i < 40; i += 1) {
+      const body = s3.get('musica', 'metadatos/favoritos.json');
+      const favorites = body ? JSON.parse(body.toString()).favorites : [];
+      if (match(favorites)) return favorites;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    return null;
+  };
+  const favoritesInBucket = await remoteFavorites((favorites) => favorites.filter((record) => !record.deleted).length === 1);
+  check(favoritesInBucket !== null, 'los favoritos se guardan en metadatos/favoritos.json del bucket');
+  // El Mix diario es aleatorio: el favorito del otro equipo es una canción que aquí aún no lo sea.
+  const fromOther = ['s3://musica/Kora/Selva.wav', 's3://musica/Los Prismas/Atardecer.wav'].find((id) => !favoritesInBucket?.some((record) => record.id === id));
+  const favoriteAt = Date.now();
+  s3.put('musica', 'metadatos/favoritos.json', JSON.stringify({ version: 1, favorites: [...(favoritesInBucket ?? []), { id: fromOther, createdAt: favoriteAt, updatedAt: favoriteAt }] }));
+  await page.click('.nav__item:has-text("Actualizar biblioteca")');
+  await page.click('.nav__item:has-text("Inicio")');
+  await page.click('.chip:has-text("Favoritos")');
+  await page.waitForFunction(() => document.querySelectorAll('.view--home .track-row').length === 2);
+  check(
+    (await page.getAttribute(`.view--home .track-row[data-path="${fromOther}"] .favorite-button`, 'aria-pressed')) === 'true',
+    'un favorito marcado en otro equipo aparece al actualizar',
+  );
+  check((await page.getAttribute('.view--home .track-row', 'data-path')) === fromOther, 'Inicio › Favoritos muestra primero el más reciente');
+  await shot('14-inicio-favoritos');
+
   s3.setReadOnly(true);
   const denied = path.join(work, 'Para subir', 'Sin permiso.wav');
   await writeFile(denied, createWav({ seconds: 1 }));
