@@ -51,6 +51,19 @@ export function showTrack(ctx, track) {
   ctx.mediaSession.show(track);
 }
 
+/** El corazón de una pista en la player bar, Reproduciendo y todas las listas. */
+export function showFavorite(ctx, path, isFavorite) {
+  ctx.controls.setFavorite(path, isFavorite);
+  ctx.nowPlaying.setFavorite(path, isFavorite);
+  eachTrackListView(ctx, (view) => view.setFavorite(path, isFavorite));
+}
+
+/** Favoritos recibidos (del bucket o de otro equipo): los corazones que cambian e Inicio. */
+export function applyFavorites(ctx, paths) {
+  for (const path of ctx.favorites.set(paths)) showFavorite(ctx, path, ctx.favorites.has(path));
+  refreshHome(ctx);
+}
+
 /** Pistas cuyo archivo ya no existe: fuera de la biblioteca, la cola y las vistas. Devuelve si sonaba una. */
 export function removeTracks(ctx, paths) {
   if (paths.length === 0) return false;
