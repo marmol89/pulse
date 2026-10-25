@@ -64,6 +64,29 @@ export class Playlist extends Colleague {
     return this.#tracks.length;
   }
 
+  /** Pistas en el orden en que suenan (la actual incluida): lo que enseña "Ver la cola". */
+  ordered() {
+    return this.#order.map((index) => this.#tracks[index]);
+  }
+
+  /** "Reproducir a continuación": justo detrás de la actual. Devuelve cuántas se han añadido. */
+  playNext(tracks) {
+    return this.#insert(tracks, () => this.#position + 1);
+  }
+
+  /** "Añadir a la cola": al final, también en aleatorio (lo añadido a mano no se baraja). */
+  enqueue(tracks) {
+    return this.#insert(tracks, () => this.#order.length);
+  }
+
+  /** Pasa a sonar una pista que ya está en la cola, sin cambiar el orden. Devuelve la pista o null. */
+  jumpTo(path) {
+    const position = this.#order.findIndex((index) => this.#tracks[index].path === path);
+    if (position < 0) return null;
+    this.#position = position;
+    return this.current();
+  }
+
   /** Índice de la pista actual en el orden original (-1 si no hay). */
   index() {
     return this.#position < 0 ? -1 : this.#order[this.#position];
@@ -142,6 +165,22 @@ export class Playlist extends Colleague {
     this.#repeat = REPEAT_MODES.includes(snapshot?.repeat) ? snapshot.repeat : 'off';
     this.remove(this.#tracks.filter((track) => track.missing).map((track) => track.path));
     return this.current();
+  }
+
+  /**
+   * Mete pistas en el orden de reproducción, en la posición que da `at()` (se calcula después de sacar
+   * las que ya estaban: una pista no se repite en la cola). La que suena no se mueve.
+   */
+  #insert(tracks, at) {
+    const currentPath = this.current()?.path;
+    const incoming = [...new Map((tracks ?? []).filter((track) => track?.path && track.path !== currentPath).map((track) => [track.path, track])).values()];
+    if (incoming.length === 0) return 0;
+    this.remove(incoming.map((track) => track.path));
+    const first = this.#tracks.length;
+    this.#tracks.push(...incoming);
+    this.#order.splice(at(), 0, ...incoming.map((_, offset) => first + offset));
+    if (this.#position < 0) this.#position = 0;
+    return incoming.length;
   }
 
   /** Reconstruye el orden dejando `startIndex` como pista actual (si es válido). */
