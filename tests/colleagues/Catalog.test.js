@@ -84,6 +84,18 @@ describe('Catalog', () => {
     assert.deepEqual(catalog.collection({ kind: 'artist', key: 'Victor Cardenas' }).tracks, [juntos]);
   });
 
+  test('las fotos de artista van a su tarjeta y a su colección (sin distinguir mayúsculas ni tildes)', () => {
+    const catalog = catalogWith(neon, ola);
+    assert.equal(catalog.setArtistPictures({ 'aurora vega': 'media://artist/a.jpg', Nadie: 'media://artist/n.jpg' }), true);
+    assert.equal(catalog.setArtistPictures({ 'Aurora Vega': 'media://artist/a.jpg', 'Marea Sur': '' }), false, 'nada nuevo');
+    assert.deepEqual(catalog.artists().map((a) => [a.name, a.picture]), [
+      ['Aurora Vega', 'media://artist/a.jpg'],
+      ['Marea Sur', null],
+    ]);
+    assert.equal(catalog.collection({ kind: 'artist', key: 'Aurora Vega' }).cover, 'media://artist/a.jpg');
+    assert.equal(catalog.collection({ kind: 'artist', key: 'Marea Sur' }).cover, null);
+  });
+
   test('collection() resuelve biblioteca, álbum (por número de pista), artista, género y búsqueda', () => {
     const catalog = catalogWith(neon, intro, ola, selva, atardecer);
 

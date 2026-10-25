@@ -160,6 +160,10 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   (salvo una vez al subir `LOOKUP_VERSION` en `enricher.js`, cuando la búsqueda mejora). Si LRCLIB falla un
   momento (da 503 a ratos), se guardan los datos y solo la letra queda pendiente.
 - Se guarda en `library.json` y las carátulas en `userData/covers/` (compartidas por álbum): funciona sin conexión.
+- **Fotos de artista** (`online/artists.js`): Deezer `/search/artist` (mismo nombre y foto de verdad), de una en una en
+  segundo plano y solo con "Datos de internet". Se guardan en `covers/` y lo buscado en `artists.json` (solo en ese
+  equipo, no van al bucket). La ventana las pide al cambiar la biblioteca (`artists:pictures`) y las nuevas llegan como
+  `artist-pictures-changed`; en Electron se sirven por `media://artist/<archivo>` (solo fotos de artista).
 - **Privacidad**: envía título y artista a esos servicios. Interruptor "Datos de internet" en la sidebar
   (`Settings`, activado por defecto). "Buscar en internet" en Reproduciendo fuerza la búsqueda de una pista.
 - El e2e la desactiva antes de importar: los tests nunca llaman a servicios reales (los unitarios usan `fakeFetch`).

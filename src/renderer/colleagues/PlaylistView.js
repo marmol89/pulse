@@ -99,7 +99,9 @@ export class PlaylistView extends Colleague {
     const { source, title, byline, tracks } = collection;
     this.#source = source;
     const sample = TRACK_COVER_KINDS.has(source.kind) ? (tracks.find((track) => track.cover) ?? null) : null;
-    this.#cover.replaceChildren(createCover({ src: sample?.cover ?? null, seed: title, className: 'cover--collection' }));
+    // La foto del artista, si la hay; si no, la carátula de una de sus canciones.
+    const src = collection.cover ?? sample?.cover ?? null;
+    this.#cover.replaceChildren(createCover({ src, seed: title, className: 'cover--collection' }));
     this.#eyebrow.textContent = KIND_LABELS[source.kind] ?? '';
     this.#title.textContent = title;
     this.#byline.textContent = byline;

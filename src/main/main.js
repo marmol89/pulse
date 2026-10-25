@@ -18,8 +18,9 @@ import { createS3Service } from '../backend/s3/service.js';
 import { createHttp } from '../backend/online/http.js';
 import { createEnricher } from '../backend/online/enricher.js';
 import { createEnrichmentQueue } from '../backend/online/queue.js';
+import { createArtistPictures } from '../backend/online/artists.js';
 import { registerLibraryIpc } from './ipc/library.js';
-import { registerMetadataIpc } from './ipc/metadata.js';
+import { artistPictureUrls, registerMetadataIpc } from './ipc/metadata.js';
 import { registerListsIpc } from './ipc/lists.js';
 import { registerFavoritesIpc } from './ipc/favorites.js';
 import { createNodeFiles } from './files.js';
@@ -52,6 +53,9 @@ async function start() {
   });
   const enricher = createEnricher({ http, files });
   const queue = createEnrichmentQueue({ store, enricher, toTrack: mediaTrack, onUpdated: (tracks) => broadcast('library:tracks-updated', tracks) });
+  // Fotos de artista de Deezer (artists.json y covers/).
+  const artistPictures = createArtistPictures({ files, http, getRecords: () => store.all(), onUpdated: (pictures) => broadcast('artists:pictures-changed', artistPictureUrls(pictures)) });
+  await artistPictures.load();
 
   // La música vive en un bucket S3. La clave secreta se cifra con el almacén seguro del sistema.
   const connections = createConnectionStore(files, {
@@ -100,6 +104,7 @@ async function start() {
         readEmbedded: (record) => embeddedCovers.get(record),
         readCover: (name) => metadata.readCover(name),
       }),
+    readArtist: (name) => artistPictures.read(name),
     openTrack: (id, range) => {
       const storage = s3.storage();
       const key = store.get(id)?.key;
@@ -107,7 +112,7 @@ async function start() {
     },
   });
   registerLibraryIpc({ store, s3, librarySync, uploader, lists, favorites });
-  registerMetadataIpc({ store, queue });
+  registerMetadataIpc({ store, queue, artistPictures });
   registerListsIpc({ lists });
   registerFavoritesIpc({ favorites });
   if (app.isPackaged) Menu.setApplicationMenu(null);
