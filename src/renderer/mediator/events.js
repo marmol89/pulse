@@ -69,6 +69,9 @@ export const EVENTS = Object.freeze({
   TOGGLE_FAVORITE: 'toggle-favorite', // (path?) — sin path, la pista actual
   FAVORITES_CHANGED: 'favorites-changed', // (paths[]) — llegaron cambios de otro equipo (las más recientes primero)
 
+  // Escuchado recientemente (en el bucket, como los favoritos)
+  RECENTS_CHANGED: 'recents-changed', // (paths[]) — llegaron cambios de otro equipo (la última que sonó primero)
+
   // Listas de canciones del usuario (en el bucket, compartidas con todos los Pulse conectados a él)
   LISTS_CHANGED: 'lists-changed', // (List[]) — llegaron cambios de otro equipo
   NEW_LIST: 'new-list', // (paths?) — "Nueva lista": pedir el nombre (con esas canciones dentro)

@@ -346,6 +346,24 @@ try {
     'la lista eliminada queda marcada en el bucket para que los demás equipos también la quiten',
   );
 
+  // Recientes: lo que ha sonado está en metadatos/recientes.json; uno de otro equipo sale el primero al actualizar.
+  let recentsInBucket = [];
+  for (let i = 0; i < 40 && recentsInBucket.length === 0; i += 1) {
+    const body = s3.get('musica', 'metadatos/recientes.json');
+    recentsInBucket = body ? JSON.parse(body.toString()).recents : [];
+    if (recentsInBucket.length === 0) await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  check(recentsInBucket.length > 0, `lo escuchado se guarda en metadatos/recientes.json del bucket (${recentsInBucket.length})`);
+  const recentAt = Date.now() + 60_000;
+  s3.put('musica', 'metadatos/recientes.json', JSON.stringify({ version: 1, recents: [...recentsInBucket, { id: 's3://musica/Sueltas/pista sin etiquetas.wav', createdAt: recentAt, updatedAt: recentAt }] }));
+  await page.click('.nav__item:has-text("Actualizar biblioteca")');
+  await page.click('.nav__item:has-text("Inicio")');
+  await page.click('.chip:has-text("Todo")');
+  const firstRecent = await page
+    .waitForFunction(() => document.querySelector('.view--home [aria-label="Escuchado recientemente"] .media-card__title')?.textContent === 'pista sin etiquetas', null, { timeout: 5000 })
+    .then(() => true, () => false);
+  check(firstRecent, 'lo escuchado en otro equipo sale el primero en "Escuchado recientemente"');
+
   // Favoritos: el corazón del principio está en metadatos/favoritos.json y los de otro equipo llegan al actualizar.
   const remoteFavorites = async (match) => {
     for (let i = 0; i < 40; i += 1) {

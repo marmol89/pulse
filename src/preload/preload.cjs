@@ -52,6 +52,15 @@ contextBridge.exposeInMainWorld('api', {
   /** Sube los favoritos que solo estaban en este equipo (de antes de compartirse). */
   importFavorites: (paths) => ipcRenderer.invoke('favorites:import', paths),
   /** Favoritos cambiados desde otro equipo. Devuelve la función para dejar de escuchar. */
+  // Recientes (compartidos como los favoritos): las rutas, la última que sonó primero.
+  getRecents: () => ipcRenderer.invoke('recents:get'),
+  addRecent: (path) => ipcRenderer.invoke('recents:add', path),
+  importRecents: (paths) => ipcRenderer.invoke('recents:import', paths),
+  onRecentsChanged: (callback) => {
+    const listener = (_event, recents) => callback(recents);
+    ipcRenderer.on('recents:changed', listener);
+    return () => ipcRenderer.removeListener('recents:changed', listener);
+  },
   onFavoritesChanged: (callback) => {
     const listener = (_event, favorites) => callback(favorites);
     ipcRenderer.on('favorites:changed', listener);

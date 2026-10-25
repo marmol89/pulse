@@ -8,6 +8,7 @@ import { createUploader } from '../backend/library/upload.js';
 import { createMetadataStore } from '../backend/library/metadata.js';
 import { createListStore, listResult } from '../backend/library/lists.js';
 import { createFavoriteStore, favoriteResult } from '../backend/library/favorites.js';
+import { createRecentStore, recentResult } from '../backend/library/recents.js';
 import { createConnectionStore } from '../backend/s3/connection.js';
 import { createS3Service } from '../backend/s3/service.js';
 import { createS3Storage } from '../backend/s3/storage.js';
@@ -49,7 +50,7 @@ export function collectFiles(files) {
  *   `prepare`: lo que hay que resolver antes de arrancar (carpeta de las carátulas, prefijo del Keystore)
  */
 export function createAndroidApi(deps) {
-  const listeners = { changed: new Set(), updated: new Set(), progress: new Set(), lists: new Set(), favorites: new Set(), artists: new Set() };
+  const listeners = { changed: new Set(), updated: new Set(), progress: new Set(), lists: new Set(), favorites: new Set(), recents: new Set(), artists: new Set() };
   const emit = (kind, payload) => {
     for (const listener of listeners[kind]) listener(payload);
   };
@@ -68,8 +69,8 @@ export function createAndroidApi(deps) {
 
     // Biblioteca (en el bucket S3)
     loadLibrary: call(({ store, present, trackOf }) => present(store.all().map(trackOf))),
-    syncLibrary: call(async ({ librarySync, lists, favorites }) => {
-      const [{ added, removed }] = await Promise.all([librarySync.sync(), lists.sync(), favorites.sync()]);
+    syncLibrary: call(async ({ librarySync, lists, favorites, recents }) => {
+      const [{ added, removed }] = await Promise.all([librarySync.sync(), lists.sync(), favorites.sync(), recents.sync()]);
       return { added: added.length, removed: removed.length };
     }),
     verifyTrack: call(({ librarySync }, id) => (typeof id === 'string' ? librarySync.verify(id) : false)),
@@ -107,6 +108,12 @@ export function createAndroidApi(deps) {
     importFavorites: call(({ favorites }, paths) => favoriteResult(() => favorites.import(Array.isArray(paths) ? paths : []))),
     onFavoritesChanged: subscribe('favorites'),
 
+    // Recientes (compartidos como los favoritos)
+    getRecents: call(({ recents }) => recents.all()),
+    addRecent: call(({ recents }, path) => recentResult(() => recents.add(path))),
+    importRecents: call(({ recents }, paths) => recentResult(() => recents.import(Array.isArray(paths) ? paths : []))),
+    onRecentsChanged: subscribe('recents'),
+
     // Datos de internet
     lookupTrack: call(async ({ store, queue, present }, id, options = {}) => {
       if (typeof id !== 'string' || !store.has(id)) throw new TypeError('Pista desconocida');
@@ -142,6 +149,8 @@ async function start({ files, crypto, http, coverUrl, userAgent, App, prepare, p
   await lists.load();
   const favorites = createFavoriteStore({ files, getStorage: () => s3.storage(), onChange: (all) => emit('favorites', all), timers });
   await favorites.load();
+  const recents = createRecentStore({ files, getStorage: () => s3.storage(), onChange: (all) => emit('recents', all), timers });
+  await recents.load();
 
   const covers = createCoverCache({
     files,
@@ -210,6 +219,7 @@ async function start({ files, crypto, http, coverUrl, userAgent, App, prepare, p
     librarySync.syncSoon();
     lists.syncSoon();
     favorites.syncSoon();
+    recents.syncSoon();
   };
   syncSoon();
   App?.addListener('resume', syncSoon);
@@ -217,7 +227,8 @@ async function start({ files, crypto, http, coverUrl, userAgent, App, prepare, p
     metadata.flush();
     if (lists.hasPending()) lists.sync();
     if (favorites.hasPending()) favorites.sync();
+    if (recents.hasPending()) recents.sync();
   });
 
-  return { store, s3, librarySync, uploader, queue, covers, metadata, lists, favorites, present, trackOf, artistPictures, pictureUrls };
+  return { store, s3, librarySync, uploader, queue, covers, metadata, lists, favorites, recents, present, trackOf, artistPictures, pictureUrls };
 }
