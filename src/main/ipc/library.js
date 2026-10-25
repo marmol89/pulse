@@ -7,13 +7,13 @@ import { mediaTrack } from '../protocol/urls.js';
  * Canales IPC de la biblioteca (que vive en el bucket S3) y de la conexión.
  * El renderer solo llega a ellos a través de window.api; la clave secreta nunca vuelve a la ventana.
  */
-export function registerLibraryIpc({ store, s3, librarySync, uploader, lists }) {
+export function registerLibraryIpc({ store, s3, librarySync, uploader, lists, favorites }) {
   ipcMain.handle('library:load', () => store.all().map(mediaTrack));
 
-  // Los cambios llegan a la ventana por 'library:changed' (y los de las listas, por 'lists:changed');
+  // Los cambios llegan a la ventana por 'library:changed' (y los de las listas y favoritos, por 'lists:changed' y 'favorites:changed');
   // aquí solo se devuelve el resumen.
   ipcMain.handle('library:sync', async () => {
-    const [{ added, removed }] = await Promise.all([librarySync.sync(), lists.sync()]);
+    const [{ added, removed }] = await Promise.all([librarySync.sync(), lists.sync(), favorites.sync()]);
     return { added: added.length, removed: removed.length };
   });
 

@@ -45,6 +45,18 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('lists:changed', listener);
   },
 
+  // Favoritos (compartidos como las listas). Las rutas, las más recientes primero; devuelven { ok, favorites } o { ok: false, error }.
+  getFavorites: () => ipcRenderer.invoke('favorites:get'),
+  setFavorite: (path, favorite) => ipcRenderer.invoke('favorites:set', path, favorite),
+  /** Sube los favoritos que solo estaban en este equipo (de antes de compartirse). */
+  importFavorites: (paths) => ipcRenderer.invoke('favorites:import', paths),
+  /** Favoritos cambiados desde otro equipo. Devuelve la función para dejar de escuchar. */
+  onFavoritesChanged: (callback) => {
+    const listener = (_event, favorites) => callback(favorites);
+    ipcRenderer.on('favorites:changed', listener);
+    return () => ipcRenderer.removeListener('favorites:changed', listener);
+  },
+
   // Datos de internet (carátulas, álbum, año, género, letra)
   lookupTrack: (id, options) => ipcRenderer.invoke('metadata:lookup', id, options),
   setOnlineLookup: (enabled) => ipcRenderer.invoke('metadata:set-enabled', enabled),

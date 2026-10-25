@@ -10,6 +10,7 @@ import { createUploader } from '../backend/library/upload.js';
 import { collectPaths } from './library/collect.js';
 import { createMetadataStore } from '../backend/library/metadata.js';
 import { createListStore } from '../backend/library/lists.js';
+import { createFavoriteStore } from '../backend/library/favorites.js';
 import { objectResponse } from './protocol/responses.js';
 import { mediaTrack } from './protocol/urls.js';
 import { createConnectionStore } from '../backend/s3/connection.js';
@@ -20,6 +21,7 @@ import { createEnrichmentQueue } from '../backend/online/queue.js';
 import { registerLibraryIpc } from './ipc/library.js';
 import { registerMetadataIpc } from './ipc/metadata.js';
 import { registerListsIpc } from './ipc/lists.js';
+import { registerFavoritesIpc } from './ipc/favorites.js';
 import { createNodeFiles } from './files.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -66,6 +68,9 @@ async function start() {
   // Listas de canciones: lists.json aquí y metadatos/listas.json en el bucket, compartidas con los demás equipos.
   const lists = createListStore({ files, getStorage: () => s3.storage(), onChange: (all) => broadcast('lists:changed', all) });
   await lists.load();
+  // Favoritos: favorites.json aquí y metadatos/favoritos.json en el bucket, igual que las listas.
+  const favorites = createFavoriteStore({ files, getStorage: () => s3.storage(), onChange: (all) => broadcast('favorites:changed', all) });
+  await favorites.load();
   const librarySync = createLibrarySync({
     store,
     getStorage: () => s3.storage(),
@@ -98,23 +103,25 @@ async function start() {
       return storage && key ? objectResponse(storage, key, range) : new Response('Sin conexión con el almacenamiento', { status: 503 });
     },
   });
-  registerLibraryIpc({ store, s3, librarySync, uploader, lists });
+  registerLibraryIpc({ store, s3, librarySync, uploader, lists, favorites });
   registerMetadataIpc({ store, queue });
   registerListsIpc({ lists });
+  registerFavoritesIpc({ favorites });
   if (app.isPackaged) Menu.setApplicationMenu(null);
 
-  // Cambios hechos en el bucket desde fuera (canciones y listas): al arrancar y al volver a la ventana.
+  // Cambios hechos en el bucket desde fuera (canciones, listas y favoritos): al arrancar y al volver a la ventana.
   const syncSoon = () => {
     librarySync.syncSoon();
     lists.syncSoon();
+    favorites.syncSoon();
   };
   createWindow().webContents.once('did-finish-load', syncSoon);
   app.on('browser-window-focus', syncSoon);
-  // No cerrar con metadatos o listas sin subir al bucket.
+  // No cerrar con metadatos, listas o favoritos sin subir al bucket.
   app.on('before-quit', (event) => {
-    if (!metadata.hasPending() && !lists.hasPending()) return;
+    if (!metadata.hasPending() && !lists.hasPending() && !favorites.hasPending()) return;
     event.preventDefault();
-    Promise.all([metadata.hasPending() && metadata.flush(), lists.hasPending() && lists.sync()]).finally(() => app.quit());
+    Promise.all([metadata.hasPending() && metadata.flush(), lists.hasPending() && lists.sync(), favorites.hasPending() && favorites.sync()]).finally(() => app.quit());
   });
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
