@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('api', {
   createList: (name, paths) => ipcRenderer.invoke('lists:create', name, paths),
   renameList: (id, name) => ipcRenderer.invoke('lists:rename', id, name),
   addToList: (id, paths) => ipcRenderer.invoke('lists:add', id, paths),
+  moveInList: (id, path, to) => ipcRenderer.invoke('lists:move-track', id, path, to),
   removeFromList: (id, path) => ipcRenderer.invoke('lists:remove-track', id, path),
   deleteList: (id) => ipcRenderer.invoke('lists:delete', id),
   /** Listas cambiadas desde otro equipo. Devuelve la función para dejar de escuchar. */
