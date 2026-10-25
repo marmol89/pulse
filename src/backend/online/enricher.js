@@ -11,8 +11,10 @@ import { saveImage } from './images.js';
  * encontró con una versión anterior se vuelve a buscar una vez.
  */
 const LOOKUP_VERSION = 2;
+/** Versión de la búsqueda de letra (3: también la sincronizada, que se pide una vez a las que ya tenían de LRCLIB). */
+const LYRICS_VERSION = 3;
 
-const outdated = (version) => (version ?? 1) < LOOKUP_VERSION;
+const outdated = (version, current = LOOKUP_VERSION) => (version ?? 1) < current;
 
 /** A la pista le falta algo que internet puede aportar y todavía no se ha buscado (con esta versión). */
 export function needsInfo(record) {
@@ -36,8 +38,10 @@ export function createEnricher({ http, files, now = Date.now }) {
     async enrich(record, { force = false, lyrics = false } = {}) {
       let updated = record;
       if (force || needsInfo(record)) updated = await lookupInfo(updated);
-      const lyricsPending = !updated.online?.lyricsCheckedAt || outdated(updated.online.lyricsVersion);
-      if (lyrics && !updated.lyrics && (force || lyricsPending)) {
+      const lyricsPending = !updated.online?.lyricsCheckedAt || outdated(updated.online.lyricsVersion, LYRICS_VERSION);
+      // La letra del archivo no se pisa; la de LRCLIB sí se puede completar con la sincronizada.
+      const lyricsMissing = !updated.lyrics || (updated.online?.lyricsSource === 'LRCLIB' && !updated.syncedLyrics);
+      if (lyrics && lyricsMissing && (force || lyricsPending)) {
         try {
           updated = await lookupLyrics(updated);
         } catch (error) {
@@ -62,13 +66,15 @@ export function createEnricher({ http, files, now = Date.now }) {
 
   // Con los datos ya completados, o con las lecturas del nombre del archivo si no se encontraron.
   async function lookupLyrics(record) {
-    let text = null;
+    let found = null;
     for (const query of queriesFromRecord(record)) {
-      text = await orFallback(() => findLyrics(http, query), null);
-      if (text) break;
+      found = await orFallback(() => findLyrics(http, query), null);
+      if (found) break;
     }
-    const online = { ...record.online, lyricsSource: text ? 'LRCLIB' : null, lyricsCheckedAt: now(), lyricsVersion: LOOKUP_VERSION };
-    return { ...record, lyrics: text ?? '', online };
+    const online = { ...record.online, lyricsCheckedAt: now(), lyricsVersion: LYRICS_VERSION };
+    // Si ya tenía la de LRCLIB y esta vez no aparece, se queda la que había.
+    if (!found) return { ...record, online: { ...online, lyricsSource: record.lyrics ? record.online?.lyricsSource : null } };
+    return { ...record, lyrics: found.lyrics, syncedLyrics: found.syncedLyrics, online: { ...online, lyricsSource: 'LRCLIB' } };
   }
 
   /**

@@ -132,7 +132,7 @@ describe('online/lrclib', () => {
       ],
     });
 
-    assert.equal(await findLyrics(http, { title: 'Despacito', artist: 'Luis Fonsi', duration: 229 }), 'la buena');
+    assert.equal((await findLyrics(http, { title: 'Despacito', artist: 'Luis Fonsi', duration: 229 })).lyrics, 'la buena');
     const url = new URL(fetch.requests[0].url);
     assert.equal(url.searchParams.get('track_name'), 'Despacito');
     assert.equal(url.searchParams.get('artist_name'), 'Luis Fonsi');
@@ -147,7 +147,15 @@ describe('online/lrclib', () => {
     const lyrics = await findLyrics(http, { title: 'Despacito', artist: 'Luis Fonsi & Daddy Yankee', duration: 229 });
 
     assert.equal(new URL(fetch.requests[0].url).searchParams.get('artist_name'), 'Luis Fonsi');
-    assert.equal(lyrics, 'Ay (Fonsi, DY)\nAy (Fonsi, DY) \n(Oh, oh)\noh, no');
+    assert.equal(lyrics.lyrics, 'Ay (Fonsi, DY)\nAy (Fonsi, DY) \n(Oh, oh)\noh, no');
+  });
+
+  test('trae también la letra sincronizada (LRC) si LRCLIB la tiene', async () => {
+    const { http } = httpWith({
+      'https://lrclib.net/api/search': [lrclibResult({ plainLyrics: 'Sí\nsabes', syncedLyrics: '[00:01.50] Sí\n[00:03.00] sabes\n' }), lrclibResult({ albumName: 'Otro', syncedLyrics: null })],
+    });
+    const found = await findLyrics(http, { title: 'Despacito', artist: 'Luis Fonsi', duration: 229 });
+    assert.deepEqual(found, { lyrics: 'Sí\nsabes', syncedLyrics: '[00:01.50] Sí\n[00:03.00] sabes' });
   });
 
   test('sin artista no busca y sin coincidencias devuelve null', async () => {

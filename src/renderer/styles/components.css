@@ -1185,6 +1185,35 @@
   user-select: text;
 }
 
+/* Letra sincronizada: el verso que suena, resaltado; los ya cantados, más apagados */
+.lyrics__text--synced {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  white-space: normal;
+}
+
+.lyrics__line {
+  padding: var(--space-1) 0;
+  border: 0;
+  border-radius: var(--radius-row);
+  background: none;
+  color: var(--color-text-2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.lyrics__line:hover {
+  color: var(--color-text-3);
+}
+
+.lyrics__line.is-active {
+  color: var(--color-text);
+}
+
 /* ---------- Buscar ---------- */
 
 .search-box {
