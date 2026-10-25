@@ -44,6 +44,7 @@ export function baseRecord(id, fileName, fields = {}) {
     year: 0,
     duration: 0,
     lyrics: '',
+    syncedLyrics: '', // LRC de LRCLIB ("[mm:ss.cc] verso")
     hasCover: false,
     ...fields,
   };
