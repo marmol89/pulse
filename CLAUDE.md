@@ -28,10 +28,11 @@ Electron 45 descarga su binario la primera vez que se usa; para forzarlo: `node 
 src/backend/     lógica común a Electron y Android, SIN Node ni Electron (lo comprueba tests/backend/portable.test.js):
                  la plataforma inyecta `files` (leer/escribir por nombre), `crypto`, `http`, `toTrack` (URLs) y `collect`
   paths.js       basename/extname POSIX y nombre de carátula
-  s3/           storage.js (SDK: leer y subir, nunca borra; admite otro requestHandler), connection.js (conexión
+  s3/           storage.js (SDK: leer, subir y, solo para la papelera, copiar y borrar; admite otro requestHandler), connection.js (conexión
                  con la clave secreta cifrada por el `crypto` inyectado), service.js
   library/       remote.js (id s3://bucket/clave, etiquetas leyendo el principio del objeto), sync.js
-                 (biblioteca = bucket), upload.js (sube lo que da `collect`: {name,size,open}), metadata.js (copia en
+                 (biblioteca = bucket), upload.js (sube lo que da `collect`: {name,size,open}), trash.js (papelera del bucket),
+                 metadata.js (copia en
                  metadatos/ del bucket), lists.js (listas de canciones: lists.js aquí y metadatos/listas.json),
                  favorites.js (favoritos: favorites.json y metadatos/favoritos.json), recents.js (recientes:
                  recents.json y metadatos/recientes.json), shared.js (lo que comparten listas, favoritos y
@@ -108,6 +109,13 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   (`webUtils.getPathForFile` en el preload). `upload.js` sube de una en una bajo la carpeta de la conexión
   (una carpeta conserva su nombre: "Disco/01.mp3"), **nunca sobrescribe** (mismo archivo → se salta; otro con
   ese nombre → "Nombre (2).mp3") y sincroniza al terminar. Claves sin permiso de escritura → mensaje claro.
+- **Eliminar canciones** (`trash.js`): "Eliminar del bucket" en el "⋯" de cada fila, con confirmación (`TrashDialog`,
+  handler `trash.js`). **No se borra al momento**: se copia a `papelera/` bajo la carpeta de la conexión (conserva su
+  carpeta, nunca pisa: "Nombre (2).mp3"), se borra el original y sale de la biblioteca; los demás Pulse la quitan en
+  su próxima sincronización. `listAudio()` no ve la papelera. "Papelera" en Tu música la restaura a su sitio
+  (sincroniza) o la vacía con doble pulsación: **es lo único que borra para siempre**. Listas y favoritos no se
+  tocan (al restaurarla vuelve a estar en ellos); en Android se quita su descarga. `copy` y `remove` de
+  `storage.js` solo los usa `trash.js`: nada más en Pulse borra del bucket.
 - **Metadatos en el bucket** (`metadata.js`), bajo la carpeta de la conexión: `metadatos/biblioteca.json` (todos los
   datos de cada canción: etiquetas leídas e internet) y `metadatos/caratulas/<sha1>.jpg` (carátulas de internet,
   por nombre: `coverName`). Cada guardado de la biblioteca se sube a los 5 s (máx. 60 s), al arrancar y antes de

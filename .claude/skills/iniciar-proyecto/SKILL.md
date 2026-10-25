@@ -54,12 +54,13 @@ src/backend/                       T  lógica común, SIN Node ni Electron (test
                                       plataforma inyecta files, crypto, http, toTrack (URLs) y collect
   paths.js                            basename/extname POSIX, nombre de carátula
   s3/storage.js                       SDK de S3 (path-style, requestHandler opcional): listar audio, rangos, stat (GET de
-                                      un byte, no HEAD), upload (nunca borra), errores en español
+                                      un byte, no HEAD), upload, copy/remove (solo para la papelera), errores en español
   s3/connection.js · service.js       conexión en s3.json con la clave secreta cifrada por el crypto de la plataforma,
                                       importar credentials.json (MinIO o AWS), probar y conectar
   library/remote.js                   id "s3://bucket/clave"; etiquetas leyendo los primeros 512 KB del objeto
   library/sync.js                     biblioteca = bucket: añade, relee (ETag) y quita; verify(id)
   library/upload.js                   sube lo que da collect ({name,size,open}) sin sobrescribir y sincroniza
+  library/trash.js                    "Eliminar del bucket": a papelera/ (nunca borra al momento), restaurar y vaciar
   library/metadata.js                 copia de la biblioteca en metadatos/biblioteca.json + metadatos/caratulas/
   library/tracks.js · store.js        registro ↔ Track (toTrack con las URLs de la plataforma) · library.json (caché)
   online/matching.js                  ¿es la misma canción? (título, artista, duración, otras versiones)
