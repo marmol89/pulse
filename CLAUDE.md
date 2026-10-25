@@ -57,7 +57,7 @@ src/renderer/
   core/          Mediator (solo enruta) y Colleague
   mediator/      PlayerMediator (solo compone), events.js, actions.js, handlers/ (uno por caso de uso)
   colleagues/    modelos (Catalog, Playlist = la cola, Lists = listas del usuario, Favorites, Recents, Settings),
-                 servicios (AudioEngine, LibraryService, MediaSessionBridge) y vistas (Router, HomeView,
+                 servicios (AudioEngine, LibraryService, MediaSessionBridge, SleepTimer) y vistas (Router, HomeView,
                  PlaylistView, SearchView, NowPlayingView, ControlsView, ToastView, ConnectionView,
                  ListDialog, KeyboardShortcuts)
   ui/            piezas de UI sin estado de negocio (dom, icons, cover, format, trackList, transport)
