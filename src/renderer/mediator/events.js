@@ -75,4 +75,5 @@ export const EVENTS = Object.freeze({
   SET_ONLINE_LOOKUP: 'set-online-lookup', // (activado)
   LOOKUP_TRACK: 'lookup-track', // (path) — búsqueda pedida por el usuario
   TRACKS_UPDATED: 'tracks-updated', // (Track[]) — completadas en segundo plano
+  ARTIST_PICTURES_CHANGED: 'artist-pictures-changed', // ({ nombre: URL }) — fotos de artista nuevas
 });

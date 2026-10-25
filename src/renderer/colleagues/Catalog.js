@@ -16,6 +16,20 @@ import { splitArtists } from '../lib/artists.js';
 export class Catalog extends Colleague {
   /** @type {Map<string, Track>} */
   #tracks = new Map();
+  /** Fotos de artista (nombre normalizado → URL). */
+  #artistPictures = new Map();
+
+  /** Añade fotos de artista ({ nombre: URL }). Devuelve si ha cambiado alguna. */
+  setArtistPictures(pictures) {
+    let changed = false;
+    for (const [name, url] of Object.entries(pictures ?? {})) {
+      const id = normalize(name);
+      if (!url || this.#artistPictures.get(id) === url) continue;
+      this.#artistPictures.set(id, url);
+      changed = true;
+    }
+    return changed;
+  }
 
   /** Añade o actualiza pistas. Devuelve cuántas eran nuevas. */
   add(tracks) {
@@ -104,6 +118,7 @@ export class Catalog extends Colleague {
         key: name,
         name,
         count: tracks.length,
+        picture: this.#artistPictures.get(normalize(name)) ?? null,
         sample: tracks.find((track) => track.cover) ?? tracks[0],
       }))
       .sort((a, b) => compareText(a.name, b.name));
@@ -120,7 +135,13 @@ export class Catalog extends Colleague {
         return { source, title: tracks[0]?.album ?? '', byline: tracks[0] ? albumArtistOf(tracks[0]) : '', tracks };
       }
       case 'artist':
-        return { source, title: key, byline: 'Artista', tracks: this.all().filter((track) => hasArtist(track, key)) };
+        return {
+          source,
+          title: key,
+          byline: 'Artista',
+          cover: this.#artistPictures.get(normalize(key)) ?? null,
+          tracks: this.all().filter((track) => hasArtist(track, key)),
+        };
       case 'genre':
         return { source, title: key, byline: 'Género', tracks: this.all().filter((track) => track.genre === key) };
       case 'search':
