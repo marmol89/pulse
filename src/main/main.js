@@ -11,6 +11,7 @@ import { collectPaths } from './library/collect.js';
 import { createMetadataStore } from '../backend/library/metadata.js';
 import { createListStore } from '../backend/library/lists.js';
 import { createFavoriteStore } from '../backend/library/favorites.js';
+import { createRecentStore } from '../backend/library/recents.js';
 import { objectResponse } from './protocol/responses.js';
 import { mediaTrack } from './protocol/urls.js';
 import { createConnectionStore } from '../backend/s3/connection.js';
@@ -22,6 +23,7 @@ import { registerLibraryIpc } from './ipc/library.js';
 import { registerMetadataIpc } from './ipc/metadata.js';
 import { registerListsIpc } from './ipc/lists.js';
 import { registerFavoritesIpc } from './ipc/favorites.js';
+import { registerRecentsIpc } from './ipc/recents.js';
 import { createNodeFiles } from './files.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -71,6 +73,9 @@ async function start() {
   // Favoritos: favorites.json aquí y metadatos/favoritos.json en el bucket, igual que las listas.
   const favorites = createFavoriteStore({ files, getStorage: () => s3.storage(), onChange: (all) => broadcast('favorites:changed', all) });
   await favorites.load();
+  // Recientes: recents.json aquí y metadatos/recientes.json en el bucket, igual que los favoritos.
+  const recents = createRecentStore({ files, getStorage: () => s3.storage(), onChange: (all) => broadcast('recents:changed', all) });
+  await recents.load();
   const librarySync = createLibrarySync({
     store,
     getStorage: () => s3.storage(),
@@ -103,10 +108,11 @@ async function start() {
       return storage && key ? objectResponse(storage, key, range) : new Response('Sin conexión con el almacenamiento', { status: 503 });
     },
   });
-  registerLibraryIpc({ store, s3, librarySync, uploader, lists, favorites });
+  registerLibraryIpc({ store, s3, librarySync, uploader, lists, favorites, recents });
   registerMetadataIpc({ store, queue });
   registerListsIpc({ lists });
   registerFavoritesIpc({ favorites });
+  registerRecentsIpc({ recents });
   if (app.isPackaged) Menu.setApplicationMenu(null);
 
   // Cambios hechos en el bucket desde fuera (canciones, listas y favoritos): al arrancar y al volver a la ventana.
@@ -114,14 +120,15 @@ async function start() {
     librarySync.syncSoon();
     lists.syncSoon();
     favorites.syncSoon();
+    recents.syncSoon();
   };
   createWindow().webContents.once('did-finish-load', syncSoon);
   app.on('browser-window-focus', syncSoon);
-  // No cerrar con metadatos, listas o favoritos sin subir al bucket.
+  // No cerrar con metadatos, listas, favoritos o recientes sin subir al bucket.
   app.on('before-quit', (event) => {
-    if (!metadata.hasPending() && !lists.hasPending() && !favorites.hasPending()) return;
+    if (!metadata.hasPending() && !lists.hasPending() && !favorites.hasPending() && !recents.hasPending()) return;
     event.preventDefault();
-    Promise.all([metadata.hasPending() && metadata.flush(), lists.hasPending() && lists.sync(), favorites.hasPending() && favorites.sync()]).finally(() => app.quit());
+    Promise.all([metadata.hasPending() && metadata.flush(), lists.hasPending() && lists.sync(), favorites.hasPending() && favorites.sync(), recents.hasPending() && recents.sync()]).finally(() => app.quit());
   });
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
