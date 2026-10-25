@@ -85,6 +85,8 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   cifrada (`safeStorage`: DPAPI en Windows, llavero en Linux) y la clave secreta nunca vuelve a la ventana.
 - La biblioteca es el contenido del bucket (`sync.js`): se sincroniza al arrancar, al volver a la ventana
   (como mucho cada 15 s) y con "Actualizar biblioteca". Nuevo, cambiado (ETag) o borrado → `library-changed`.
+- "Tu biblioteca" se ordena (añadidas recientemente, por la fecha de subida `addedAt` del listado; título, artista,
+  álbum o año: `Catalog.library()`, recordado en `Settings`) y se filtra con el campo de su cabecera (handler `librarySort.js`).
 - Las etiquetas se leen descargando solo los primeros 512 KB (más si la etiqueta ID3 es grande). Las que están
   al final de archivos grandes no se leen; con "Datos de internet" se completan desde el nombre del archivo.
 - **Subir canciones**: botón "Subir canciones" (diálogo del main) o arrastrar archivos/carpetas a la ventana
