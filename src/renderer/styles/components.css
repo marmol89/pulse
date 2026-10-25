@@ -591,6 +591,12 @@
   text-align: center;
 }
 
+/* Centrados, el título y el subtítulo no pueden pasar del ancho de la tarjeta (si no, se pisan con la de al lado). */
+.media-card__title,
+.media-card__subtitle {
+  max-width: 100%;
+}
+
 /* Géneros: barra de color a la izquierda */
 .genre-grid {
   display: grid;
@@ -1574,4 +1580,96 @@
 
 .list-dialog__delete.is-confirming {
   color: var(--color-accent);
+}
+
+/* Temporizador de apagado (junto a "Ver la cola"): mismo botón y menú que la salida de audio */
+.now-playing__end-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto; /* a la derecha también sin selector de salida (Android) */
+}
+
+.device__menu--end {
+  right: 0;
+  left: auto;
+  min-width: 220px;
+}
+
+/* Menú emergente de las filas ("⋯": reproducir a continuación, añadir a la cola) */
+.menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 240px;
+  max-width: calc(100vw - 8px);
+  padding: var(--space-2);
+  border-radius: var(--radius-row);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-overlay);
+}
+
+.menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-cover-sm);
+  background: none;
+  color: var(--color-text);
+  font-size: var(--fs-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu__item:hover,
+.menu__item:focus-visible {
+  background: var(--color-hover);
+  outline: none;
+}
+
+.menu__item .icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-2);
+}
+
+/* Reordenar (listas del usuario y "Ver la cola"): asa a la izquierda de cada fila */
+.track-list.is-reorderable .track-row {
+  grid-template-columns: 24px 48px minmax(0, 1fr) auto 48px;
+  padding-left: 0;
+}
+
+.track-row__grip {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--color-text-2);
+  cursor: grab;
+  touch-action: none; /* con el dedo, arrastrar el asa no hace scroll */
+}
+
+.track-row__grip .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.track-row.is-dragging {
+  background: var(--color-hover);
+  opacity: 0.6;
+}
+
+.track-row.is-dragging .track-row__grip {
+  cursor: grabbing;
+}
+
+.track-row.is-drop-before {
+  box-shadow: inset 0 2px 0 var(--color-primary);
+}
+
+.track-row.is-drop-after {
+  box-shadow: inset 0 -2px 0 var(--color-primary);
 }

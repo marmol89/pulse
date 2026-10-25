@@ -107,6 +107,22 @@ describe('handlers/listTracks', () => {
     assert.equal(ctx.listDialog.close.mock.callCount(), 2);
   });
 
+  test('mover una canción guarda el orden y repinta la lista abierta; si falla, avisa', async () => {
+    const ctx = fakeContext({
+      library: spy({ moveInList: ok([list('l1', 'Correr', ['b', 'a'])]) }),
+      playlistView: spy({ source: { kind: 'list', id: 'l1' } }),
+    });
+    ctx.catalog.add(tracks('a', 'b'));
+    ctx.lists.set([list('l1', 'Correr', ['a', 'b'])]);
+    await listTracks[EVENTS.MOVE_IN_LIST](ctx, { id: 'l1', path: 'b', to: 0 });
+    assert.deepEqual(callsOf(ctx.library.moveInList), [['l1', 'b', 0]]);
+    assert.deepEqual(callsOf(ctx.playlistView.render)[0][0].tracks.map((track) => track.path), ['b', 'a']);
+
+    ctx.library = spy({ moveInList: { ok: false, error: 'Esa lista ya no existe' } });
+    await listTracks[EVENTS.MOVE_IN_LIST](ctx, { id: 'l1', path: 'b', to: 1 });
+    assert.deepEqual(callsOf(ctx.toast.show), [['Esa lista ya no existe', { tone: 'error' }]]);
+  });
+
   test('quitar repinta la lista abierta; si falla, avisa', async () => {
     const ctx = fakeContext({
       library: spy({ removeFromList: ok([list('l1', 'Correr', [])]) }),

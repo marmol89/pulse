@@ -71,6 +71,31 @@ describe('Catalog', () => {
     ]);
   });
 
+  test('artists() cuenta una colaboración para cada uno de sus artistas', () => {
+    const solo = track('/m/solo.mp3', { title: 'Solo', artist: 'Farruko' });
+    const juntos = track('/m/juntos.mp3', { title: 'Juntos', artist: 'Farruko, Victor Cardenas', cover: 'media://cover/juntos' });
+    const catalog = catalogWith(solo, juntos);
+    assert.deepEqual(catalog.artists().map((a) => [a.name, a.count]), [
+      ['Farruko', 2],
+      ['Victor Cardenas', 1],
+    ]);
+    assert.equal(catalog.artists()[0].sample, juntos, 'la muestra es una con carátula');
+    assert.deepEqual(catalog.collection({ kind: 'artist', key: 'Farruko' }).tracks, [solo, juntos]);
+    assert.deepEqual(catalog.collection({ kind: 'artist', key: 'Victor Cardenas' }).tracks, [juntos]);
+  });
+
+  test('las fotos de artista van a su tarjeta y a su colección (sin distinguir mayúsculas ni tildes)', () => {
+    const catalog = catalogWith(neon, ola);
+    assert.equal(catalog.setArtistPictures({ 'aurora vega': 'media://artist/a.jpg', Nadie: 'media://artist/n.jpg' }), true);
+    assert.equal(catalog.setArtistPictures({ 'Aurora Vega': 'media://artist/a.jpg', 'Marea Sur': '' }), false, 'nada nuevo');
+    assert.deepEqual(catalog.artists().map((a) => [a.name, a.picture]), [
+      ['Aurora Vega', 'media://artist/a.jpg'],
+      ['Marea Sur', null],
+    ]);
+    assert.equal(catalog.collection({ kind: 'artist', key: 'Aurora Vega' }).cover, 'media://artist/a.jpg');
+    assert.equal(catalog.collection({ kind: 'artist', key: 'Marea Sur' }).cover, null);
+  });
+
   test('collection() resuelve biblioteca, álbum (por número de pista), artista, género y búsqueda', () => {
     const catalog = catalogWith(neon, intro, ola, selva, atardecer);
 

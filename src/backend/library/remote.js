@@ -37,15 +37,12 @@ function parseHead(bytes, { key, size }) {
   return parseBuffer(bytes, { mimeType: mimeFor(key), size }, { duration: false, skipPostHeaders: true });
 }
 
-async function parseStart(storage, object) {
-  return parseHead(await readHead(storage, object), object);
-}
-
 /**
  * Registro de un objeto del bucket. Si sus etiquetas no se pueden interpretar, se usa el nombre;
  * si falla la descarga (red, S3), el error se propaga para reintentarlo en otra sincronización.
+ * `onPicture(registro, carátula)` recibe la carátula incrustada ya leída, para guardarla sin descargarla otra vez.
  */
-export async function readRemoteRecord(storage, object) {
+export async function readRemoteRecord(storage, object, { onPicture } = {}) {
   const record = baseRecord(trackId(storage.bucket, object.key), basename(object.key), {
     key: object.key,
     etag: object.etag,
@@ -53,16 +50,30 @@ export async function readRemoteRecord(storage, object) {
     addedAt: object.lastModified ?? 0,
   });
   const bytes = await readHead(storage, object);
+  let metadata;
   try {
-    return recordFromMetadata(record, await parseHead(bytes, object));
+    metadata = await parseHead(bytes, object);
   } catch {
     return record;
   }
+  const full = recordFromMetadata(record, metadata);
+  const picture = onPicture && pictureFrom(metadata.common);
+  if (picture) {
+    try {
+      await onPicture(full, picture);
+    } catch {
+      // Sin guardar: se descargará cuando se pida.
+    }
+  }
+  return full;
 }
 
 const coverCache = new Map();
 
-/** Carátula incrustada de una pista del bucket, con una caché LRU pequeña. */
+/**
+ * Carátula incrustada de una pista del bucket, con una caché LRU pequeña. Si la descarga falla
+ * (red, S3) lanza y no se recuerda: así se reintenta, en vez de quedarse sin carátula.
+ */
 export async function readRemoteCover(storage, record) {
   const cacheKey = `${record.path}#${record.etag}`;
   if (coverCache.has(cacheKey)) {
@@ -71,11 +82,12 @@ export async function readRemoteCover(storage, record) {
     coverCache.set(cacheKey, cached);
     return cached;
   }
+  const bytes = await readHead(storage, record);
   let picture = null;
   try {
-    picture = pictureFrom((await parseStart(storage, record)).common);
+    picture = pictureFrom((await parseHead(bytes, record)).common);
   } catch {
-    picture = null;
+    picture = null; // no se puede interpretar: no tiene carátula que leer
   }
   coverCache.set(cacheKey, picture);
   if (coverCache.size > COVER_CACHE_SIZE) coverCache.delete(coverCache.keys().next().value);

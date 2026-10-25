@@ -1,5 +1,6 @@
 import { Colleague } from '../core/Colleague.js';
 import { normalize, compareText } from '../lib/text.js';
+import { splitArtists } from '../lib/artists.js';
 
 /**
  * Biblioteca completa: todas las pistas conocidas, sin orden de reproducción.
@@ -15,6 +16,20 @@ import { normalize, compareText } from '../lib/text.js';
 export class Catalog extends Colleague {
   /** @type {Map<string, Track>} */
   #tracks = new Map();
+  /** Fotos de artista (nombre normalizado → URL). */
+  #artistPictures = new Map();
+
+  /** Añade fotos de artista ({ nombre: URL }). Devuelve si ha cambiado alguna. */
+  setArtistPictures(pictures) {
+    let changed = false;
+    for (const [name, url] of Object.entries(pictures ?? {})) {
+      const id = normalize(name);
+      if (!url || this.#artistPictures.get(id) === url) continue;
+      this.#artistPictures.set(id, url);
+      changed = true;
+    }
+    return changed;
+  }
 
   /** Añade o actualiza pistas. Devuelve cuántas eran nuevas. */
   add(tracks) {
@@ -85,14 +100,25 @@ export class Catalog extends Colleague {
       .sort((a, b) => compareText(a.title, b.title));
   }
 
-  /** Artistas ordenados por nombre: [{ key, name, count, sample }]. */
+  /**
+   * Artistas ordenados por nombre: [{ key, name, count, sample }]. Una colaboración ("Farruko, Victor Cardenas")
+   * cuenta para cada uno de sus artistas; el nombre es la primera forma escrita que aparece.
+   */
   artists() {
-    const groups = groupBy(this.all(), (track) => track.artist);
-    return [...groups.entries()]
-      .map(([key, tracks]) => ({
-        key,
-        name: key,
+    const groups = new Map();
+    for (const track of this.all()) {
+      for (const name of splitArtists(track.artist)) {
+        const id = normalize(name);
+        if (!groups.has(id)) groups.set(id, { name, tracks: [] });
+        groups.get(id).tracks.push(track);
+      }
+    }
+    return [...groups.values()]
+      .map(({ name, tracks }) => ({
+        key: name,
+        name,
         count: tracks.length,
+        picture: this.#artistPictures.get(normalize(name)) ?? null,
         sample: tracks.find((track) => track.cover) ?? tracks[0],
       }))
       .sort((a, b) => compareText(a.name, b.name));
@@ -119,7 +145,13 @@ export class Catalog extends Colleague {
         return { source, title: tracks[0]?.album ?? '', byline: tracks[0] ? albumArtistOf(tracks[0]) : '', tracks };
       }
       case 'artist':
-        return { source, title: key, byline: 'Artista', tracks: this.all().filter((track) => track.artist === key) };
+        return {
+          source,
+          title: key,
+          byline: 'Artista',
+          cover: this.#artistPictures.get(normalize(key)) ?? null,
+          tracks: this.all().filter((track) => hasArtist(track, key)),
+        };
       case 'genre':
         return { source, title: key, byline: 'Género', tracks: this.all().filter((track) => track.genre === key) };
       case 'search':
@@ -145,6 +177,12 @@ const LIBRARY_SORTS = {
 
 export function albumKey(track) {
   return `${normalize(albumArtistOf(track))}::${normalize(track.album)}`;
+}
+
+/** ¿Es `name` uno de los artistas de la pista (también en una colaboración)? */
+function hasArtist(track, name) {
+  const wanted = normalize(name);
+  return splitArtists(track.artist).some((artist) => normalize(artist) === wanted);
 }
 
 function albumArtistOf(track) {

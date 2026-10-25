@@ -14,6 +14,10 @@ import uploads from './handlers/uploads.js';
 import errors from './handlers/errors.js';
 import lists from './handlers/lists.js';
 import listTracks from './handlers/listTracks.js';
+import artistPictures from './handlers/artistPictures.js';
+import queue from './handlers/queue.js';
+import resume from './handlers/resume.js';
+import sleep from './handlers/sleep.js';
 import librarySort from './handlers/librarySort.js';
 
 /**
@@ -25,7 +29,7 @@ export class PlayerMediator extends Mediator {
 
   /**
    * @param {{
-   *   audio, playlist, catalog, favorites, recents, lists, settings, library, mediaSession,
+   *   audio, playlist, catalog, favorites, recents, lists, settings, session, library, mediaSession, sleepTimer,
    *   router, home, search, playlistView, nowPlaying, controls, toast, connection, listDialog, keyboard?
    * }} colleagues
    */
@@ -49,6 +53,10 @@ export class PlayerMediator extends Mediator {
       .use(errors)
       .use(lists)
       .use(listTracks)
+      .use(artistPictures)
+      .use(queue)
+      .use(resume)
+      .use(sleep)
       .use(librarySort);
   }
 
