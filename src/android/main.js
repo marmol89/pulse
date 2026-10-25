@@ -24,7 +24,12 @@ window.api = createAndroidApi({
   coverUrl: (name) => Capacitor.convertFileSrc(`${coversFolder}/${encodeURIComponent(name)}`),
   // Canciones descargadas (downloads/): Filesystem las baja directamente al disco y el <audio> las lee de ahí.
   fileUrl: (path) => Capacitor.convertFileSrc(`${dataFolder}/${path.split('/').map(encodeURIComponent).join('/')}`),
-  downloadFile: (url, path) => Filesystem.downloadFile({ url, path, directory: Directory.Data, recursive: true }),
+  async downloadFile(url, path) {
+    // downloadFile no crea la carpeta aunque se le pida (recursive): se crea antes, solo si falta.
+    const folder = path.split('/')[0];
+    if (!(await files.list('')).includes(folder)) await Filesystem.mkdir({ path: folder, directory: Directory.Data, recursive: true });
+    await Filesystem.downloadFile({ url, path, directory: Directory.Data });
+  },
   async prepare() {
     await SecureStorage.setKeyPrefix('pulse.');
     coversFolder = (await files.uri('covers')).replace(/\/+$/, '');

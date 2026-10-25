@@ -9,6 +9,7 @@ function setup({ records = [record('a'), record('b')], files = memoryFiles(), fa
   const byId = new Map(records.map((item) => [item.path, item]));
   const downloaded = [];
   const changes = [];
+  const retracks = [];
   const downloads = createDownloads({
     files,
     signedUrl: async (item) => `https://s3/${item.key}?firmada`,
@@ -20,13 +21,14 @@ function setup({ records = [record('a'), record('b')], files = memoryFiles(), fa
     getRecord: (id) => byId.get(id) ?? null,
     toUrl: (path) => `http://localhost/_capacitor_file_/datos/${path}`,
     onChange: (summary) => changes.push(summary),
+    onTracks: (ids) => retracks.push(ids),
   });
-  return { downloads, downloaded, changes, files, byId };
+  return { downloads, downloaded, changes, retracks, files, byId };
 }
 
 describe('android/downloads', () => {
   test('descarga de una en una desde la URL firmada y la canción pasa a sonar del móvil', async () => {
-    const { downloads, downloaded, changes, byId } = setup();
+    const { downloads, downloaded, changes, retracks, byId } = setup();
     const first = downloads.add(['s3://musica/a.mp3', 's3://musica/b.mp3', 's3://musica/no-existe.mp3']);
     assert.deepEqual(first.pending, ['s3://musica/a.mp3', 's3://musica/b.mp3']);
 
@@ -35,8 +37,9 @@ describe('android/downloads', () => {
     assert.deepEqual(downloaded.map(([url]) => url), ['https://s3/a.mp3?firmada', 'https://s3/b.mp3?firmada']);
     assert.match(downloaded[0][1], /^downloads\/[0-9a-f]{16}\.mp3$/);
     assert.equal(downloads.urlFor(byId.get('s3://musica/a.mp3')), `http://localhost/_capacitor_file_/datos/${downloaded[0][1]}`);
-    assert.deepEqual(changes.at(-1), { paths: ['s3://musica/a.mp3', 's3://musica/b.mp3'], pending: [], bytes: 200 });
+    assert.deepEqual(changes.at(-1), { paths: ['s3://musica/a.mp3', 's3://musica/b.mp3'], pending: [], failed: [], bytes: 200 });
     assert.equal(changes.length, 2, 'avisa al terminar cada una');
+    assert.deepEqual(retracks, [['s3://musica/a.mp3'], ['s3://musica/b.mp3']], 'y manda sus pistas con la URL nueva');
   });
 
   test('se recuerda en downloads.json; si cambió en el bucket (otro ETag) vuelve a sonar desde S3', async () => {
@@ -56,14 +59,15 @@ describe('android/downloads', () => {
   });
 
   test('quitar y borrar todo eliminan los archivos', async () => {
-    const { downloads, downloaded, files } = setup();
+    const { downloads, downloaded, files, retracks } = setup();
     downloads.add(['s3://musica/a.mp3', 's3://musica/b.mp3']);
     await downloads.idle();
 
     assert.deepEqual((await downloads.remove(['s3://musica/a.mp3'])).paths, ['s3://musica/b.mp3']);
     assert.equal(await files.exists(downloaded[0][1]), false);
-    assert.deepEqual(await downloads.clear(), { paths: [], pending: [], bytes: 0 });
+    assert.deepEqual(await downloads.clear(), { paths: [], pending: [], failed: [], bytes: 0 });
     assert.equal(await files.exists(downloaded[1][1]), false);
+    assert.deepEqual(retracks.slice(2), [['s3://musica/a.mp3'], ['s3://musica/b.mp3']], 'vuelven a la URL firmada');
   });
 
   test('si una falla (sin red), no se apunta y sigue con las demás', async () => {
@@ -71,5 +75,8 @@ describe('android/downloads', () => {
     downloads.add(['s3://musica/a.mp3', 's3://musica/b.mp3']);
     await downloads.idle();
     assert.deepEqual(downloads.summary().paths, ['s3://musica/b.mp3']);
+    assert.deepEqual(downloads.summary().failed, ['s3://musica/a.mp3']);
+    downloads.add(['s3://musica/a.mp3']);
+    assert.deepEqual(downloads.summary().failed, [], 'al pedirla otra vez se reintenta');
   });
 });

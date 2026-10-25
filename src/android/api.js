@@ -169,6 +169,8 @@ async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downlo
     getRecord: (id) => store.get(id),
     toUrl: fileUrl,
     onChange: (summary) => emit('downloads', summary),
+    // Con la URL nueva (la local o, si se quitó, la firmada), para que el <audio> la use la próxima vez.
+    onTracks: (ids) => emitTracks('updated')(ids.map((id) => store.get(id)).filter(Boolean).map(trackOf)),
   });
   await downloads.load();
 

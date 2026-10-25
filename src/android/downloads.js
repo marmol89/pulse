@@ -9,14 +9,16 @@ const FOLDER = 'downloads';
  * firmada a downloads/ (`download(url, ruta)`, Filesystem.downloadFile: va al disco sin pasar por el JS) y se
  * apuntan en downloads.json (`{ id: { file, etag, size } }`). `urlFor(record)` da la local si sigue siendo el mismo
  * objeto (mismo ETag); si cambió en el bucket, se vuelve a escuchar desde S3 hasta que se descargue otra vez.
- * `onChange(summary)` avisa al terminar cada una.
+ * `onChange(summary)` avisa al terminar cada una; `summary.failed`: las que no se pudieron bajar en esta sesión.
+ * `onTracks(ids)`: canciones cuya URL ha cambiado (recién descargadas o quitadas), para mandarlas a la interfaz.
  *
  * @param {{ files, download: (url: string, path: string) => Promise<void>, signedUrl: (record) => Promise<string>,
  *   getRecord: (id: string) => object | null, toUrl: (path: string) => string, onChange: (summary) => void }} options
  */
-export function createDownloads({ files, download, signedUrl, getRecord, toUrl, onChange = () => {} }) {
+export function createDownloads({ files, download, signedUrl, getRecord, toUrl, onChange = () => {}, onTracks = () => {} }) {
   const entries = new Map();
   const pending = new Set();
+  const failed = new Set(); // en esta sesión; se reintentan al pedirlas otra vez
   let working = null;
 
   const fileFor = (record) => `${fingerprint(`${record.path}#${record.etag ?? ''}`)}${extname(record.key ?? record.path).toLowerCase()}`;
@@ -45,8 +47,10 @@ export function createDownloads({ files, download, signedUrl, getRecord, toUrl, 
           entries.set(id, { file, etag: record.etag ?? '', size: record.size ?? 0 });
           if (previous && previous.file !== file) await files.remove(`${FOLDER}/${previous.file}`);
           await save();
+          onTracks([id]);
         }
       } catch (error) {
+        failed.add(id);
         console.warn('[descargas] no se pudo descargar', id, error);
       }
       pending.delete(id);
@@ -60,21 +64,26 @@ export function createDownloads({ files, download, signedUrl, getRecord, toUrl, 
     return {
       paths: done,
       pending: [...pending],
+      failed: [...failed],
       bytes: done.reduce((total, id) => total + (entries.get(id).size || 0), 0),
     };
   }
 
   async function forget(ids) {
-    let changed = false;
+    const removed = [];
     for (const id of ids) {
       pending.delete(id);
+      failed.delete(id);
       const entry = entries.get(id);
       if (!entry) continue;
       entries.delete(id);
       await files.remove(`${FOLDER}/${entry.file}`);
-      changed = true;
+      removed.push(id);
     }
-    if (changed) await save();
+    if (removed.length > 0) {
+      await save();
+      onTracks(removed);
+    }
     return summary();
   }
 
@@ -95,7 +104,11 @@ export function createDownloads({ files, download, signedUrl, getRecord, toUrl, 
 
     /** Pone en cola las que no están descargadas (o cambiaron en el bucket). */
     add(ids) {
-      for (const id of ids) if (typeof id === 'string' && getRecord(id) && !isCurrent(id)) pending.add(id);
+      for (const id of ids) {
+        if (typeof id !== 'string' || !getRecord(id) || isCurrent(id)) continue;
+        failed.delete(id);
+        pending.add(id);
+      }
       working ??= work();
       return summary();
     },
