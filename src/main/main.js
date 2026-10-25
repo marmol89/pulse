@@ -54,7 +54,7 @@ async function start() {
   const enricher = createEnricher({ http, files });
   const queue = createEnrichmentQueue({ store, enricher, toTrack: mediaTrack, onUpdated: (tracks) => broadcast('library:tracks-updated', tracks) });
   // Fotos de artista de Deezer (artists.json y covers/).
-  const artistPictures = createArtistPictures({ files, http, onUpdated: (pictures) => broadcast('artists:pictures-changed', artistPictureUrls(pictures)) });
+  const artistPictures = createArtistPictures({ files, http, getRecords: () => store.all(), onUpdated: (pictures) => broadcast('artists:pictures-changed', artistPictureUrls(pictures)) });
   await artistPictures.load();
 
   // La música vive en un bucket S3. La clave secreta se cifra con el almacén seguro del sistema.

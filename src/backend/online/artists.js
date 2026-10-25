@@ -2,6 +2,7 @@ import { coverFile } from '../paths.js';
 import { UNKNOWN_ARTIST } from '../library/tracks.js';
 import { TransientError } from './http.js';
 import { findArtistPicture } from './deezer.js';
+import { simplify } from './matching.js';
 import { saveImage } from './images.js';
 
 const FILE = 'artists.json';
@@ -9,13 +10,23 @@ const INTERVAL_MS = 1500; // Deezer admite ~50 peticiones cada 5 s: muy por deba
 const RETRY_DELAY_MS = 60_000; // sin red o servicio ocupado
 const FLUSH_EVERY = 12; // avisa a la ventana cada tantas fotos (y al terminar)
 
+/** Hasta dos canciones (con título de verdad) en las que aparece ese artista. */
+export function songsOf(records, name) {
+  const wanted = simplify(name);
+  return records
+    .filter((record) => !record.titleFromFile && simplify(record.artist).includes(wanted))
+    .slice(0, 2)
+    .map((record) => ({ title: record.title, duration: record.duration ?? 0 }));
+}
+
 /**
  * Fotos de artista de Deezer, guardadas en covers/ como las carátulas de internet y apuntadas en
  * artists.json (`{ nombre: { coverName, checkedAt } }`; coverName null: Deezer no tiene foto de ese artista).
  * La ventana pide los nombres que ve (`request`): devuelve las que ya hay y busca el resto en segundo plano,
  * de uno en uno y solo con "Datos de internet" activado. `onUpdated({ nombre: coverName })` avisa de las nuevas.
+ * `getRecords` da la biblioteca: con sus canciones se reconoce al artista entre los homónimos de Deezer.
  */
-export function createArtistPictures({ files, http, onUpdated, timers = globalThis, now = Date.now, interval = INTERVAL_MS, retryDelay = RETRY_DELAY_MS }) {
+export function createArtistPictures({ files, http, onUpdated, getRecords = () => [], timers = globalThis, now = Date.now, interval = INTERVAL_MS, retryDelay = RETRY_DELAY_MS }) {
   const known = new Map();
   const pending = new Set();
   const found = new Map();
@@ -34,7 +45,7 @@ export function createArtistPictures({ files, http, onUpdated, timers = globalTh
     const [name] = pending;
     if (!enabled || name === undefined) return;
     try {
-      const url = await findArtistPicture(http, name);
+      const url = await findArtistPicture(http, name, songsOf(getRecords(), name));
       const coverName = url ? await saveImage({ http, files }, url, { isTransient: (error) => error instanceof TransientError }) : null;
       pending.delete(name);
       known.set(name, { coverName, checkedAt: now() });

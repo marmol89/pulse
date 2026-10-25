@@ -174,6 +174,7 @@ async function start({ files, crypto, http, coverUrl, userAgent, App, prepare, p
   const artistPictures = createArtistPictures({
     files,
     http: onlineHttp,
+    getRecords: () => store.all(),
     onUpdated: (pictures) => emit('artists', pictureUrls(pictures)),
     timers,
   });
