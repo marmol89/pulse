@@ -60,6 +60,13 @@ contextBridge.exposeInMainWorld('api', {
   // Datos de internet (carátulas, álbum, año, género, letra)
   lookupTrack: (id, options) => ipcRenderer.invoke('metadata:lookup', id, options),
   setOnlineLookup: (enabled) => ipcRenderer.invoke('metadata:set-enabled', enabled),
+  /** Fotos de artista ya guardadas ({ nombre: URL }); las que faltan se buscan y llegan con onArtistPicturesChanged. */
+  getArtistPictures: (names) => ipcRenderer.invoke('artists:pictures', names),
+  onArtistPicturesChanged: (callback) => {
+    const listener = (_event, pictures) => callback(pictures);
+    ipcRenderer.on('artists:pictures-changed', listener);
+    return () => ipcRenderer.removeListener('artists:pictures-changed', listener);
+  },
   /** Pistas completadas en segundo plano. Devuelve la función para dejar de escuchar. */
   onTracksUpdated: (callback) => {
     const listener = (_event, tracks) => callback(tracks);
