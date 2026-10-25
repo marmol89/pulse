@@ -19,9 +19,10 @@ export function trackListState(ctx) {
   };
 }
 
-export function loadTrack(ctx, track, autoplay = true) {
+export function loadTrack(ctx, track, autoplay = true, startAt = 0) {
   if (!track) return false;
-  ctx.audio.load(track.url, autoplay);
+  if (startAt > 0) ctx.audio.load(track.url, autoplay, startAt);
+  else ctx.audio.load(track.url, autoplay);
   showTrack(ctx, track);
   eachTrackListView(ctx, (view) => view.highlight(track.path));
   return true;
@@ -112,7 +113,23 @@ export function playCollection(ctx, source, startPath = null) {
   const collection = resolveCollection(ctx, source);
   const track = ctx.playlist.setQueue(collection.tracks, startPath);
   if (track) ctx.nowPlaying.setContext(collection.title);
+  ctx.session.saveQueue(ctx.playlist.snapshot(), collection.title);
   return loadTrack(ctx, track);
+}
+
+/** Al abrir Pulse, la cola y la pista de la última vez, en pausa y en el segundo en que se dejó. */
+export function restoreSession(ctx) {
+  const saved = ctx.session.load();
+  if (!saved || ctx.playlist.current()) return false; // ya suena otra cosa
+  const track = ctx.playlist.restore(saved.queue, (path) => ctx.catalog.get(path));
+  if (!track) {
+    ctx.session.clear();
+    return false;
+  }
+  ctx.nowPlaying.setContext(saved.context);
+  showModes(ctx);
+  ctx.session.saveQueue(ctx.playlist.snapshot()); // sin las que ya no están
+  return loadTrack(ctx, track, false, saved.time);
 }
 
 export function renderCollection(ctx, source) {
