@@ -310,7 +310,9 @@ try {
   await page.click('.nav__item:has-text("Biblioteca")');
   const firstTitle = await page.textContent('.view--collection .track-row .track-row__title'); // la primera: hay siguiente
   await page.dblclick('.view--collection .track-row >> nth=0');
-  await page.waitForFunction((title) => document.querySelector('.player__title')?.textContent === title && document.querySelector('.player .seek-bar__time')?.textContent >= '0:01', firstTitle);
+  // Que empiece de verdad (0:00 y luego avanza): la barra puede enseñar aún el tiempo de la anterior.
+  await page.waitForFunction((title) => document.querySelector('.player__title')?.textContent === title && document.querySelector('.player .seek-bar__time')?.textContent === '0:00', firstTitle);
+  await page.waitForFunction(() => document.querySelector('.player .seek-bar__time')?.textContent >= '0:01');
   const changedAfter = await page.evaluate(async (title) => {
     const range = document.querySelector('.player .seek-bar__range');
     range.value = '6';
