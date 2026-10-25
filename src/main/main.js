@@ -7,6 +7,7 @@ import { readRecordCover } from '../backend/library/tracks.js';
 import { createEmbeddedCovers } from '../backend/library/covers.js';
 import { createLibrarySync } from '../backend/library/sync.js';
 import { createUploader } from '../backend/library/upload.js';
+import { createTrash } from '../backend/library/trash.js';
 import { collectPaths } from './library/collect.js';
 import { createMetadataStore } from '../backend/library/metadata.js';
 import { createListStore } from '../backend/library/lists.js';
@@ -101,6 +102,8 @@ async function start() {
     afterUpload: () => librarySync.sync(),
     onProgress: (progress) => broadcast('library:upload-progress', progress),
   });
+  // "Eliminar del bucket": a papelera/, de donde se puede restaurar.
+  const trash = createTrash({ getStorage: () => s3.storage(), store, afterRestore: () => librarySync.sync() });
 
   handleMediaProtocol({
     isAllowed: (id) => store.has(id),
@@ -116,7 +119,7 @@ async function start() {
       return storage && key ? objectResponse(storage, key, range) : new Response('Sin conexión con el almacenamiento', { status: 503 });
     },
   });
-  registerLibraryIpc({ store, s3, librarySync, uploader, lists, favorites, recents });
+  registerLibraryIpc({ store, s3, librarySync, uploader, trash, lists, favorites, recents });
   registerMetadataIpc({ store, queue, artistPictures });
   registerListsIpc({ lists });
   registerFavoritesIpc({ favorites });

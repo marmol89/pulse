@@ -5,6 +5,7 @@ import { AUDIO_EXTENSIONS, isAudioFile, toTrack } from '../backend/library/track
 import { parseTrackId, readRemoteCover } from '../backend/library/remote.js';
 import { createLibrarySync } from '../backend/library/sync.js';
 import { createUploader } from '../backend/library/upload.js';
+import { createTrash } from '../backend/library/trash.js';
 import { createMetadataStore } from '../backend/library/metadata.js';
 import { createListStore, listResult } from '../backend/library/lists.js';
 import { createFavoriteStore, favoriteResult } from '../backend/library/favorites.js';
@@ -85,6 +86,12 @@ export function createAndroidApi(deps) {
     /** En Android no hay rutas: el propio File arrastrado es lo que se sube. */
     pathForFile: (file) => file,
     onUploadProgress: subscribe('progress'),
+
+    // Papelera del bucket
+    trashTrack: call(({ trash }, id) => trash.move(id)),
+    getTrash: call(({ trash }) => trash.list()),
+    restoreFromTrash: call(({ trash }, key) => trash.restore(key)),
+    emptyTrash: call(({ trash }) => trash.empty()),
 
     // Conexión S3 (la clave secreta nunca vuelve a la interfaz)
     getConnection: call(({ s3 }) => s3.summary()),
@@ -239,6 +246,13 @@ async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downlo
     afterUpload: () => librarySync.sync(),
     onProgress: (progress) => emit('progress', progress),
   });
+  // "Eliminar del bucket": a papelera/, de donde se puede restaurar. Su descarga del móvil se borra.
+  const trash = createTrash({
+    getStorage: () => s3.storage(),
+    store,
+    afterRestore: () => librarySync.sync(),
+    onRemoved: (ids) => downloads.remove(ids).then((summary) => emit('downloads', summary)),
+  });
 
   // Cambios hechos en el bucket desde fuera (canciones, listas y favoritos): al arrancar y al volver a la app.
   // Al salir, se sube lo pendiente.
@@ -257,5 +271,5 @@ async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downlo
     if (recents.hasPending()) recents.sync();
   });
 
-  return { store, s3, librarySync, uploader, queue, covers, metadata, lists, favorites, recents, downloads, present, trackOf, artistPictures, pictureUrls };
+  return { store, s3, librarySync, uploader, trash, queue, covers, metadata, lists, favorites, recents, downloads, present, trackOf, artistPictures, pictureUrls };
 }
