@@ -57,6 +57,7 @@ const ICONS = {
   plus: { viewBox: '-12 -12 24 24', stroke: 2.2, body: '<path d="M0 -8 V8"/><path d="M-8 0 H8"/>' },
   pencil: { viewBox: '-12 -12 24 24', stroke: 2, body: '<path d="M-8 8 L-7 3 L5 -9 L9 -5 L-3 7 Z"/><path d="M2 -6 L6 -2"/>' },
   close: { viewBox: '-12 -12 24 24', stroke: 2.2, body: '<path d="M-7 -7 L7 7"/><path d="M7 -7 L-7 7"/>' },
+  timer: { viewBox: '-12 -12 24 24', stroke: 2, body: '<path d="M-1 -9 A9 9 0 1 0 9 2 A7 7 0 0 1 -1 -9 Z"/>' },
 };
 
 /** @param {string} name @param {{ label?: string }} [options] @returns {SVGSVGElement} */

@@ -4,15 +4,24 @@ import { h, iconButton, favoriteButton, setFavoriteButton } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { createCover, trackSeed } from '../ui/cover.js';
 import { createSeekBar, createTransport } from '../ui/transport.js';
-import { formatDeviceLabel, trackDetails } from '../ui/format.js';
+import { formatClock, formatDeviceLabel, trackDetails } from '../ui/format.js';
 
 const DEFAULT_DEVICE_LABEL = 'Este equipo';
+/** Opciones del temporizador de apagado: minutos, 'track' (al acabar la canción) o null (desactivado). */
+const SLEEP_OPTIONS = [
+  [null, 'Desactivado'],
+  [15, '15 minutos'],
+  [30, '30 minutos'],
+  [45, '45 minutos'],
+  [60, '1 hora'],
+  ['track', 'Al acabar esta canción'],
+];
 
 /**
  * Pantalla 02 · Reproduciendo (overlay): portada grande, título, artista,
  * progreso, controles, salida de audio ("Altavoz de la sala"), cola, información y letra.
  * Emite: close-now-playing, toggle-favorite, seek, controles de transporte,
- * show-output-devices, output-device-change, open-collection (cola), lookup-track, choose-list.
+ * show-output-devices, output-device-change, open-collection (cola), lookup-track, choose-list, set-sleep-timer.
  */
 export class NowPlayingView extends Colleague {
   #art;
@@ -30,6 +39,10 @@ export class NowPlayingView extends Colleague {
   #lyricsToggle;
   #infoList;
   #lookupButton;
+  #sleepButton;
+  #sleepLabel;
+  #sleepMenu;
+  #sleepState = { mode: 'off', endsAt: 0 };
   #currentPath = null;
 
   constructor(root) {
@@ -70,7 +83,7 @@ export class NowPlayingView extends Colleague {
             h('div', { class: 'now-playing__info' }, h('div', { class: 'now-playing__text' }, this.#title, this.#artist), addToList, this.#favorite),
             this.#seek.element,
             this.#transport.element,
-            h('div', { class: 'now-playing__actions' }, this.#createDevicePicker(), queue),
+            h('div', { class: 'now-playing__actions' }, this.#createDevicePicker(), h('div', { class: 'now-playing__end-actions' }, this.#createSleepPicker(), queue)),
             this.#createInfo(),
             this.#createLyrics(),
           ),
@@ -180,6 +193,67 @@ export class NowPlayingView extends Colleague {
     // Donde no se puede elegir la salida (el WebView de Android), el selector no se muestra.
     const canChoose = typeof globalThis.HTMLMediaElement?.prototype.setSinkId === 'function';
     return h('div', { class: 'device', hidden: !canChoose }, this.#device, this.#deviceMenu);
+  }
+
+  /** Temporizador de apagado activo ({ mode, endsAt } de SleepTimer): el botón dice hasta cuándo. */
+  setSleepTimer(state) {
+    this.#sleepState = state;
+    const active = state.mode !== 'off';
+    this.#sleepLabel.textContent = state.mode === 'track' ? 'Fin de la canción' : active ? `Hasta las ${formatClock(state.endsAt)}` : '';
+    this.#sleepLabel.hidden = !active;
+    this.#sleepButton.classList.toggle('is-external', active);
+    this.#sleepButton.setAttribute('aria-label', active ? `Temporizador: ${this.#sleepLabel.textContent}` : 'Temporizador de apagado');
+  }
+
+  #createSleepPicker() {
+    this.#sleepLabel = h('span', { class: 'ellipsis', hidden: true });
+    this.#sleepButton = h(
+      'button',
+      { type: 'button', class: 'device__button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': 'Temporizador de apagado', title: 'Temporizador de apagado' },
+      icon('timer'),
+      this.#sleepLabel,
+    );
+    this.#sleepMenu = h('ul', { class: 'device__menu device__menu--end', role: 'menu', 'aria-label': 'Temporizador de apagado', hidden: true });
+    this.#sleepButton.addEventListener('click', () => (this.#sleepMenu.hidden ? this.#openSleepMenu() : this.#closeSleepMenu()));
+    this.#sleepMenu.addEventListener('click', (event) => {
+      const option = event.target.closest('[data-sleep]');
+      if (!option) return;
+      this.#closeSleepMenu();
+      this.#sleepButton.focus(); // el foco no se queda en el menú oculto
+      const [choice] = SLEEP_OPTIONS[Number(option.dataset.sleep)];
+      this.notify(EVENTS.SET_SLEEP_TIMER, choice);
+    });
+    this.#sleepMenu.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault(); // que Esc cierre solo el menú, no el overlay
+      this.#closeSleepMenu();
+      this.#sleepButton.focus();
+    });
+    document.addEventListener('pointerdown', (event) => {
+      if (!this.#sleepMenu.hidden && !event.target.closest('.sleep-timer')) this.#closeSleepMenu();
+    });
+    return h('div', { class: 'device sleep-timer' }, this.#sleepButton, this.#sleepMenu);
+  }
+
+  #openSleepMenu() {
+    const current = this.#sleepState.mode === 'track' ? 'track' : this.#sleepState.mode === 'off' ? null : undefined;
+    this.#sleepMenu.replaceChildren(
+      ...SLEEP_OPTIONS.map(([choice, label], index) =>
+        h(
+          'li',
+          { role: 'none' },
+          h('button', { type: 'button', class: 'device__option', role: 'menuitemradio', 'aria-checked': String(choice === current), 'data-sleep': String(index) }, label),
+        ),
+      ),
+    );
+    this.#sleepMenu.hidden = false;
+    this.#sleepButton.setAttribute('aria-expanded', 'true');
+    this.#sleepMenu.querySelector('button')?.focus();
+  }
+
+  #closeSleepMenu() {
+    this.#sleepMenu.hidden = true;
+    this.#sleepButton.setAttribute('aria-expanded', 'false');
   }
 
   #closeDeviceMenu() {
