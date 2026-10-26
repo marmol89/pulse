@@ -16,8 +16,8 @@ const FILTERS = [
 const RECENTS_LIMIT = 8;
 
 /**
- * Pantalla 01 · Inicio: saludo, chips, "Mix diario", "Tus listas", "Escuchado recientemente"
- * y géneros. El filtro de los chips es estado de la vista; los datos llegan en render().
+ * Pantalla 01 · Inicio: saludo, chips, "Mix diario", "Tus listas", "Hechas para ti" (listas inteligentes),
+ * "Escuchado recientemente" y géneros. El filtro de los chips es estado de la vista; los datos llegan en render().
  * Emite: play-mix, track-selected, open-collection, toggle-favorite, open-connection, sync-library,
  * new-list, choose-list, play-next, enqueue.
  */
@@ -53,8 +53,9 @@ export class HomeView extends Colleague {
   }
 
   /**
-   * @param {{ isEmpty, recents, genres, albums, artists, favoriteTracks, lists, favorites, currentPath, playing, readOnly }} data
+   * @param {{ isEmpty, recents, genres, albums, artists, favoriteTracks, lists, smart, favorites, currentPath, playing, readOnly }} data
    *   `lists`: [{ id, name, count, sample }] (sample: una pista para la portada, o null)
+   *   `smart`: [{ kind, title, count, sample }] listas inteligentes con alguna canción
    */
   render(data) {
     this.#data = data;
@@ -96,7 +97,7 @@ export class HomeView extends Colleague {
       return;
     }
     const sections = {
-      all: () => [this.#mixCard(), this.#listsSection(data.lists), this.#recentsSection(data.recents), this.#genreCards(data.genres)],
+      all: () => [this.#mixCard(), this.#listsSection(data.lists), this.#smartSection(data.smart), this.#recentsSection(data.recents), this.#genreCards(data.genres)],
       lists: () => [h('div', { class: 'card-grid' }, data.lists.map((list) => this.#listCard(list)), this.#newListCard())],
       albums: () => [this.#albumGrid(data.albums)],
       artists: () => [this.#artistGrid(data.artists)],
@@ -151,6 +152,26 @@ export class HomeView extends Colleague {
       h('header', { class: 'section__header' }, h('h2', { class: 'section__title' }, 'Tus listas'), lists.length > 0 && seeAll),
       h('div', { class: 'card-grid' }, lists.slice(0, RECENTS_LIMIT - 1).map((list) => this.#listCard(list)), this.#newListCard()),
     );
+  }
+
+  /** "Hechas para ti": se rehacen solas con lo que escuchas y lo que subes. */
+  #smartSection(smart = []) {
+    if (smart.length === 0) return null;
+    return h(
+      'section',
+      { class: 'section', 'aria-label': 'Hechas para ti' },
+      h('header', { class: 'section__header' }, h('h2', { class: 'section__title' }, 'Hechas para ti')),
+      h('div', { class: 'card-grid' }, smart.map((list) => this.#smartCard(list))),
+    );
+  }
+
+  #smartCard({ kind, title, count, sample }) {
+    return this.#card({
+      cover: createCover({ src: sample?.cover ?? null, seed: kind, className: 'cover--card', tag: 'span' }),
+      title,
+      subtitle: plural(count, 'canción', 'canciones'),
+      onClick: () => this.notify(EVENTS.OPEN_COLLECTION, { kind }),
+    });
   }
 
   #listCard(list) {
