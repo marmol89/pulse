@@ -84,10 +84,13 @@ export class PlaylistView extends Colleague {
     this.#edit = h('button', { type: 'button', class: 'button button--secondary collection-actions__edit', hidden: true }, icon('pencil'), 'Editar lista');
     this.#edit.addEventListener('click', () => this.notify(EVENTS.EDIT_LIST, this.#source.id));
     // En el móvil "Editar lista" no cabe junto a los demás: va dentro de este "⋯".
-    this.#more = iconButton('more', 'Más opciones de la lista', { className: 'collection-actions__more', hidden: true, 'aria-haspopup': 'menu', 'aria-expanded': 'false' });
-    this.#more.addEventListener('click', () =>
-      showMenu(this.#more, [{ label: 'Editar lista', icon: 'pencil', onSelect: () => this.notify(EVENTS.EDIT_LIST, this.#source.id) }], { label: 'Opciones de la lista' }),
-    );
+    this.#more = iconButton('more', 'Más opciones', { className: 'collection-actions__more', 'aria-haspopup': 'menu', 'aria-expanded': 'false' });
+    this.#more.addEventListener('click', () => {
+      const source = this.#source;
+      const items = [{ label: 'Exportar (.m3u8)', icon: 'export', onSelect: () => this.notify(EVENTS.EXPORT_COLLECTION, source) }];
+      if (source.kind === 'list') items.unshift({ label: 'Editar lista', icon: 'pencil', onSelect: () => this.notify(EVENTS.EDIT_LIST, source.id) });
+      showMenu(this.#more, items, { label: 'Opciones' });
+    });
     this.#download = h('button', { type: 'button', class: 'button button--secondary collection-actions__download', hidden: true });
     this.#download.addEventListener('click', () =>
       this.notify(this.#download.dataset.state === 'all' ? EVENTS.REMOVE_DOWNLOADS : EVENTS.DOWNLOAD_COLLECTION, this.#source),
@@ -131,7 +134,7 @@ export class PlaylistView extends Colleague {
           this.#stats,
         ),
       ),
-      h('div', { class: 'collection-actions' }, this.#more, this.#edit,this.#tools, this.#download, this.#shuffle, this.#play),
+      h('div', { class: 'collection-actions' }, this.#more, this.#edit, this.#tools, this.#download, this.#shuffle, this.#play),
       this.#list.element,
       this.#empty,
     );
@@ -151,7 +154,7 @@ export class PlaylistView extends Colleague {
     this.#stats.textContent = collectionStats(tracks);
     const isList = source.kind === 'list';
     this.#edit.hidden = !isList;
-    this.#more.hidden = !isList;
+    this.#more.hidden = tracks.length === 0 && !isList;
     this.#renderDownload(state.download ?? null, tracks.length);
     this.#renderTools(source);
     this.#list.render(tracks, { ...state, removable: REMOVE_LABELS[source.kind] ?? false, reorderable: source.kind in REMOVE_LABELS });

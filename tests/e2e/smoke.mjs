@@ -5,7 +5,7 @@
  * cambios en el bucket, subir canciones del ordenador, la copia en metadatos/ y guarda capturas en tests/e2e/output/. Nunca usa tu S3 real.
  * Uso: npm run test:e2e   (abre la ventana unos segundos; el audio va silenciado)
  */
-import { mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -341,6 +341,18 @@ try {
   check((await page.locator('.view--collection .track-row').count()) === 1, 'la lista muestra sus canciones');
   await shot('12-lista');
 
+  // Exportar la lista como M3U: "⋯" › "Exportar (.m3u8)" con el diálogo de guardar sustituido por uno falso.
+  const exported = path.join(work, 'Para correr.m3u8');
+  await app.evaluate(({ dialog }, file) => {
+    dialog.showSaveDialog = async () => ({ canceled: false, filePath: file });
+  }, exported);
+  await page.click('.collection-actions__more');
+  await shot('12b-lista-menu');
+  await page.click('.menu__item:has-text("Exportar")');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === '«Para correr» exportada (1 canción)');
+  const m3u = await readFile(exported, 'utf8');
+  check(m3u.startsWith('#EXTM3U\n#EXTINF:3,') && m3u.includes('\nNuevas/Selva (directo).wav\n'), '"Exportar (.m3u8)" guarda la lista con la ruta de cada canción');
+
   const remoteLists = async (match) => {
     for (let i = 0; i < 40; i += 1) {
       const body = s3.get('musica', 'metadatos/listas.json');
@@ -379,6 +391,15 @@ try {
     (await remoteLists((lists) => lists.some((list) => list.deleted))) !== null,
     'la lista eliminada queda marcada en el bucket para que los demás equipos también la quiten',
   );
+
+  // Importar la lista exportada (con una canción que no está en la biblioteca): vuelve como lista nueva.
+  await writeFile(exported, `${m3u}#EXTINF:100,Nadie - No está\r\nD:\\Música\\no-esta.mp3\r\n`);
+  await fakeDialog([exported]);
+  await page.click('.nav__item:has-text("Importar lista")');
+  await page.waitForSelector('.view--collection:not([hidden]) .collection-header__title:has-text("Para correr")');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'Lista importada con 1 canción; falta 1 que no está en tu biblioteca');
+  check((await page.locator('.view--collection .track-row:has-text("Selva")').count()) === 1, '"Importar lista" crea la lista con las canciones que están en la biblioteca');
+  await shot('13b-lista-importada');
 
   // Recientes: lo que ha sonado está en metadatos/recientes.json; uno de otro equipo sale el primero al actualizar.
   let recentsInBucket = [];

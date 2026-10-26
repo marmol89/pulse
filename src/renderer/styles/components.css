@@ -1570,8 +1570,14 @@
     display: contents;
   }
 
+  /* El filtro y el "⋯" comparten la primera fila */
   .library-tools__filter {
-    flex: 1 1 100%;
+    flex: 1 1 calc(100% - 44px - var(--space-4));
+    order: -2;
+  }
+
+  .collection-actions:has(.library-tools:not([hidden])) .collection-actions__more {
+    order: -1;
   }
 
   .library-tools__order {
@@ -1777,9 +1783,22 @@
   }
 }
 
-/* "⋯" de la cabecera de una lista: solo en el móvil (en escritorio está "Editar lista") */
-.collection-actions__more {
+/* "⋯" de la cabecera: exportar (y, en el móvil, editar la lista; en escritorio también está "Editar lista") */
+.collection-actions__more[hidden] {
   display: none;
+}
+
+/* "⋯" (y lo demás) a la izquierda; aleatorio y play, siempre a la derecha */
+.collection-actions .mode-button {
+  margin-left: auto;
+}
+
+.collection-actions__more {
+  display: inline-grid;
+  width: 44px;
+  height: 44px;
+  background: var(--color-overlay-light);
+  color: var(--color-text);
 }
 
 @media (max-width: 720px) {
@@ -1788,20 +1807,9 @@
     justify-content: flex-start;
   }
 
-  .collection-actions .mode-button {
-    margin-left: auto;
-  }
 
   .collection-actions__edit {
     display: none;
-  }
-
-  .collection-actions__more {
-    display: inline-grid;
-    width: 44px;
-    height: 44px;
-    background: var(--color-overlay-light);
-    color: var(--color-text);
   }
 
   /* Descargar: solo el icono, resaltado si ya está en el móvil */

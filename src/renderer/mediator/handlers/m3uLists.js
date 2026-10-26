@@ -26,8 +26,7 @@ export default {
     applyLists(ctx, result.lists);
     openCollection(ctx, { kind: 'list', id: result.id });
     const missing = found.missing.length;
-    ctx.toast.show(
-      missing === 0 ? `Lista importada con ${songs(found.paths.length)}` : `Lista importada con ${songs(found.paths.length)}; ${missing === 1 ? 'falta 1' : `faltan ${missing}`} que no están en tu biblioteca`,
-    );
+    const absent = missing === 1 ? '; falta 1 que no está en tu biblioteca' : `; faltan ${missing} que no están en tu biblioteca`;
+    ctx.toast.show(`Lista importada con ${songs(found.paths.length)}${missing === 0 ? '' : absent}`);
   },
 };
