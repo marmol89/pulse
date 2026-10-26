@@ -26,4 +26,12 @@ export class Lists extends Colleague {
   includes(id, path) {
     return this.get(id)?.tracks.includes(path) ?? false;
   }
+
+  /** `name` si no hay otra lista que se llame así (sin mirar mayúsculas); si no, "name (2)", "name (3)"… */
+  freeName(name) {
+    const taken = new Set(this.#lists.map((list) => list.name.toLowerCase()));
+    let candidate = name;
+    for (let n = 2; taken.has(candidate.toLowerCase()); n++) candidate = `${name} (${n})`;
+    return candidate;
+  }
 }

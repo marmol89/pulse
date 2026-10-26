@@ -104,6 +104,8 @@ export const EVENTS = Object.freeze({
   EDIT_LIST: 'edit-list', // (id) — "Editar lista": renombrar o eliminar
   RENAME_LIST: 'rename-list', // ({ id, name })
   DELETE_LIST: 'delete-list', // (id)
+  EXPORT_COLLECTION: 'export-collection', // (source) — guardar una colección como lista M3U (.m3u8)
+  IMPORT_LIST: 'import-list', // () — crear una lista desde un archivo M3U con las canciones que estén en la biblioteca
 
   // Datos de internet (carátula, álbum, año, género, letra)
   SET_ONLINE_LOOKUP: 'set-online-lookup', // (activado)

@@ -1,5 +1,6 @@
 import { Colleague } from '../core/Colleague.js';
 import { EVENTS } from '../mediator/events.js';
+import { matchEntries, parseM3U, toM3U } from '../lib/m3u.js';
 
 /**
  * Único colega que habla con el proceso main (window.api, expuesto por el preload).
@@ -137,6 +138,23 @@ export class LibraryService extends Colleague {
   /** @returns {Promise<ListResult>} */
   deleteList(id) {
     return this.#api.deleteList(id);
+  }
+
+  /** Guarda las canciones como lista M3U (.m3u8) donde elija el usuario. @returns {Promise<{ saved: boolean, error?: string }>} */
+  async exportPlaylist(name, tracks) {
+    return (await this.#api.exportPlaylist?.(name, toM3U(tracks))) ?? { saved: false };
+  }
+
+  /**
+   * Abre una lista M3U y busca sus canciones en `tracks` (la biblioteca).
+   * @returns {Promise<{ name: string, paths: string[], missing: string[] } | { error: string } | null>} null: cancelado
+   */
+  async importPlaylist(tracks) {
+    const file = await this.#api.importPlaylist?.();
+    if (!file || file.error) return file ?? null;
+    const entries = parseM3U(file.text);
+    if (entries.length === 0) return { error: 'Ese archivo no tiene canciones' };
+    return { name: file.name, ...matchEntries(entries, tracks) };
   }
 
   /**

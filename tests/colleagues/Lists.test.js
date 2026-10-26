@@ -56,3 +56,33 @@ describe('LibraryService (listas)', () => {
     assert.deepEqual(mediator.events, [[EVENTS.LISTS_CHANGED, [RUN]]]);
   });
 });
+
+describe('Lists.freeName y listas M3U en LibraryService', () => {
+  test('un nombre ya usado (sin mirar mayúsculas) pasa a "Nombre (2)", "Nombre (3)"…', () => {
+    const lists = new Lists();
+    lists.set([RUN, { ...RUN, id: 'l2', name: 'Para correr (2)' }]);
+    assert.equal(lists.freeName('Nueva'), 'Nueva');
+    assert.equal(lists.freeName('PARA CORRER'), 'PARA CORRER (3)');
+  });
+
+  test('exporta el texto M3U e importa buscando las canciones en la biblioteca', async () => {
+    let written;
+    const library = new LibraryService({
+      exportPlaylist: async (name, text) => ((written = [name, text]), { saved: true }),
+      importPlaylist: async () => ({ name: 'Viaje', text: '#EXTM3U\n/home/ana/Musica/a.mp3\nfalta.mp3\n' }),
+    });
+    const track = { path: 's3://musica/a.mp3', title: 'A', artist: 'B', duration: 61.4 };
+
+    assert.deepEqual(await library.exportPlaylist('Viaje', [track]), { saved: true });
+    assert.deepEqual(written, ['Viaje', '#EXTM3U\n#EXTINF:61,B - A\na.mp3\n']);
+    assert.deepEqual(await library.importPlaylist([track]), { name: 'Viaje', paths: ['s3://musica/a.mp3'], missing: ['falta.mp3'] });
+  });
+
+  test('importar: cancelado → null, error del archivo tal cual, archivo sin canciones → error', async () => {
+    const answers = [null, { error: 'No se pudo leer ese archivo' }, { name: 'x', text: '#EXTM3U\n' }];
+    const library = new LibraryService({ importPlaylist: async () => answers.shift() });
+    assert.equal(await library.importPlaylist([]), null);
+    assert.deepEqual(await library.importPlaylist([]), { error: 'No se pudo leer ese archivo' });
+    assert.deepEqual(await library.importPlaylist([]), { error: 'Ese archivo no tiene canciones' });
+  });
+});
