@@ -33,6 +33,7 @@ import { registerPlaysIpc } from './ipc/plays.js';
 import { registerDesktopIpc } from './ipc/desktop.js';
 import { registerPlaylistsIpc } from './ipc/playlists.js';
 import { createDesktop } from './desktop.js';
+import { createUpdates } from './updates.js';
 import { createNodeFiles } from './files.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -147,7 +148,14 @@ async function start() {
     getWindow: () => BrowserWindow.getAllWindows()[0] ?? null,
     send: (command) => broadcast('desktop:command', command),
   });
-  registerDesktopIpc({ desktop });
+  // Actualizaciones automáticas: electron-updater solo se carga en la app instalada.
+  const updates = createUpdates({
+    autoUpdater: app.isPackaged ? (await import('electron-updater')).default.autoUpdater : null,
+    app,
+    platform: process.platform,
+    send: (status) => broadcast('desktop:update-changed', status),
+  });
+  registerDesktopIpc({ desktop, updates });
   if (app.isPackaged) Menu.setApplicationMenu(null);
 
   // Cambios hechos en el bucket desde fuera (canciones, listas y favoritos): al arrancar y al volver a la ventana.
@@ -162,6 +170,7 @@ async function start() {
   desktop.attach(win);
   win.webContents.once('did-finish-load', syncSoon);
   app.on('browser-window-focus', syncSoon);
+  updates.start();
   // No cerrar con metadatos, listas, favoritos, recientes o escuchas sin subir al bucket.
   app.on('before-quit', (event) => {
     const shared = [lists, favorites, recents, plays];

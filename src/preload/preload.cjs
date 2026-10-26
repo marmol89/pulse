@@ -82,6 +82,14 @@ contextBridge.exposeInMainWorld('api', {
     update: (state) => ipcRenderer.send('desktop:update', state),
     setCloseToTray: (enabled) => ipcRenderer.send('desktop:close-to-tray', enabled),
     setMini: (enabled) => ipcRenderer.send('desktop:mini', enabled),
+    /** Actualización: { state: 'unavailable' | 'idle' | 'ready', version }; 'ready' = descargada, se instala al cerrar. */
+    updateStatus: () => ipcRenderer.invoke('desktop:update-status'),
+    installUpdate: () => ipcRenderer.send('desktop:install-update'),
+    onUpdateStatus: (callback) => {
+      const listener = (_event, status) => callback(status);
+      ipcRenderer.on('desktop:update-changed', listener);
+      return () => ipcRenderer.removeListener('desktop:update-changed', listener);
+    },
     /** 'toggle', 'next' o 'previous' desde la bandeja o la miniatura. Devuelve la función para dejar de escuchar. */
     onCommand: (callback) => {
       const listener = (_event, command) => callback(command);
