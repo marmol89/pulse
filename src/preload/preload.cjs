@@ -38,6 +38,12 @@ contextBridge.exposeInMainWorld('api', {
   saveConnection: (input) => ipcRenderer.invoke('connection:save', input),
   importCredentials: () => ipcRenderer.invoke('connection:import'),
 
+  // Carpetas del equipo, en vez del bucket (de solo lectura)
+  /** Elige una carpeta en el diálogo del sistema: { id, name } o null si se cancela. */
+  chooseFolder: () => ipcRenderer.invoke('folders:choose'),
+  /** Usa esas carpetas (sus ids) en vez del bucket: { ok, summary, count } o { ok: false, error }. */
+  saveFolders: (ids) => ipcRenderer.invoke('folders:save', ids),
+
   // Listas de canciones (compartidas por todos los Pulse del mismo bucket). Devuelven { ok, lists, id? } o { ok: false, error }.
   getLists: () => ipcRenderer.invoke('lists:get'),
   createList: (name, paths) => ipcRenderer.invoke('lists:create', name, paths),

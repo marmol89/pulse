@@ -17,6 +17,8 @@ import { objectResponse } from './protocol/responses.js';
 import { mediaTrack } from './protocol/urls.js';
 import { createConnectionStore } from '../backend/s3/connection.js';
 import { createS3Service } from '../backend/s3/service.js';
+import { createSourceService } from '../backend/source.js';
+import { createFolderStorage } from './library/folderStorage.js';
 import { createHttp } from '../backend/online/http.js';
 import { createEnricher } from '../backend/online/enricher.js';
 import { createEnrichmentQueue } from '../backend/online/queue.js';
@@ -43,7 +45,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 async function start() {
-  // Archivos de la app en userData: library.json, s3.json y covers/.
+  // Archivos de la app en userData: library.json, s3.json, local.json (carpetas) y covers/.
   const files = createNodeFiles(app.getPath('userData'));
   // library.json es la caché local; la copia compartida va a metadatos/ del bucket tras cada guardado.
   let metadata = null;
@@ -60,7 +62,7 @@ async function start() {
   const artistPictures = createArtistPictures({ files, http, getRecords: () => store.all(), onUpdated: (pictures) => broadcast('artists:pictures-changed', artistPictureUrls(pictures)) });
   await artistPictures.load();
 
-  // La música vive en un bucket S3. La clave secreta se cifra con el almacén seguro del sistema.
+  // La música vive en un bucket S3 (la clave secreta se cifra con el almacén seguro del sistema) o en carpetas del equipo.
   const connections = createConnectionStore(files, {
     encrypt: async (text) => (await safeStorage.encryptStringAsync(text)).toString('base64'),
     decrypt: async (text) => {
@@ -68,24 +70,24 @@ async function start() {
       return { text: result, reencrypt: shouldReEncrypt };
     },
   });
-  const s3 = createS3Service({ connections });
-  await s3.load();
-  metadata = createMetadataStore({ getStorage: () => s3.storage(), getRecords: () => store.all(), files });
+  const source = createSourceService({ s3: createS3Service({ connections }), files, createFolderStorage });
+  await source.load();
+  metadata = createMetadataStore({ getStorage: () => source.storage(), getRecords: () => store.all(), files });
   metadata.schedulePush(); // lo que ya hay en este equipo también llega al bucket
   // Listas de canciones: lists.json aquí y metadatos/listas.json en el bucket, compartidas con los demás equipos.
-  const lists = createListStore({ files, getStorage: () => s3.storage(), onChange: (all) => broadcast('lists:changed', all) });
+  const lists = createListStore({ files, getStorage: () => source.storage(), onChange: (all) => broadcast('lists:changed', all) });
   await lists.load();
   // Favoritos: favorites.json aquí y metadatos/favoritos.json en el bucket, igual que las listas.
-  const favorites = createFavoriteStore({ files, getStorage: () => s3.storage(), onChange: (all) => broadcast('favorites:changed', all) });
+  const favorites = createFavoriteStore({ files, getStorage: () => source.storage(), onChange: (all) => broadcast('favorites:changed', all) });
   await favorites.load();
   // Recientes: recents.json aquí y metadatos/recientes.json en el bucket, igual que los favoritos.
-  const recents = createRecentStore({ files, getStorage: () => s3.storage(), onChange: (all) => broadcast('recents:changed', all) });
+  const recents = createRecentStore({ files, getStorage: () => source.storage(), onChange: (all) => broadcast('recents:changed', all) });
   await recents.load();
   // Carátulas incrustadas en covers/ de userData: se descargan del bucket una sola vez.
-  const embeddedCovers = createEmbeddedCovers({ files, getStorage: () => s3.storage() });
+  const embeddedCovers = createEmbeddedCovers({ files, getStorage: () => source.storage() });
   const librarySync = createLibrarySync({
     store,
-    getStorage: () => s3.storage(),
+    getStorage: () => source.storage(),
     toTrack: mediaTrack,
     pullMetadata: () => metadata.pull(),
     onChange: (change) => {
@@ -97,13 +99,13 @@ async function start() {
   });
 
   const uploader = createUploader({
-    getStorage: () => s3.storage(),
+    getStorage: () => source.storage(),
     collect: collectPaths, // archivos y carpetas del ordenador
     afterUpload: () => librarySync.sync(),
     onProgress: (progress) => broadcast('library:upload-progress', progress),
   });
   // "Eliminar del bucket": a papelera/, de donde se puede restaurar.
-  const trash = createTrash({ getStorage: () => s3.storage(), store, afterRestore: () => librarySync.sync() });
+  const trash = createTrash({ getStorage: () => source.storage(), store, afterRestore: () => librarySync.sync() });
 
   handleMediaProtocol({
     isAllowed: (id) => store.has(id),
@@ -114,12 +116,12 @@ async function start() {
       }),
     readArtist: (name) => artistPictures.read(name),
     openTrack: (id, range) => {
-      const storage = s3.storage();
+      const storage = source.storage();
       const key = store.get(id)?.key;
       return storage && key ? objectResponse(storage, key, range) : new Response('Sin conexión con el almacenamiento', { status: 503 });
     },
   });
-  registerLibraryIpc({ store, s3, librarySync, uploader, trash, lists, favorites, recents });
+  registerLibraryIpc({ store, source, librarySync, uploader, trash, lists, favorites, recents });
   registerMetadataIpc({ store, queue, artistPictures });
   registerListsIpc({ lists });
   registerFavoritesIpc({ favorites });
