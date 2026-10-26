@@ -1,7 +1,7 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
-import { createS3Storage, describeS3Error, describeUploadError } from '../../../src/backend/s3/storage.js';
+import { CONNECTION_TIMEOUT_MS, createS3Storage, describeS3Error, describeUploadError } from '../../../src/backend/s3/storage.js';
 import { startFakeS3 } from '../../helpers/fakeS3.js';
 
 describe('s3/storage', () => {
@@ -34,6 +34,15 @@ describe('s3/storage', () => {
   test('respeta el prefijo', async () => {
     const storage = createS3Storage({ ...s3.config, prefix: 'rock/' });
     assert.equal((await storage.listAudio()).length, 2);
+    storage.destroy();
+  });
+
+  test('las peticiones tienen un límite para conectar, pero no para leer (el audio en pausa)', async () => {
+    const storage = createS3Storage(s3.config);
+    await storage.listAudio();
+    const handler = storage.client.config.requestHandler.httpHandlerConfigs();
+    assert.equal(handler.connectionTimeout, CONNECTION_TIMEOUT_MS);
+    assert.equal(handler.requestTimeout, undefined);
     storage.destroy();
   });
 
