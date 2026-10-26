@@ -8,6 +8,7 @@ import { createUploader } from '../backend/library/upload.js';
 import { createTrash } from '../backend/library/trash.js';
 import { createMetadataStore } from '../backend/library/metadata.js';
 import { createListStore, listResult } from '../backend/library/lists.js';
+import { editRecord } from '../backend/library/edits.js';
 import { createFavoriteStore, favoriteResult } from '../backend/library/favorites.js';
 import { createRecentStore, recentResult } from '../backend/library/recents.js';
 import { createPlayStore, deviceId, playResult } from '../backend/library/plays.js';
@@ -160,6 +161,10 @@ export function createAndroidApi(deps) {
       if (typeof id !== 'string' || !store.has(id)) throw new TypeError('Pista desconocida');
       const result = await queue.lookupNow(id, { force: options?.force === true, lyrics: true });
       return result && { ...result, track: (await present([result.track]))[0] };
+    }),
+    editTrack: call(async ({ store, present, trackOf }, id, changes) => {
+      const result = await editRecord(store, String(id), changes && typeof changes === 'object' ? changes : null);
+      return result.ok ? { ok: true, track: (await present([trackOf(result.record)]))[0] } : result;
     }),
     setOnlineLookup: call(({ queue, artistPictures }, enabled) => {
       artistPictures.setEnabled(enabled === true);

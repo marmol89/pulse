@@ -105,6 +105,8 @@ contextBridge.exposeInMainWorld('api', {
 
   // Datos de internet (carátulas, álbum, año, género, letra)
   lookupTrack: (id, options) => ipcRenderer.invoke('metadata:lookup', id, options),
+  /** "Editar datos" (`changes`: el formulario; null: restaurar los del archivo) → { ok, track } | { ok: false, error }. */
+  editTrack: (id, changes) => ipcRenderer.invoke('metadata:edit', id, changes),
   setOnlineLookup: (enabled) => ipcRenderer.invoke('metadata:set-enabled', enabled),
   /** Fotos de artista ya guardadas ({ nombre: URL }); las que faltan se buscan y llegan con onArtistPicturesChanged. */
   getArtistPictures: (names) => ipcRenderer.invoke('artists:pictures', names),
