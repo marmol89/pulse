@@ -19,7 +19,7 @@ const RECENTS_LIMIT = 8;
  * Pantalla 01 · Inicio: saludo, chips, "Mix diario", "Tus listas", "Hechas para ti" (listas inteligentes),
  * "Escuchado recientemente" y géneros. El filtro de los chips es estado de la vista; los datos llegan en render().
  * Emite: play-mix, track-selected, open-collection, toggle-favorite, open-connection, sync-library,
- * new-list, choose-list, play-next, enqueue.
+ * new-list, choose-list, play-next, enqueue, edit-track, trash-track.
  */
 export class HomeView extends Colleague {
   #greeting;
@@ -46,6 +46,7 @@ export class HomeView extends Colleague {
       onToggleFavorite: (path) => this.notify(EVENTS.TOGGLE_FAVORITE, path),
       onAddToList: (path) => this.notify(EVENTS.CHOOSE_LIST, path),
       onPlayNext: (path) => this.notify(EVENTS.PLAY_NEXT, [path]),
+      onEdit: (path) => this.notify(EVENTS.EDIT_TRACK, path),
       onTrash: (path) => this.notify(EVENTS.TRASH_TRACK, path),
       onEnqueue: (path) => this.notify(EVENTS.ENQUEUE, [path]),
     });

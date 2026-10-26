@@ -1659,6 +1659,18 @@
   color: var(--color-accent);
 }
 
+/* "Editar datos" de una canción: año, pista y disco en una fila; "Restaurar" a la izquierda de los botones */
+.track-edit__numbers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.track-edit__restore {
+  margin-right: auto;
+  color: var(--color-text-2);
+}
+
 /* Papelera del bucket (mismo diálogo que las listas) */
 .trash-item {
   cursor: default;

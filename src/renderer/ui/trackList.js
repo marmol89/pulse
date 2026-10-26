@@ -13,7 +13,7 @@ import { enableReorder } from './reorder.js';
  * con `onMove` y `reorderable` al pintar, un asa para arrastrar las filas (y Alt+↑/↓).
  * El menú "⋯" reúne todo lo de la fila (en el móvil es el único botón que se ve): con `onPlayNext` y
  * `onEnqueue`, "Reproducir a continuación" y "Añadir a la cola"; además favorito, añadir a una lista,
- * subir/bajar, quitar y, con `onTrash` (y sin `readOnly` al pintar: carpetas del equipo), "Eliminar del bucket".
+ * subir/bajar, quitar, con `onEdit` "Editar datos" y, con `onTrash` (y sin `readOnly` al pintar: carpetas del equipo), "Eliminar del bucket".
  */
 export class TrackList {
   #element;
@@ -26,7 +26,7 @@ export class TrackList {
   #reorderable = false;
   #readOnly = false;
 
-  constructor({ onPlay, onToggleFavorite, onAddToList = null, onPlayNext = null, onEnqueue = null, onTrash = null, onRemove = () => {}, onMove = null, label = 'Canciones' }) {
+  constructor({ onPlay, onToggleFavorite, onAddToList = null, onPlayNext = null, onEnqueue = null, onEdit = null, onTrash = null, onRemove = () => {}, onMove = null, label = 'Canciones' }) {
     this.#canAdd = Boolean(onAddToList);
     const canQueue = Boolean(onPlayNext && onEnqueue);
     const more = (path, button) => {
@@ -44,6 +44,7 @@ export class TrackList {
           canMove && at > 0 && { label: 'Subir', icon: 'chevron-up', onSelect: () => onMove(path, at - 1) },
           canMove && at < order.length - 1 && { label: 'Bajar', icon: 'chevron-down', onSelect: () => onMove(path, at + 1) },
           this.#removable && { label: this.#removable, icon: 'close', onSelect: () => onRemove(path) },
+          onEdit && { label: 'Editar datos', icon: 'pencil', onSelect: () => onEdit(path) },
           onTrash && !this.#readOnly && { label: 'Eliminar del bucket', icon: 'trash', onSelect: () => onTrash(path) },
         ].filter(Boolean),
         { label: `Opciones de ${this.#tracks.get(path)?.title ?? 'la canción'}` },

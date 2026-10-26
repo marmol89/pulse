@@ -77,7 +77,13 @@ try {
     await shot('05b-biblioteca-filas');
     await page.click(`${ROW} >> nth=1 >> [data-action="more"]`);
     await shot('05c-menu-fila');
-    await page.keyboard.press('Escape');
+    await page.click('.menu__item:has-text("Editar datos")');
+    await page.waitForSelector('#track-edit-dialog[open]');
+    await shot('05d-editar-datos');
+    await page.evaluate(() => document.querySelector('#track-edit-dialog .connection__actions')?.scrollIntoView());
+    await shot('05e-editar-datos-abajo');
+    await page.keyboard.press('Escape'); // Esc cierra el diálogo (los atajos no se lo quitan)
+    await page.waitForSelector('#track-edit-dialog:not([open])', { state: 'attached' });
   });
   await step('Buscar', async () => {
     await page.click('.sidebar .nav__item:has-text("Buscar")');

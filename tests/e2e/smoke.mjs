@@ -585,6 +585,34 @@ try {
   const restored = await windowState();
   check(restored.size.join('×') === normalWindow.size.join('×') && !restored.onTop, `al volver, la ventana recupera su tamaño (${restored.size.join('×')})`);
 
+  // Editar datos: "⋯" › "Editar datos" gana a las etiquetas, sube a metadatos/biblioteca.json y se puede restaurar.
+  await page.click('.nav__item:has-text("Biblioteca")');
+  await page.click('.view--collection .track-row:has-text("Ola Azul") [data-action="more"]');
+  await page.click('.menu__item:has-text("Editar datos")');
+  await page.waitForSelector('#track-edit-dialog[open]');
+  check((await page.inputValue('#track-edit-title')) === 'Ola Azul' && (await page.isHidden('.track-edit__restore')), '"Editar datos" abre el formulario con los datos de la canción');
+  await page.fill('#track-edit-title', 'Ola Azul (editada)');
+  await page.fill('#track-edit-year', '1999');
+  await shot('09h-editar-datos');
+  await page.click('#track-edit-dialog button[type="submit"]');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'Datos guardados');
+  check(await page.isVisible('.view--collection .track-row:has-text("Ola Azul (editada)")'), 'el título editado se ve en la biblioteca');
+  let editedInBucket = null;
+  for (let i = 0; i < 60 && !editedInBucket; i += 1) {
+    const body = s3.get('musica', 'metadatos/biblioteca.json');
+    editedInBucket = body ? JSON.parse(body.toString()).tracks.find((record) => record.edited?.title === 'Ola Azul (editada)') : null;
+    if (!editedInBucket) await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  check(editedInBucket?.edited.year === 1999 && editedInBucket.title === 'Ola Azul', 'lo editado viaja aparte en metadatos/biblioteca.json, sin pisar las etiquetas');
+  await page.click('.view--collection .track-row:has-text("Ola Azul (editada)") [data-action="more"]');
+  await page.click('.menu__item:has-text("Editar datos")');
+  await page.click('.track-edit__restore');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'Datos del archivo restaurados');
+  check(
+    (await page.locator('.view--collection .track-row:has-text("Ola Azul (editada)")').count()) === 0 && (await page.isVisible('.view--collection .track-row:has-text("Ola Azul")')),
+    '"Restaurar datos del archivo" vuelve al título de la etiqueta',
+  );
+
   // Papelera: "⋯" › "Eliminar del bucket" (con confirmación), restaurar desde "Papelera" y vaciarla.
   const toastIs = (text) => page.waitForFunction((expected) => document.querySelector('.toast')?.textContent === expected, text);
   const hasRow = (title) => page.locator(`.view--collection .track-row:has-text("${title}")`).count().then((count) => count > 0);
