@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, net, safeStorage } from 'electron';
+import { app, BrowserWindow, Menu, Tray, nativeImage, net, safeStorage } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { registerMediaScheme, handleMediaProtocol } from './protocol/media.js';
@@ -30,6 +30,8 @@ import { registerListsIpc } from './ipc/lists.js';
 import { registerFavoritesIpc } from './ipc/favorites.js';
 import { registerRecentsIpc } from './ipc/recents.js';
 import { registerPlaysIpc } from './ipc/plays.js';
+import { registerDesktopIpc } from './ipc/desktop.js';
+import { createDesktop } from './desktop.js';
 import { createNodeFiles } from './files.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -132,6 +134,18 @@ async function start() {
   registerFavoritesIpc({ favorites });
   registerRecentsIpc({ recents });
   registerPlaysIpc({ plays });
+  // Bandeja del sistema y botones de la barra de tareas (las órdenes van a la ventana por 'desktop:command').
+  const desktop = createDesktop({
+    Tray,
+    Menu,
+    nativeImage,
+    app,
+    platform: process.platform,
+    assets: path.join(__dirname, '../assets'),
+    getWindow: () => BrowserWindow.getAllWindows()[0] ?? null,
+    send: (command) => broadcast('desktop:command', command),
+  });
+  registerDesktopIpc({ desktop });
   if (app.isPackaged) Menu.setApplicationMenu(null);
 
   // Cambios hechos en el bucket desde fuera (canciones, listas y favoritos): al arrancar y al volver a la ventana.
@@ -142,7 +156,9 @@ async function start() {
     recents.syncSoon();
     plays.syncSoon();
   };
-  createWindow().webContents.once('did-finish-load', syncSoon);
+  const win = createWindow();
+  desktop.attach(win);
+  win.webContents.once('did-finish-load', syncSoon);
   app.on('browser-window-focus', syncSoon);
   // No cerrar con metadatos, listas, favoritos, recientes o escuchas sin subir al bucket.
   app.on('before-quit', (event) => {
@@ -152,7 +168,7 @@ async function start() {
     Promise.all([metadata.hasPending() && metadata.flush(), ...shared.map((records) => records.hasPending() && records.sync())]).finally(() => app.quit());
   });
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) desktop.attach(createWindow());
   });
 }
 
@@ -190,6 +206,7 @@ function focusMainWindow() {
   const [win] = BrowserWindow.getAllWindows();
   if (!win) return;
   if (win.isMinimized()) win.restore();
+  win.show(); // puede estar oculta en la bandeja
   win.focus();
 }
 

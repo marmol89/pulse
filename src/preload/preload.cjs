@@ -74,6 +74,17 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('recents:changed', listener);
     return () => ipcRenderer.removeListener('recents:changed', listener);
   },
+  // Bandeja del sistema y barra de tareas (solo escritorio).
+  desktop: {
+    update: (state) => ipcRenderer.send('desktop:update', state),
+    setCloseToTray: (enabled) => ipcRenderer.send('desktop:close-to-tray', enabled),
+    /** 'toggle', 'next' o 'previous' desde la bandeja o la miniatura. Devuelve la función para dejar de escuchar. */
+    onCommand: (callback) => {
+      const listener = (_event, command) => callback(command);
+      ipcRenderer.on('desktop:command', listener);
+      return () => ipcRenderer.removeListener('desktop:command', listener);
+    },
+  },
   // Escuchas (compartidas como los recientes): { ruta: veces que ha sonado }.
   getPlays: () => ipcRenderer.invoke('plays:get'),
   addPlay: (path) => ipcRenderer.invoke('plays:add', path),

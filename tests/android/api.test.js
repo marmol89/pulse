@@ -123,8 +123,10 @@ describe('android/api (window.api sobre el backend compartido)', () => {
 
   test('tiene los mismos métodos que el preload de Electron', async () => {
     const preload = await readFile(new URL('../../src/preload/preload.cjs', import.meta.url), 'utf8');
-    const methods = [...preload.matchAll(/^ {2}(\w+): /gm)].map(([, name]) => name);
+    const DESKTOP_ONLY = new Set(['desktop']); // bandeja y barra de tareas: en Android no existe y no hace falta
+    const methods = [...preload.matchAll(/^ {2}(\w+): /gm)].map(([, name]) => name).filter((name) => !DESKTOP_ONLY.has(name));
     assert.ok(methods.length > 15);
+    assert.equal(api.desktop, undefined);
     for (const name of methods) assert.equal(typeof api[name], 'function', `falta ${name}`);
   });
 
