@@ -1,203 +1,154 @@
-# Mejoras propuestas para Pulse
+# Mejoras de Pulse (segunda ronda)
 
-Candidatas sacadas de revisar el código (octubre de 2026). **Nada de esto está decidido**: marca las que entran
-y en qué orden, y el resto se borra o se queda como ideas.
+Lista sacada de revisar el código el 26/10/2026, después de la 0.6.0. La primera ronda (cola editable, retomar,
+letra sincronizada, fundido, papelera, descargas…) ya está hecha y es parte del `CHANGELOG.md`.
 
 Cada mejora sigue la receta de `CLAUDE.md` ("Añadir una funcionalidad"): eventos nuevos en `mediator/events.js`,
 un handler nuevo en `mediator/handlers/` (≤ 80 líneas, con su test) y la lógica de un solo colega dentro de él.
+Cada una va en su rama y su PR, con commits pequeños.
 
-Leyenda del esfuerzo: **S** (un par de commits), **M** (una PR normal), **L** (varias PR o toca Android nativo).
+Leyenda del esfuerzo: **S** (un par de commits), **M** (una PR normal), **L** (varias piezas o toca el main y Android).
 
-| # | Mejora | Esfuerzo | Plataformas | ¿Entra? |
+| # | Mejora | Esfuerzo | Plataformas | Estado |
 |---|---|---|---|---|
-| 1 | Cola editable: "Reproducir a continuación" y "Añadir a la cola" | M | todas | ☐ |
-| 2 | Retomar donde lo dejaste (cola y posición al arrancar) | S | todas | ☐ |
-| 3 | Letra sincronizada (karaoke) | M | todas | ☐ |
-| 4 | Reordenar canciones de una lista | M | todas | ☐ |
-| 5 | Temporizador de apagado | S | todas | ☐ |
-| 6 | Recientes sincronizados por el bucket | S | todas | ☐ |
-| 7 | Sin cortes entre pistas (gapless) y fundido opcional | L | todas | ☐ |
-| 8 | Descargar canciones para escuchar sin conexión (Android) | L | Android | ☐ |
-| 9 | Ordenar y filtrar la biblioteca | S | todas | ☐ |
-| 10 | Borrar canciones del bucket | M | todas | ☐ |
-| 11 | Vista de Artistas: nombres que se pisan y colaboraciones como un solo artista | S–M | todas | ☐ |
-| 12 | Las carátulas incrustadas aparecen a poquitos, una tanda cada vez que se abre Pulse | M | todas | ☐ |
+| 1 | Volumen uniforme (ReplayGain) | M | todas | ☐ |
+| 2 | Ecualizador | M | escritorio | ☐ |
+| 3 | Contador de escuchas y listas inteligentes | M | todas | ☐ |
+| 4 | Bandeja del sistema y botones en la barra de tareas | M | escritorio | ☐ |
+| 5 | Mini-reproductor | M | escritorio | ☐ |
+| 6 | Exportar e importar listas (M3U) | M | todas | ☐ |
+| 7 | Editar los datos de una canción | L | todas | ☐ |
+| 8 | Actualizaciones automáticas | M | escritorio | ☐ |
 
 ---
 
-## 1. Cola editable
+## 1. Volumen uniforme (ReplayGain)
 
-**Qué falta:** `Playlist` (la cola) solo se rellena con `setQueue()` al reproducir una colección; no se puede
-meter una canción suelta detrás de la actual ni ver qué va a sonar.
-
-**Propuesta:**
-- Menú de cada pista en `ui/trackList.js`: "Reproducir a continuación" y "Añadir a la cola".
-- `Playlist`: `playNext(tracks)`, `enqueue(tracks)`, `move(from, to)` y `removeAt(index)`, respetando el
-  aleatorio (lo añadido a mano no se baraja).
-- Vista "A continuación" en Reproduciendo (panel lateral en escritorio, hoja en móvil).
-- Eventos: `play-next`, `enqueue`, `queue-move`, `queue-remove`; handler `queue.js`.
-
-**Pruebas:** `tests/colleagues/Playlist.test.js` (orden con y sin aleatorio, repetir una/todo) y
-`tests/handlers/queue.test.js`.
-
-## 2. Retomar donde lo dejaste
-
-**Qué falta:** al cerrar y abrir Pulse se pierde la cola, la pista y el segundo.
+**Qué pasa:** cada canción suena al volumen con el que se masterizó; en una biblioteca mezclada hay que tocar el
+volumen a cada rato.
 
 **Propuesta:**
-- `Playlist.snapshot()` / `restore()` (ids de la cola, orden y posición) guardado con `lib/storage`.
-- Guardar la posición cada ~5 s desde `time-update` y al pausar; al arrancar, cargar sin reproducir
-  (`AudioEngine.load(url, false)` ya lo permite) y saltar al segundo guardado.
-- Si alguna pista ya no está en la biblioteca, se quita de la cola restaurada.
-- Handler `resume.js` sobre `app-ready`, `time-update` y `state-change`.
+- `tracks.js` guarda `replayGain: { track, album }` (dB) de `common.replaygain_track_gain` /
+  `replaygain_album_gain` de music-metadata (ID3 `TXXX`, Vorbis, `R128_*` de Opus). Las pistas ya leídas no lo
+  tienen: subir la versión del registro para que la próxima sincronización las relea una vez.
+- `AudioEngine.setTrackGain(dB)`: multiplica el volumen del elemento por `10^(dB/20)`, con el tope de 1 (un
+  `<audio>` no puede subir por encima del 100 %: las pistas bajas no se suben). Se aplica a los dos elementos,
+  respetando el fundido. Nada de Web Audio: funciona igual en Android y en segundo plano.
+- "Volumen uniforme" en la sidebar (y en Tu música en el móvil): *Desactivado*, *Por canción* o *Por disco*,
+  guardado por `AudioEngine` como el fundido. Por defecto, *Por canción*.
+- Handler `loudness.js`: al cargar una pista (`loadTrack` en `actions.js`) le pasa su ganancia según el modo.
 
-## 3. Letra sincronizada
+**Límite:** solo vale para las canciones con etiqueta ReplayGain. Medir las que no la tienen pide decodificar el
+audio; queda como continuación del ecualizador (punto 2), que ya monta la cadena de Web Audio en escritorio.
 
-**Qué falta:** `lrclib.js` solo usa `plainLyrics`; LRCLIB devuelve también `syncedLyrics` (formato LRC).
+**Pruebas:** `tests/backend/` (lee la ganancia de un WAV con `TXXX:REPLAYGAIN_TRACK_GAIN`),
+`tests/colleagues/AudioEngine.test.js` (volumen con ganancia y con fundido) y `tests/handlers/loudness.test.js`.
 
-**Propuesta:**
-- Guardar `syncedLyrics` junto a la letra en `library.json` y `metadatos/biblioteca.json` (subir
-  `LOOKUP_VERSION` para que las pistas con letra ya buscada se completen una vez).
-- Parser LRC puro en `lib/` con su test.
-- `NowPlayingView` resalta la línea actual con `time-update` y hace scroll suave; tocar una línea → `seek`.
-- Sin letra sincronizada, se ve la normal como ahora.
-
-## 4. Reordenar canciones de una lista
-
-**Qué falta:** `lists.js` añade y quita, pero no mueve.
+## 2. Ecualizador
 
 **Propuesta:**
-- `moveTrack(id, from, to)` en el backend y en el colega `Lists`; cambia `updatedAt` de la lista, así que el
-  juntado de copias ya existente sirve tal cual.
-- Arrastrar en `PlaylistView` (escritorio) y asa de arrastre táctil (móvil), más atajos de teclado
-  (Alt+↑/↓) por accesibilidad.
-- Evento `move-in-list` ({ id, from, to }); va en `listTracks.js` si cabe en las 80 líneas, si no, handler propio.
+- Cinco bandas (60 Hz, 230 Hz, 910 Hz, 3,6 kHz y 14 kHz, ±12 dB) con `BiquadFilterNode` y preajustes (Plano,
+  Graves, Voces, Agudos, Acústico, Electrónica). Diálogo "Ecualizador" desde la sidebar.
+- La cadena de Web Audio se monta **solo la primera vez que el ecualizador deja de estar plano**: hasta entonces,
+  nada cambia. `media://` ya es `corsEnabled`; las respuestas de audio necesitan `Access-Control-Allow-Origin` y los
+  `<audio>` `crossOrigin = 'anonymous'`.
+- Con la cadena montada, la salida elegida se aplica con `AudioContext.setSinkId()` (el del elemento deja de contar).
+- **Solo escritorio**: en Android el audio viene de URLs firmadas de otro origen (haría falta CORS en el bucket) y el
+  WebView en segundo plano depende de que el `<audio>` suene directamente. `canEqualize()` es falso y no se ve.
 
-## 5. Temporizador de apagado
+**Pruebas:** `tests/colleagues/Equalizer.test.js` con un `AudioContext` falso, handler `equalizer.js` y e2e
+(abrir el diálogo, elegir un preajuste, sigue sonando y sin errores de consola).
 
-**Propuesta:** "Parar en 15/30/60 min" o "al acabar esta canción" desde Reproduciendo. Colega `SleepTimer`
-(servicio con su `setTimeout`, el reloj inyectado para los tests) que emite `sleep-timer-ended`; el handler pausa
-con un fundido corto de volumen. En Android debe seguir funcionando con la app en segundo plano (comprobarlo en
-`test:e2e:android`).
-
-## 6. Recientes sincronizados
-
-**Qué falta:** `Recents` vive en `localStorage`, solo en ese equipo, mientras que listas y favoritos ya van por
-el bucket.
-
-**Propuesta:** `recents.js` en el backend sobre `shared.js` (`metadatos/recientes.json`, límite de entradas,
-gana el `playedAt` más reciente), con `import()` de los de `localStorage` como se hizo con favoritos. Evento
-`recents-changed`. Es casi copiar el camino de favoritos.
-
-## 7. Sin cortes entre pistas y fundido
-
-**Qué falta:** `AudioEngine` usa un solo `<audio>`; entre pista y pista hay un hueco (malo en discos en directo
-o mezclas continuas).
+## 3. Contador de escuchas y listas inteligentes
 
 **Propuesta:**
-- Dos elementos `<audio>` alternos: el siguiente se precarga unos segundos antes del final.
-- Opción "Fundido entre canciones" (0–8 s) en `Settings`.
-- **Riesgos:** la salida de audio elegida (`setSinkId`) hay que aplicarla a los dos; en Android, la
-  MediaSession y `PlaybackService` deben ver un único "reproductor". Por eso es **L**.
+- Una escucha cuenta cuando la pista suena 30 s o la mitad de su duración (lo que llegue antes), no al empezar.
+- Backend `plays.js` sobre `shared.js`: `metadatos/escuchas.json`, un registro por canción con el número de
+  escuchas **por equipo** (`{ equipo: n }`); al juntar dos copias gana el mayor de cada equipo y el total es la
+  suma. Así dos Pulse que escuchan a la vez no se pisan. Llegan como `plays-changed`.
+- Colecciones nuevas en Inicio y Biblioteca: **Más escuchadas** (top 50), **Sin escuchar** y **Añadidas
+  recientemente** (últimos 30 días), resueltas en `Catalog` / `actions.resolveCollection`.
+- En las carpetas del equipo, solo en ese equipo (`plays-local.json`), como listas y favoritos.
 
-## 8. Escuchar sin conexión (Android)
+**Pruebas:** `tests/backend/plays.test.js` (juntar copias de dos equipos), `tests/handlers/plays.test.js`
+(30 s / mitad, una sola vez por reproducción) y las colecciones en `Catalog.test.js`.
 
-**Propuesta:** "Descargar" en listas y favoritos: guarda los archivos en el almacenamiento de la app (Filesystem)
-y `toTrack` devuelve la URL local si existe. Ajuste con el espacio usado y "Borrar descargas". Solo Android al
-principio; en Electron el streaming desde S3 ya va bien en casa.
+## 4. Bandeja del sistema y botones en la barra de tareas
 
-## 9. Ordenar y filtrar la biblioteca
-
-**Propuesta:** en la vista de canciones, ordenar por título, artista, álbum, año o fecha de subida (ETag/
-`LastModified` ya vienen del listado), y filtro rápido de texto. Todo dentro de `Catalog` (regla 6) y estado de
-UI en la vista.
-
-## 10. Borrar canciones del bucket
-
-**Qué falta:** `storage.js` nunca borra (decisión de diseño): para quitar una canción hay que ir a la consola de S3.
-
-**Propuesta:** "Eliminar del bucket" con doble confirmación (como borrar una lista), solo si las claves tienen
-permiso de escritura; borra también su entrada en `metadatos/biblioteca.json` y la quita de listas y favoritos.
-**Hay que decidirlo explícitamente** porque cambia la regla de "nunca borra" de `CLAUDE.md` y afecta a todos los
-Pulse del bucket.
-
-## 11. Vista de Artistas
-
-**Qué pasa** (captura del 25/10/2026, escritorio):
-- **Los nombres largos se salen de la tarjeta y se pisan con los de al lado** ("Farruko, Victor Cardenas, Dj
-  Alberto" encima de "Franco "El Gorilla", Yandel"…). `.media-card__title` no recorta el texto y
-  `.media-card--round` lo centra, así que desborda por los dos lados.
-- **Cada combinación de artistas cuenta como un artista distinto**: `Catalog.artists()` agrupa por el texto
-  entero de `track.artist`, así que "Farruko" y "Farruko, Victor Cardenas, Dj Alberto" salen por separado, casi
-  todos con "1 canción", y la canción no aparece al abrir "Farruko".
-- Casi ningún artista tiene imagen: se usa la carátula de una de sus canciones y, si no hay, el degradado.
+**Qué pasa:** al cerrar la ventana se corta la música, y para pausar hay que traerla delante. (Las teclas
+multimedia del teclado ya funcionan con la ventana en segundo plano gracias a la Media Session de Chromium).
 
 **Propuesta:**
-1. **CSS (S, se puede hacer ya):** título de `.media-card` en como mucho dos líneas con `line-clamp` y
-   `overflow-wrap: anywhere`, y el nombre completo en `title` para verlo al pasar el ratón. Revisarlo también en
-   álbumes y recientes, que usan la misma tarjeta.
-2. **Separar artistas (M):** función pura en `lib/` que parte `artist` por `,`, `&`, ` y `, `feat.`/`ft.`/`x`,
-   con cuidado de no romper nombres que los llevan ("Simon & Garfunkel", "Tyler, The Creator"): lista de
-   excepciones y, si internet está activado, quedarse con lo que diga iTunes/Deezer. `Catalog.artists()` agrupa
-   por cada artista y `collection({ type: 'artist' })` devuelve también las colaboraciones. El texto de la pista
-   no cambia (se sigue viendo "Farruko, Victor Cardenas…").
-3. **Foto del artista (opcional, M):** Deezer tiene `picture_xl` por artista sin clave; se guardaría como las
-   carátulas (`metadatos/caratulas/`), respetando el interruptor "Datos de internet".
+- Icono en la bandeja con menú: canción actual, Reproducir/Pausa, Siguiente, Anterior, Mostrar Pulse y Salir.
+- "Al cerrar, seguir en la bandeja" en la sidebar (desactivado por defecto): cerrar la ventana la oculta y la
+  música sigue; "Salir" del menú cierra de verdad.
+- Windows: botones Anterior / Reproducir / Siguiente en la miniatura de la barra de tareas (`setThumbarButtons`).
+- Colega nuevo `DesktopBridge` (como `MediaSessionBridge`): recibe el estado y emite `play-toggle`, `next` y
+  `previous`. Usa `window.api.desktop`, que en Android no existe (no hace nada).
 
-**Pruebas:** `tests/colleagues/Catalog.test.js` (agrupación con colaboraciones y excepciones), test del separador
-en `tests/lib/` y captura del e2e de Artistas con nombres largos en `tests/e2e/fixtures.js`.
+**Pruebas:** `tests/main/` (menú y botones según el estado), `tests/colleagues/DesktopBridge.test.js` y e2e
+(órdenes simuladas desde el main).
 
-## 12. Carátulas que aparecen a poquitos (escritorio)
-
-**Qué pasa:** al entrar faltan casi todas las imágenes de los artistas (y de álbumes y canciones); al cerrar y
-volver a entrar hay algunas más, y así cada vez. Las canciones **llevan la carátula dentro del archivo**, así que
-no depende de internet.
-
-**Por qué pasa (lo que dice el código; falta confirmarlo con la app):**
-- En Electron, cada carátula incrustada se sirve con `media://cover/<id>` y **se descarga del bucket en cada
-  petición**: `readRemoteCover()` (`backend/library/remote.js`) baja el principio del archivo (≥ 512 KB) para
-  sacar la imagen. Solo hay una caché **en memoria** de 64 entradas: no sobrevive al cierre.
-- La cuadrícula de Artistas pide decenas de carátulas a la vez y **no hay límite de peticiones simultáneas**:
-  decenas de descargas de medio mega contra S3 en paralelo. Las que tardan o fallan acaban en "sin carátula".
-- **Un fallo se queda guardado como "no tiene carátula"** para toda la sesión: el `catch` de
-  `readRemoteCover()` mete `null` en la caché, la respuesta es un 404 y `createCover()` quita la `<img>` sin
-  reintentar. Aunque se repinte la vista, vuelve a salir el degradado.
-- Las que sí cargan se responden con `Cache-Control: max-age=86400`, así que Chromium probablemente las guarda
-  en su caché de disco. En el siguiente arranque esas salen al momento y se intenta con las demás. **Por eso
-  cada vez hay más.**
-- En Android no pasa igual: `src/android/covers.js` ya guarda las incrustadas como archivos en `covers/`
-  (de una en una), aunque tampoco reintenta en la sesión lo que falló (`failed`).
-
-**Cómo confirmarlo:** borrar la caché de Chromium en userData (`Cache/`), abrir Artistas y mirar en la consola
-del main o en Red cuántas `media://cover/…` dan 404, y si con un límite de 4 a la vez salen todas.
+## 5. Mini-reproductor
 
 **Propuesta:**
-1. **Guardar en disco la carátula incrustada al sincronizar (la clave):** `readRemoteRecord()` ya descarga el
-   principio del archivo para leer las etiquetas. Ahí mismo se saca la imagen y se guarda en
-   `userData/covers/` (nombre por ruta + ETag, como `coverFileName()` de Android), **sin ninguna descarga
-   extra**. El protocolo sirve el archivo local; solo si no está, va al bucket. Para la biblioteca que ya
-   existe, una pasada en segundo plano rellena lo que falte, de pocas en pocas.
-2. **Compartirla por el bucket (opcional):** subirla también a `metadatos/caratulas/`, así los otros Pulse y el
-   móvil no tienen que leer cada archivo. Ojo con el espacio (una imagen por álbum si se agrupa por hash).
-3. **Distinguir "no tiene" de "falló":** si la descarga falla, no se guarda en caché y se responde 503 (no 404);
-   `createCover()` reintenta una vez pasados unos segundos antes de dejar el degradado. Lo mismo en el `failed`
-   de Android.
-4. **Límite de lecturas simultáneas de carátulas en el main** (p. ej. 4, como `CONCURRENCY` de `sync.js`), en
-   cola por orden de petición, para no saturar S3 cuando se abre una cuadrícula grande.
-5. **Miniaturas:** las incrustadas suelen ser de 1000–3000 px; en las tarjetas basta con ~300 px. Reducirla al
-   guardarla (`nativeImage.resize` en el main) aligera la caché y el pintado.
+- Botón en la barra del reproductor (y atajo `Ctrl+M`): la ventana pasa a 360×120, siempre encima, con carátula,
+  título, artista, transporte y barra de progreso. El mismo botón (o doble clic en la carátula) vuelve al tamaño
+  anterior.
+- Es la **misma ventana** con la clase `.app.is-mini` (CSS) y un IPC `window:set-mini` que cambia tamaño, mínimo y
+  "siempre encima": no hay segunda ventana ni estado duplicado.
+- Solo escritorio (`canMini()` falso en Android).
 
-**Pruebas:** `tests/backend/` (el registro trae la carátula para guardar; un fallo de lectura no queda en caché),
-`tests/main/` (el protocolo sirve de `covers/` sin tocar el bucket; 503 si falla; límite de concurrencia con el
-S3 falso lento) y e2e: con el S3 falso y varias canciones con ID3 e imagen, todas las tarjetas de Artistas
-muestran la carátula al primer arranque.
+**Pruebas:** e2e con captura del mini-reproductor y vuelta al tamaño normal; `revisar-interfaz`.
+
+## 6. Exportar e importar listas (M3U)
+
+**Propuesta:**
+- "Exportar (.m3u8)" en el «⋯» de una lista, de Favoritos y de un álbum: `#EXTM3U` con `#EXTINF:duración,Artista -
+  Título` y la clave de cada canción (la ruta en las carpetas del equipo).
+- "Importar lista" en Tu música: lee un `.m3u`/`.m3u8` y busca cada entrada en la biblioteca por la clave, luego
+  por el nombre del archivo y por último por "Artista - Título" (`lib/m3u.js`, puro). Crea la lista con lo
+  encontrado y avisa de cuántas no estaban.
+- Electron: diálogos de guardar/abrir del main. Android: importar con el selector de archivos (`picker.js`) y
+  exportar a Documentos (`Filesystem`).
+
+**Pruebas:** `tests/lib/m3u.test.js` (formatos, rutas de Windows y relativas, BOM, emparejado) y handler `m3uLists.js`.
+
+## 7. Editar los datos de una canción
+
+**Qué pasa:** si una canción tiene mal el título o el artista solo se arregla cambiando el archivo y volviéndolo a
+subir.
+
+**Propuesta:**
+- "Editar datos" en el «⋯» de cada fila y en Reproduciendo: título, artista, artista del álbum, álbum, año, género
+  y número de pista.
+- **No toca el archivo**: lo editado se guarda aparte en el registro (`edited` + `editedAt`) y gana a las etiquetas
+  y a internet. Viaja en `metadatos/biblioteca.json` (gana el `editedAt` más reciente), así que se ve en todos los
+  Pulse del bucket. En las carpetas del equipo, solo en ese equipo.
+- Si se edita título o artista, la búsqueda de internet usa lo editado (y se puede repetir).
+- "Restaurar datos del archivo" quita lo editado.
+
+**Pruebas:** `tests/backend/` (`toTrack` con `edited`, juntar copias), handler `editTrack.js`, diálogo en e2e.
+
+## 8. Actualizaciones automáticas
+
+**Propuesta:**
+- `electron-updater` con el proveedor de GitHub (releases de `marmol89/pulse`): comprueba al arrancar y cada 6 h,
+  descarga en segundo plano y se instala al cerrar. Aviso "Pulse X.Y.Z está lista: se instalará al cerrar" con
+  "Reiniciar ahora" en la sidebar.
+- Windows (NSIS) y Linux AppImage; el `.deb` no se actualiza solo (lo hace el gestor de paquetes).
+- `instaladores.yml` debe adjuntar también `latest.yml`, `latest-linux.yml` y los `.blockmap`.
+- Solo en la app instalada (`app.isPackaged`): en desarrollo y en el e2e no hace nada.
+
+**Pruebas:** `tests/main/updates.test.js` con un `autoUpdater` falso (estados y avisos).
 
 ---
 
 ## Cómo se cierra cada mejora
 
-1. Rama propia y commits pequeños (`feat(ui): …`, `feat(backend): …`).
-2. `npm test` y, si toca UI o main, `npm run test:e2e` revisando las capturas frente al diseño.
+1. Rama propia y commits pequeños (`feat(audio): …`, `feat(backend): …`, `feat(ui): …`).
+2. `npm test` y, si toca UI o main, `npm run test:e2e` revisando las capturas; si toca la interfaz, la skill
+   `revisar-interfaz` (escritorio y móvil).
 3. Si toca la UI móvil, el backend o `src/android/`: `npm run android:apk`, instalar y `npm run test:e2e:android`.
-4. Actualizar `CLAUDE.md` si cambia una regla o una pieza de la estructura.
-5. PR a `main`; release-please saca la versión menor al fusionar.
+4. Actualizar `CLAUDE.md` y el README si cambia una regla, una pieza de la estructura o lo que ve el usuario.
+5. Marcar la mejora como hecha en esta tabla y PR a `main`.
