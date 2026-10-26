@@ -544,6 +544,26 @@ try {
   check(hidden.exists && !hidden.visible, 'con "Seguir en la bandeja", cerrar oculta la ventana y Pulse sigue abierto');
   await page.click('.switch-row:has-text("Seguir en la bandeja") .switch');
 
+  // Mini-reproductor: Ctrl+M deja la ventana pequeña y siempre encima, con solo la player bar; el botón vuelve.
+  const windowState = () =>
+    app.evaluate(({ BrowserWindow }) => {
+      const [win] = BrowserWindow.getAllWindows();
+      return { size: win.getContentSize(), onTop: win.isAlwaysOnTop() };
+    });
+  const normalWindow = await windowState();
+  await page.click('.player .seek-bar'); // el foco fuera de los campos de texto
+  await page.keyboard.press('Control+M');
+  await page.waitForSelector('.app.is-mini');
+  await page.waitForFunction(() => window.innerWidth < 500);
+  const miniWindow = await windowState();
+  check(miniWindow.size[0] === 380 && miniWindow.onTop, `Ctrl+M: mini-reproductor de ${miniWindow.size.join('×')} y siempre encima`);
+  check(!(await page.isVisible('.sidebar')) && (await page.isVisible('.player [aria-label="Anterior"]')), 'el mini-reproductor solo enseña la canción y el transporte');
+  await shot('09g-mini-reproductor');
+  await page.click('.player__mini');
+  await page.waitForFunction(() => !document.querySelector('.app.is-mini') && window.innerWidth > 900);
+  const restored = await windowState();
+  check(restored.size.join('×') === normalWindow.size.join('×') && !restored.onTop, `al volver, la ventana recupera su tamaño (${restored.size.join('×')})`);
+
   // Papelera: "⋯" › "Eliminar del bucket" (con confirmación), restaurar desde "Papelera" y vaciarla.
   const toastIs = (text) => page.waitForFunction((expected) => document.querySelector('.toast')?.textContent === expected, text);
   const hasRow = (title) => page.locator(`.view--collection .track-row:has-text("${title}")`).count().then((count) => count > 0);
