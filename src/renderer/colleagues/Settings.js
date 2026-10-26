@@ -2,12 +2,14 @@ import { Colleague } from '../core/Colleague.js';
 
 const ONLINE_LOOKUP_KEY = 'onlineLookup';
 const LIBRARY_SORT_KEY = 'librarySort';
+const CLOSE_TO_TRAY_KEY = 'closeToTray';
 
 /** Preferencias del usuario (persistidas) y de dónde sale la música. Modelo puro: no emite eventos. */
 export class Settings extends Colleague {
   #storage;
   #onlineLookup;
   #librarySort;
+  #closeToTray;
   #source = null;
 
   constructor(storage) {
@@ -15,6 +17,7 @@ export class Settings extends Colleague {
     this.#storage = storage;
     this.#onlineLookup = storage.get(ONLINE_LOOKUP_KEY, true) !== false;
     this.#librarySort = storage.get(LIBRARY_SORT_KEY, null);
+    this.#closeToTray = storage.get(CLOSE_TO_TRAY_KEY, false) === true;
   }
 
   /** Orden elegido para "Tu biblioteca" (null: el de siempre, las añadidas recientemente primero). */
@@ -41,6 +44,17 @@ export class Settings extends Colleague {
   /** ¿Se pueden eliminar o descargar canciones? Con las carpetas del equipo, no: Pulse nunca toca esos archivos. */
   isReadOnly() {
     return this.#source === 'local';
+  }
+
+  /** Al cerrar la ventana, seguir sonando en la bandeja (solo escritorio; desactivado por defecto). */
+  closeToTray() {
+    return this.#closeToTray;
+  }
+
+  setCloseToTray(enabled) {
+    this.#closeToTray = Boolean(enabled);
+    this.#storage.set(CLOSE_TO_TRAY_KEY, this.#closeToTray);
+    return this.#closeToTray;
   }
 
   /** Buscar carátulas e información en internet (activado por defecto). */

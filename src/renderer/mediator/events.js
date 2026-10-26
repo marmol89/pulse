@@ -110,6 +110,9 @@ export const EVENTS = Object.freeze({
   SET_CROSSFADE: 'set-crossfade', // (segundos: 0 = sin fundido)
   SET_LOUDNESS: 'set-loudness', // ('off' | 'track' | 'album') — volumen uniforme con ReplayGain
 
+  // Bandeja del sistema (solo escritorio)
+  SET_CLOSE_TO_TRAY: 'set-close-to-tray', // (activado) — al cerrar la ventana, seguir sonando en la bandeja
+
   // Ecualizador (solo escritorio: Web Audio)
   OPEN_EQUALIZER: 'open-equalizer', // ()
   SET_EQUALIZER_PRESET: 'set-equalizer-preset', // (nombre: 'flat' | 'bass' | 'vocal' | 'treble' | 'acoustic' | 'electronic')
