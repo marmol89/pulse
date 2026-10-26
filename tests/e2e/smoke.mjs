@@ -585,6 +585,17 @@ try {
   const restored = await windowState();
   check(restored.size.join('×') === normalWindow.size.join('×') && !restored.onTop, `al volver, la ventana recupera su tamaño (${restored.size.join('×')})`);
 
+  // Actualizaciones: sin empaquetar no se comprueba nada; se simula que el main ha descargado una versión nueva.
+  check((await page.evaluate(() => window.api.desktop.updateStatus())).state === 'unavailable', 'en desarrollo no se buscan actualizaciones');
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('desktop:update-changed', { state: 'ready', version: '9.9.9' }));
+  await page.waitForSelector('.update-card:not([hidden])');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'Pulse 9.9.9 está lista: se instalará al cerrar');
+  check((await page.textContent('.update-card')).includes('Pulse 9.9.9 está lista'), 'una versión descargada se avisa en "Tu música" con "Reiniciar ahora"');
+  await page.locator('.update-card').scrollIntoViewIfNeeded();
+  await shot('09i-actualizacion');
+  await page.click('.update-card__button'); // en desarrollo no hay nada que instalar: Pulse sigue abierto
+  check(!page.isClosed(), '"Reiniciar ahora" sin nada descargado no cierra Pulse');
+
   // Editar datos: "⋯" › "Editar datos" gana a las etiquetas, sube a metadatos/biblioteca.json y se puede restaurar.
   await page.click('.nav__item:has-text("Biblioteca")');
   await page.click('.view--collection .track-row:has-text("Ola Azul") [data-action="more"]');
