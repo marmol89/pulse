@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.6.0](https://github.com/marmol89/pulse/compare/v0.5.0...v0.6.0) (2026-10-26)
+
+
+### Novedades
+
+* actualizaciones automáticas en el ordenador ([#46](https://github.com/marmol89/pulse/issues/46)) ([e67e322](https://github.com/marmol89/pulse/commit/e67e3227ac1bcfda242cc78959864aa15968a400))
+* bandeja del sistema y botones en la barra de tareas ([#42](https://github.com/marmol89/pulse/issues/42)) ([a884acd](https://github.com/marmol89/pulse/commit/a884acd1cbc0f67c85316abaaf96a89381350d77))
+* ecualizador de cinco bandas (escritorio) ([#40](https://github.com/marmol89/pulse/issues/40)) ([15506fb](https://github.com/marmol89/pulse/commit/15506fba9c16c2a5ffaf34616717c65dac075e73))
+* editar los datos de una canción ([#45](https://github.com/marmol89/pulse/issues/45)) ([a238fb7](https://github.com/marmol89/pulse/commit/a238fb782222e172126b1edf74f9f5056294e9fa))
+* escuchas y listas inteligentes ([#41](https://github.com/marmol89/pulse/issues/41)) ([1d617ca](https://github.com/marmol89/pulse/commit/1d617cadbe6711232290b726bfee5484d41212bc))
+* exportar e importar listas M3U ([#44](https://github.com/marmol89/pulse/issues/44)) ([cbba939](https://github.com/marmol89/pulse/commit/cbba939171463b35d36c44e0ae2f3be3de9b9e13))
+* igualar volumen con ReplayGain ([#39](https://github.com/marmol89/pulse/issues/39)) ([e704e7b](https://github.com/marmol89/pulse/commit/e704e7b568cb6b8c191c48f962b513a0a564931e))
+* mini-reproductor (Ctrl+M) ([#43](https://github.com/marmol89/pulse/issues/43)) ([9936aaa](https://github.com/marmol89/pulse/commit/9936aaa9cd51abd3447819e2e349ae1046bd842e))
+* música de carpetas del equipo (solo lectura), como alternativa al bucket S3 ([#36](https://github.com/marmol89/pulse/issues/36)) ([04a85bb](https://github.com/marmol89/pulse/commit/04a85bb3ff15be8c56db211ca476c1730002504e))
+* **ui:** interfaz móvil más limpia (un solo «⋯») y skill revisar-interfaz ([#34](https://github.com/marmol89/pulse/issues/34)) ([124b69e](https://github.com/marmol89/pulse/commit/124b69e01f34f70dfcb2d8c863c14443acc162ba))
+
 ## [0.5.0](https://github.com/marmol89/pulse/compare/v0.4.0...v0.5.0) (2026-10-25)
 
 
