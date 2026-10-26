@@ -18,7 +18,7 @@ Leyenda del esfuerzo: **S** (un par de commits), **M** (una PR normal), **L** (v
 | 5 | Mini-reproductor | M | escritorio | ✅ |
 | 6 | Exportar e importar listas (M3U) | M | todas | ✅ |
 | 7 | Editar los datos de una canción | L | todas | ✅ |
-| 8 | Actualizaciones automáticas | M | escritorio | ☐ |
+| 8 | Actualizaciones automáticas | M | escritorio | ✅ |
 
 ---
 
@@ -145,7 +145,11 @@ subir.
 - `instaladores.yml` debe adjuntar también `latest.yml`, `latest-linux.yml` y los `.blockmap`.
 - Solo en la app instalada (`app.isPackaged`): en desarrollo y en el e2e no hace nada.
 
-**Pruebas:** `tests/main/updates.test.js` con un `autoUpdater` falso (estados y avisos).
+- Hecho: el aviso va arriba de "Tu música". Comprobado con `electron-builder --win --publish never`: deja
+  `latest.yml`, el `.blockmap` y `resources/app-update.yml` apuntando a `marmol89/pulse`.
+
+**Pruebas:** `tests/main/updates.test.js` con un `autoUpdater` falso (estados y avisos); el e2e simula una versión
+descargada.
 
 ---
 

@@ -48,6 +48,7 @@ Por dentro está organizado con el patrón **Mediator**.
 - 📈 **Más escuchadas, Sin escuchar y Añadidas recientemente**: listas que se hacen solas con lo que escuchas en todos tus equipos.
 - 🖥️ **Bandeja del sistema** con la canción y los controles, botones en la miniatura de la barra de tareas (Windows) y, si quieres, **seguir sonando al cerrar la ventana**.
 - 🪟 **Mini-reproductor** (Ctrl+M): una ventana pequeña y siempre encima con la canción y los controles.
+- 🔄 **Se actualiza sola** en Windows y con el AppImage: descarga la versión nueva y la instala al cerrar.
 - 🔉 **Igualar volumen** con las etiquetas ReplayGain de tus canciones, por pista o por disco.
 - ❤️ Favoritos, listas de canciones y escuchado recientemente, **compartidos por el bucket entre todos tus equipos**.
 - ✏️ **Editar los datos de una canción** (título, artista, álbum, año…) sin tocar el archivo; se ve en todos tus Pulse.
@@ -89,7 +90,8 @@ Cada versión publicada en [**Releases**](https://github.com/marmol89/pulse/rele
 > Los instaladores no están firmados: Windows SmartScreen puede avisar la primera vez («Más información» →
 > «Ejecutar de todas formas»). En Linux, al AppImage hay que darle permiso de ejecución (`chmod +x`).
 > En Android, descarga el APK en el móvil y ábrelo: te pedirá permitir «instalar apps de origen desconocido».
-> Para actualizar, instala la nueva encima. Si tenías una versión *debug* (`-debug.apk`), desinstálala antes
+> En Windows y con el AppImage, Pulse se actualiza solo (se instala al cerrar o con «Reiniciar ahora»); el `.deb`,
+> con tu gestor de paquetes. En Android, para actualizar, instala la nueva encima. Si tenías una versión *debug* (`-debug.apk`), desinstálala antes
 > una vez: la firma es distinta y Android no deja instalar encima.
 
 ## 🚀 Inicio rápido
