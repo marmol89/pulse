@@ -30,6 +30,13 @@
     "appId": "com.marmol89.pulse",
     "productName": "Pulse",
     "icon": "src/assets/icon.png",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "marmol89",
+        "repo": "pulse"
+      }
+    ],
     "files": [
       "src/**/*",
       "package.json"
@@ -68,6 +75,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1156.0",
     "@fontsource/inter": "^5.3.0",
+    "electron-updater": "^6.8.11",
     "music-metadata": "^12.2.3"
   }
 }

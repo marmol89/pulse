@@ -23,7 +23,7 @@ function folderName(folder) {
  * panel desde su pestaña (estado de UI: `is-menu-open`).
  * En la sidebar también están "Tus listas" (en pantallas estrechas se llega a ellas desde Inicio).
  * Emite: navigate, open-connection, upload-songs, files-dropped, sync-library, open-trash, open-equalizer, set-online-lookup, set-close-to-tray,
- * new-list, import-list, open-collection (una lista).
+ * new-list, import-list, install-update, open-collection (una lista).
  */
 export class Router extends Colleague {
   #root;
@@ -41,6 +41,8 @@ export class Router extends Colleague {
   #loudness;
   #equalizerButton;
   #trayRow;
+  #updateCard;
+  #updateTitle;
   #traySwitch;
   #connectionStatus;
   #connectionIcon;
@@ -142,6 +144,12 @@ export class Router extends Colleague {
   setCloseToTray(enabled, available) {
     this.#traySwitch.checked = enabled;
     this.#trayRow.hidden = !available;
+  }
+
+  /** Aviso de una versión nueva ya descargada (`version`), o null para quitarlo. */
+  setUpdate(version) {
+    this.#updateCard.hidden = !version;
+    this.#updateTitle.textContent = version ? `Pulse ${version} está lista` : '';
   }
 
   /** El ecualizador solo se ofrece donde funciona (escritorio). */
@@ -277,6 +285,15 @@ export class Router extends Colleague {
       h('span', { class: 'switch-row__text' }, h('span', { class: 'switch-row__title' }, 'Seguir en la bandeja'), h('span', { class: 'switch-row__hint' }, 'Al cerrar la ventana')),
       this.#traySwitch,
     );
+    this.#updateTitle = h('span', { class: 'switch-row__title' });
+    const restart = h('button', { type: 'button', class: 'button button--primary update-card__button' }, 'Reiniciar ahora');
+    restart.addEventListener('click', act(EVENTS.INSTALL_UPDATE));
+    this.#updateCard = h(
+      'div',
+      { class: 'update-card', role: 'status', hidden: true },
+      h('span', { class: 'switch-row__text' }, this.#updateTitle, h('span', { class: 'switch-row__hint' }, 'Se instalará al cerrar Pulse')),
+      restart,
+    );
     const newList = h('button', { type: 'button', class: 'nav__item' }, icon('plus'), 'Nueva lista');
     newList.addEventListener('click', act(EVENTS.NEW_LIST));
     this.#listsNav = h('div', { class: 'sidebar__lists-items' });
@@ -286,7 +303,7 @@ export class Router extends Colleague {
       h('div', { class: 'brand' }, h('span', { class: 'brand__logo' }, icon('pulse')), 'Pulse'),
       nav,
       h('div', { class: 'sidebar__section sidebar__lists' }, h('h2', { class: 'sidebar__heading' }, 'Tus listas'), newList, this.#listsNav),
-      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, importList, refresh, trash, onlineRow, crossfadeRow, loudnessRow, this.#equalizerButton, this.#trayRow, this.#downloadsRow),
+      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), this.#updateCard, connection, upload, importList, refresh, trash, onlineRow, crossfadeRow, loudnessRow, this.#equalizerButton, this.#trayRow, this.#downloadsRow),
       hint,
     );
     this.#bucketOnly = [upload, trash, hint];

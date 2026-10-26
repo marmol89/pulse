@@ -50,6 +50,10 @@ src/main/        adaptador de Electron (NO forma parte del mediator)
                  (handler `desktop.js`). En Android no existe `window.api.desktop`. También el mini-reproductor
                  (desktop:mini): la misma ventana a 380×92 y siempre encima; la interfaz es `.app.is-mini` (Router, al
                  final de layout.css: a ese ancho también cuentan las reglas del móvil). Handler `miniPlayer.js`, Ctrl+M
+  updates.js     actualizaciones automáticas (electron-updater, releases de GitHub: `build.publish` de package.json).
+                 Solo con `app.isPackaged` (en Linux, solo el AppImage); comprueba al arrancar y cada 6 h, descarga sola
+                 y se instala al cerrar. Estado por desktop:update-status / desktop:update-changed; "Reiniciar ahora"
+                 (desktop:install-update) en "Tu música" (handler `updates.js`). En desarrollo y en el e2e no hace nada
   files.js       `files` sobre fs en userData; library/collect.js recorre archivos y carpetas para subir;
                  library/folderStorage.js: las carpetas del ordenador con la forma del storage de S3 (solo lectura)
   protocol/      media://track|cover/<id>: audio desde S3 con rangos, solo pistas de la biblioteca (403 si no)
@@ -261,6 +265,8 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   (`Pulse-X.Y.Z.apk` firmado) y los adjunta.
 - **No toques a mano** la versión de `package.json`, `CHANGELOG.md` ni `.release-please-manifest.json`.
 - "Instaladores" se puede lanzar a mano en Actions: deja los instaladores como artefactos sin publicar nada.
+- Con los instaladores van `latest.yml`, `latest-linux.yml` y los `.blockmap`: de ahí lee la app instalada si hay
+  versión nueva. Si faltan en una release, nadie se actualiza a ella.
 - `main` solo admite PR; `.github/CODEOWNERS` pide la revisión del admin (que puede fusionar sus propias PR).
 
 ## Convenciones
