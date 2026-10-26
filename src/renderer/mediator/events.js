@@ -118,6 +118,8 @@ export const EVENTS = Object.freeze({
   // Bandeja del sistema y mini-reproductor (solo escritorio)
   SET_CLOSE_TO_TRAY: 'set-close-to-tray', // (activado) — al cerrar la ventana, seguir sonando en la bandeja
   TOGGLE_MINI_PLAYER: 'toggle-mini-player', // () — ventana pequeña y siempre encima, o volver
+  UPDATE_STATUS: 'update-status', // ({ state: 'unavailable' | 'idle' | 'ready', version }) — actualización de Pulse
+  INSTALL_UPDATE: 'install-update', // () — "Reiniciar ahora" con la versión descargada
 
   // Ecualizador (solo escritorio: Web Audio)
   OPEN_EQUALIZER: 'open-equalizer', // ()

@@ -4,9 +4,10 @@ import { EVENTS } from '../mediator/events.js';
 const COMMANDS = { toggle: EVENTS.PLAY_TOGGLE, next: EVENTS.NEXT, previous: EVENTS.PREVIOUS };
 
 /**
- * Bandeja del sistema y botones de la barra de tareas (solo escritorio: `window.api.desktop`; en Android no existe
- * y no hace nada). Como vista: cuenta al sistema lo que suena. Como emisor: reenvía sus órdenes.
- * Emite: play-toggle, next, previous.
+ * Bandeja del sistema, botones de la barra de tareas y actualizaciones (solo escritorio: `window.api.desktop`; en
+ * Android no existe y no hace nada). Como vista: cuenta al sistema lo que suena. Como emisor: reenvía sus órdenes y
+ * el estado de la actualización.
+ * Emite: play-toggle, next, previous, update-status.
  */
 export class DesktopBridge extends Colleague {
   #desktop;
@@ -18,6 +19,7 @@ export class DesktopBridge extends Colleague {
     this.#desktop?.onCommand?.((command) => {
       if (COMMANDS[command]) this.notify(COMMANDS[command]);
     });
+    this.#desktop?.onUpdateStatus?.((status) => this.notify(EVENTS.UPDATE_STATUS, status));
   }
 
   available() {
@@ -35,6 +37,16 @@ export class DesktopBridge extends Colleague {
 
   setCloseToTray(enabled) {
     this.#desktop?.setCloseToTray(Boolean(enabled));
+  }
+
+  /** @returns {Promise<{ state: 'unavailable' | 'idle' | 'ready', version: string | null }>} */
+  async updateStatus() {
+    return (await this.#desktop?.updateStatus?.()) ?? { state: 'unavailable', version: null };
+  }
+
+  /** "Reiniciar ahora": el main cierra Pulse, instala la versión descargada y la abre de nuevo. */
+  installUpdate() {
+    this.#desktop?.installUpdate?.();
   }
 
   /** Mini-reproductor: el main cambia el tamaño de la ventana (la interfaz la cambia el Router). */
