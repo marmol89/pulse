@@ -22,7 +22,7 @@ function folderName(folder) {
  * En pantallas estrechas (Android) la sidebar es la tab bar de abajo y "Tu música" se abre como un
  * panel desde su pestaña (estado de UI: `is-menu-open`).
  * En la sidebar también están "Tus listas" (en pantallas estrechas se llega a ellas desde Inicio).
- * Emite: navigate, open-connection, upload-songs, files-dropped, sync-library, open-trash, open-equalizer, set-online-lookup,
+ * Emite: navigate, open-connection, upload-songs, files-dropped, sync-library, open-trash, open-equalizer, set-online-lookup, set-close-to-tray,
  * new-list, open-collection (una lista).
  */
 export class Router extends Colleague {
@@ -40,6 +40,8 @@ export class Router extends Colleague {
   #crossfade;
   #loudness;
   #equalizerButton;
+  #trayRow;
+  #traySwitch;
   #connectionStatus;
   #connectionIcon;
   /** Lo que solo tiene sentido con un bucket: subir canciones y la papelera. */
@@ -122,6 +124,12 @@ export class Router extends Colleague {
   /** Segundos de fundido elegidos (0: sin fundido). */
   setCrossfade(seconds) {
     this.#crossfade.value = String(seconds);
+  }
+
+  /** "Seguir en la bandeja": solo en escritorio (`available`). */
+  setCloseToTray(enabled, available) {
+    this.#traySwitch.checked = enabled;
+    this.#trayRow.hidden = !available;
   }
 
   /** El ecualizador solo se ofrece donde funciona (escritorio). */
@@ -247,6 +255,14 @@ export class Router extends Colleague {
       h('span', { class: 'switch-row__text' }, h('span', { class: 'switch-row__title' }, 'Igualar volumen'), h('span', { class: 'switch-row__hint' }, 'ReplayGain')),
       this.#loudness,
     );
+    this.#traySwitch = h('input', { type: 'checkbox', class: 'switch', role: 'switch' });
+    this.#traySwitch.addEventListener('change', () => this.notify(EVENTS.SET_CLOSE_TO_TRAY, this.#traySwitch.checked));
+    this.#trayRow = h(
+      'label',
+      { class: 'switch-row', hidden: true, title: 'Cerrar la ventana la oculta y la música sigue. Para salir, «Salir» en el icono de la bandeja' },
+      h('span', { class: 'switch-row__text' }, h('span', { class: 'switch-row__title' }, 'Seguir en la bandeja'), h('span', { class: 'switch-row__hint' }, 'Al cerrar la ventana')),
+      this.#traySwitch,
+    );
     const newList = h('button', { type: 'button', class: 'nav__item' }, icon('plus'), 'Nueva lista');
     newList.addEventListener('click', act(EVENTS.NEW_LIST));
     this.#listsNav = h('div', { class: 'sidebar__lists-items' });
@@ -256,7 +272,7 @@ export class Router extends Colleague {
       h('div', { class: 'brand' }, h('span', { class: 'brand__logo' }, icon('pulse')), 'Pulse'),
       nav,
       h('div', { class: 'sidebar__section sidebar__lists' }, h('h2', { class: 'sidebar__heading' }, 'Tus listas'), newList, this.#listsNav),
-      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, trash, onlineRow, crossfadeRow, loudnessRow, this.#equalizerButton, this.#downloadsRow),
+      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, trash, onlineRow, crossfadeRow, loudnessRow, this.#equalizerButton, this.#trayRow, this.#downloadsRow),
       hint,
     );
     this.#bucketOnly = [upload, trash, hint];
