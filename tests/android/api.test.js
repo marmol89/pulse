@@ -190,6 +190,23 @@ describe('android/api (window.api sobre el backend compartido)', () => {
     assert.match(library[0].url, /X-Amz-Signature=/);
     await (await reopened.ready).metadata.flush();
   });
+
+  test('exportar una lista la guarda con el selector de documentos, con un nombre de archivo válido', async () => {
+    const saved = [];
+    const withFolders = createAndroidApi({
+      files: createCapacitorFiles(fs, 'DATA'),
+      crypto: createKeystoreCrypto(secure),
+      http,
+      coverUrl: (name) => `file:${name}`,
+      folders: { save: async (options) => (saved.push(options), { saved: true }) },
+      document: null,
+      userAgent: 'Pulse/test',
+      timers: instant,
+    });
+    assert.deepEqual(await withFolders.exportPlaylist('Rock: 80/90', '#EXTM3U\n'), { saved: true });
+    assert.deepEqual(saved, [{ name: 'Rock 80 90.m3u8', type: 'audio/x-mpegurl', text: '#EXTM3U\n' }]);
+    await (await withFolders.ready).metadata.flush();
+  });
 });
 
 test('collectFiles() solo sube audio, con el nombre del archivo', () => {

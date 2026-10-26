@@ -31,6 +31,7 @@ import { registerFavoritesIpc } from './ipc/favorites.js';
 import { registerRecentsIpc } from './ipc/recents.js';
 import { registerPlaysIpc } from './ipc/plays.js';
 import { registerDesktopIpc } from './ipc/desktop.js';
+import { registerPlaylistsIpc } from './ipc/playlists.js';
 import { createDesktop } from './desktop.js';
 import { createNodeFiles } from './files.js';
 
@@ -134,6 +135,7 @@ async function start() {
   registerFavoritesIpc({ favorites });
   registerRecentsIpc({ recents });
   registerPlaysIpc({ plays });
+  registerPlaylistsIpc({ downloads: () => app.getPath('downloads') });
   // Bandeja del sistema y botones de la barra de tareas (las órdenes van a la ventana por 'desktop:command').
   const desktop = createDesktop({
     Tray,

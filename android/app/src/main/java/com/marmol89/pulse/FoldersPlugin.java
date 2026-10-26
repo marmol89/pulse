@@ -15,6 +15,8 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -23,6 +25,7 @@ import java.util.concurrent.Executors;
  * (Storage Access Framework) y Pulse recibe permiso de lectura de esa carpeta y nada más, que se guarda para
  * siempre (takePersistableUriPermission) hasta que la quita. Aquí solo se elige, se recorre y se devuelve el
  * permiso; el audio lo sirve LocalAudioWebViewClient.
+ * También guarda un texto (una lista .m3u8 exportada) donde elija el usuario, con el mismo selector.
  */
 @CapacitorPlugin(name = "PulseFolders")
 public class FoldersPlugin extends Plugin {
@@ -75,6 +78,37 @@ public class FoldersPlugin extends Plugin {
                 call.resolve(data);
             } catch (Exception error) {
                 call.reject("No se puede leer la carpeta", error);
+            }
+        });
+    }
+
+    /** Guarda `text` en un archivo nuevo que el usuario elige (nombre propuesto: `name`). Resuelve { saved }. */
+    @PluginMethod
+    public void save(PluginCall call) {
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType(call.getString("type", "text/plain"));
+        intent.putExtra(Intent.EXTRA_TITLE, call.getString("name", "lista.m3u8"));
+        startActivityForResult(call, intent, "created");
+    }
+
+    @ActivityCallback
+    private void created(PluginCall call, ActivityResult result) {
+        Uri document = result.getData() == null ? null : result.getData().getData();
+        JSObject data = new JSObject();
+        if (result.getResultCode() != Activity.RESULT_OK || document == null) {
+            data.put("saved", false);
+            call.resolve(data);
+            return;
+        }
+        worker.execute(() -> {
+            try (OutputStream output = getContext().getContentResolver().openOutputStream(document, "wt")) {
+                if (output == null) throw new IllegalStateException("Sin permiso para escribir");
+                output.write(call.getString("text", "").getBytes(StandardCharsets.UTF_8));
+                data.put("saved", true);
+                call.resolve(data);
+            } catch (Exception error) {
+                call.reject("No se pudo guardar el archivo", error);
             }
         });
     }

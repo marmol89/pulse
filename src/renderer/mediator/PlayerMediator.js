@@ -28,6 +28,7 @@ import equalizer from './handlers/equalizer.js';
 import plays from './handlers/plays.js';
 import desktop from './handlers/desktop.js';
 import miniPlayer from './handlers/miniPlayer.js';
+import m3uLists from './handlers/m3uLists.js';
 
 /**
  * Solo compone: conecta colegas y registra módulos de handlers.
@@ -75,7 +76,8 @@ export class PlayerMediator extends Mediator {
       .use(equalizer)
       .use(plays)
       .use(desktop)
-      .use(miniPlayer);
+      .use(miniPlayer)
+      .use(m3uLists);
   }
 
   get context() {

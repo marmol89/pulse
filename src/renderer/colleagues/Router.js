@@ -23,7 +23,7 @@ function folderName(folder) {
  * panel desde su pestaña (estado de UI: `is-menu-open`).
  * En la sidebar también están "Tus listas" (en pantallas estrechas se llega a ellas desde Inicio).
  * Emite: navigate, open-connection, upload-songs, files-dropped, sync-library, open-trash, open-equalizer, set-online-lookup, set-close-to-tray,
- * new-list, open-collection (una lista).
+ * new-list, import-list, open-collection (una lista).
  */
 export class Router extends Colleague {
   #root;
@@ -204,6 +204,7 @@ export class Router extends Colleague {
       h('span', { class: 'nav__text' }, 'Conexión', this.#connectionStatus),
     );
     const upload = h('button', { type: 'button', class: 'nav__item' }, icon('upload'), 'Subir canciones');
+    const importList = h('button', { type: 'button', class: 'nav__item', title: 'Crear una lista desde un archivo .m3u o .m3u8 con las canciones que estén en tu biblioteca' }, icon('playlist'), 'Importar lista');
     const refresh = h('button', { type: 'button', class: 'nav__item' }, icon('refresh'), 'Actualizar biblioteca');
     const trash = h('button', { type: 'button', class: 'nav__item', title: 'Canciones eliminadas del bucket: restaurarlas o borrarlas para siempre' }, icon('trash'), 'Papelera');
     const act = (event) => () => {
@@ -213,6 +214,7 @@ export class Router extends Colleague {
     connection.addEventListener('click', act(EVENTS.OPEN_CONNECTION));
     upload.addEventListener('click', act(EVENTS.UPLOAD_SONGS));
     refresh.addEventListener('click', act(EVENTS.SYNC_LIBRARY));
+    importList.addEventListener('click', act(EVENTS.IMPORT_LIST));
     trash.addEventListener('click', act(EVENTS.OPEN_TRASH));
     this.#equalizerButton = h('button', { type: 'button', class: 'nav__item', hidden: true, title: 'Graves, medios y agudos' }, icon('equalizer'), 'Ecualizador');
     this.#equalizerButton.addEventListener('click', act(EVENTS.OPEN_EQUALIZER));
@@ -284,7 +286,7 @@ export class Router extends Colleague {
       h('div', { class: 'brand' }, h('span', { class: 'brand__logo' }, icon('pulse')), 'Pulse'),
       nav,
       h('div', { class: 'sidebar__section sidebar__lists' }, h('h2', { class: 'sidebar__heading' }, 'Tus listas'), newList, this.#listsNav),
-      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, trash, onlineRow, crossfadeRow, loudnessRow, this.#equalizerButton, this.#trayRow, this.#downloadsRow),
+      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, importList, refresh, trash, onlineRow, crossfadeRow, loudnessRow, this.#equalizerButton, this.#trayRow, this.#downloadsRow),
       hint,
     );
     this.#bucketOnly = [upload, trash, hint];
