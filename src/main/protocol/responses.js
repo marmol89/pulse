@@ -8,7 +8,8 @@ import { parseMediaUrl } from './urls.js';
 export async function objectResponse(storage, key, rangeHeader) {
   try {
     const object = await storage.getObject(key, rangeHeader);
-    const headers = { 'Content-Type': mimeFor(key), 'Accept-Ranges': 'bytes' };
+    // Con CORS: los <audio> de escritorio son crossOrigin para que el ecualizador (Web Audio) pueda leerlos.
+    const headers = { 'Content-Type': mimeFor(key), 'Accept-Ranges': 'bytes', 'Access-Control-Allow-Origin': '*' };
     if (object.contentLength != null) headers['Content-Length'] = String(object.contentLength);
     if (object.contentRange) headers['Content-Range'] = object.contentRange;
     return new Response(object.body, { status: object.status, headers });
