@@ -457,6 +457,28 @@ try {
   await shot('09b-fundido');
   await page.selectOption('#crossfade-select', '0');
 
+  // Volumen uniforme: "Ola Azul" trae REPLAYGAIN_TRACK_GAIN = -6 dB → suena a la mitad del volumen elegido.
+  await page.evaluate(() => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'volume').set;
+    Object.defineProperty(HTMLMediaElement.prototype, 'volume', {
+      configurable: true,
+      get() { return this.__volume ?? 1; },
+      set(value) { this.__volume = value; setter.call(this, value); window.__volumes = [...(window.__volumes ?? []), [this.src, value]]; },
+    });
+  });
+  const volumeOf = (name) => page.evaluate((key) => (window.__volumes ?? []).filter(([src]) => decodeURIComponent(src).includes(key)).at(-1)?.[1], name);
+  check((await page.inputValue('#loudness-select')) === 'track', 'volumen uniforme por canción, de serie');
+  await page.dblclick('.view--collection .track-row:has-text("Ola Azul")');
+  await page.waitForFunction(() => document.querySelector('.player__title')?.textContent === 'Ola Azul');
+  const uniform = await volumeOf('Ola Azul');
+  await page.selectOption('#loudness-select', 'off');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'Sin igualar el volumen');
+  const full = await volumeOf('Ola Azul');
+  check(full > 0 && Math.abs(uniform / full - 0.5) < 0.01, `la pista con ReplayGain -6 dB suena a la mitad (${uniform} de ${full}) y desactivado vuelve al volumen elegido`);
+  await page.selectOption('#loudness-select', 'track');
+  await page.locator('#loudness-select').scrollIntoViewIfNeeded();
+  await shot('09c-volumen-uniforme');
+
   // Papelera: "⋯" › "Eliminar del bucket" (con confirmación), restaurar desde "Papelera" y vaciarla.
   const toastIs = (text) => page.waitForFunction((expected) => document.querySelector('.toast')?.textContent === expected, text);
   const hasRow = (title) => page.locator(`.view--collection .track-row:has-text("${title}")`).count().then((count) => count > 0);

@@ -17,7 +17,7 @@ export const FIXTURES = [
     'Aurora Vega/Neón/02 Luces de Neón.wav',
     { title: 'Luces de Neón', artist: 'Aurora Vega', album: 'Neón', genre: 'Pop latino', track: '2', cover: NEON, lyrics: 'Brillan las luces\nde la ciudad\ny tú conmigo' },
   ],
-  ['Marea Sur/Mareas/Ola Azul.wav', { title: 'Ola Azul', artist: 'Marea Sur', album: 'Mareas', genre: 'Lo-fi chill', cover: MAREAS }],
+  ['Marea Sur/Mareas/Ola Azul.wav', { title: 'Ola Azul', artist: 'Marea Sur', album: 'Mareas', genre: 'Lo-fi chill', cover: MAREAS, trackGain: '-6.02 dB' }],
   ['Los Prismas/Atardecer.wav', { title: 'Atardecer', artist: 'Los Prismas', album: 'Atardecer', genre: 'Pop latino' }],
   ['Kora/Selva.wav', { title: 'Selva', artist: 'Kora', album: 'Verde', genre: 'Lo-fi chill' }],
   ['Sueltas/pista sin etiquetas.wav', null],
