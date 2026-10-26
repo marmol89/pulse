@@ -101,6 +101,11 @@ export class LibraryService extends Colleague {
     return this.#api.lookupTrack(id, { force });
   }
 
+  /** "Editar datos" (`changes`: el formulario; null: restaurar los del archivo). @returns {Promise<{ ok: true, track } | { ok: false, error }>} */
+  editTrack(id, changes) {
+    return this.#api.editTrack(id, changes);
+  }
+
   /**
    * Listas de canciones (guardadas en el bucket, compartidas con los demás equipos).
    * Las operaciones devuelven { ok: true, lists, id? } o { ok: false, error } con el motivo en español.

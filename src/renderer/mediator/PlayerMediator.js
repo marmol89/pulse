@@ -29,6 +29,7 @@ import plays from './handlers/plays.js';
 import desktop from './handlers/desktop.js';
 import miniPlayer from './handlers/miniPlayer.js';
 import m3uLists from './handlers/m3uLists.js';
+import editTrack from './handlers/editTrack.js';
 
 /**
  * Solo compone: conecta colegas y registra módulos de handlers.
@@ -77,7 +78,8 @@ export class PlayerMediator extends Mediator {
       .use(plays)
       .use(desktop)
       .use(miniPlayer)
-      .use(m3uLists);
+      .use(m3uLists)
+      .use(editTrack);
   }
 
   get context() {
