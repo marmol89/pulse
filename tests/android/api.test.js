@@ -68,7 +68,7 @@ describe('android/api (window.api sobre el backend compartido)', () => {
     const result = await api.saveConnection({ ...s3.config, bucket: '' });
     assert.equal(result.ok, true, result.error);
     assert.equal(result.count, 2);
-    assert.deepEqual(await api.getConnection(), { endpoint: s3.config.endpoint, accessKeyId: s3.config.accessKeyId, bucket: 'musica', prefix: '' });
+    assert.deepEqual(await api.getConnection(), { mode: 's3', endpoint: s3.config.endpoint, accessKeyId: s3.config.accessKeyId, bucket: 'musica', prefix: '', folders: [] });
     assert.equal(fs.entries.get('s3.json').data.includes(s3.config.secretAccessKey), false);
     assert.equal(secure.items.get('s3-secret'), s3.config.secretAccessKey);
     assert.ok(http.calls.length > 0, 'todo pasa por CapacitorHttp (sin CORS)');

@@ -35,6 +35,8 @@ window.api = createAndroidApi({
     coversFolder = (await files.uri('covers')).replace(/\/+$/, '');
     dataFolder = (await files.uri('')).replace(/\/+$/, '');
   },
+  // Carpetas del móvil (FoldersPlugin.java): elegirlas con el selector del sistema y recorrerlas.
+  folders: registerPlugin('PulseFolders'),
   document,
   userAgent: `Pulse/${__PULSE_VERSION__} (reproductor de música para Android)`,
   App,
