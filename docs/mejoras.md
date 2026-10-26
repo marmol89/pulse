@@ -14,7 +14,7 @@ Leyenda del esfuerzo: **S** (un par de commits), **M** (una PR normal), **L** (v
 | 1 | Volumen uniforme (ReplayGain) | M | todas | ✅ |
 | 2 | Ecualizador | M | escritorio | ✅ |
 | 3 | Contador de escuchas y listas inteligentes | M | todas | ✅ |
-| 4 | Bandeja del sistema y botones en la barra de tareas | M | escritorio | ☐ |
+| 4 | Bandeja del sistema y botones en la barra de tareas | M | escritorio | ✅ |
 | 5 | Mini-reproductor | M | escritorio | ☐ |
 | 6 | Exportar e importar listas (M3U) | M | todas | ☐ |
 | 7 | Editar los datos de una canción | L | todas | ☐ |

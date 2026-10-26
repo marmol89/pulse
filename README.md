@@ -46,6 +46,7 @@ Por dentro está organizado con el patrón **Mediator**.
 - 🎚️ **Sin cortes entre canciones** y con **fundido** opcional (0–8 s, en la barra lateral).
 - 🎛️ **Ecualizador** de cinco bandas con preajustes (en el ordenador).
 - 📈 **Más escuchadas, Sin escuchar y Añadidas recientemente**: listas que se hacen solas con lo que escuchas en todos tus equipos.
+- 🖥️ **Bandeja del sistema** con la canción y los controles, botones en la miniatura de la barra de tareas (Windows) y, si quieres, **seguir sonando al cerrar la ventana**.
 - 🔉 **Igualar volumen** con las etiquetas ReplayGain de tus canciones, por pista o por disco.
 - ❤️ Favoritos, listas de canciones y escuchado recientemente, **compartidos por el bucket entre todos tus equipos**.
   Mix diario, álbumes y artistas (con su foto), y tu biblioteca ordenada y filtrada como quieras.

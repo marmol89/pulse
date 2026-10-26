@@ -44,6 +44,10 @@ src/backend/     lógica común a Electron y Android, SIN Node ni Electron (lo c
   online/        datos de internet: matching, itunes, deezer, lrclib, http, enricher, queue (ver abajo)
 src/main/        adaptador de Electron (NO forma parte del mediator)
   main.js        ventana, instancia única, sin navegación, --lang=es
+  desktop.js     bandeja del sistema (canción y controles), botones de la miniatura de Windows (src/assets/controles/,
+                 los genera `npm run icons`) y "Seguir en la bandeja" (cerrar oculta; "Salir" cierra). Habla con la
+                 ventana por desktop:update / desktop:close-to-tray / desktop:command; en el renderer, `DesktopBridge`
+                 (handler `desktop.js`). En Android no existe `window.api.desktop`
   files.js       `files` sobre fs en userData; library/collect.js recorre archivos y carpetas para subir;
                  library/folderStorage.js: las carpetas del ordenador con la forma del storage de S3 (solo lectura)
   protocol/      media://track|cover/<id>: audio desde S3 con rangos, solo pistas de la biblioteca (403 si no)
@@ -66,7 +70,7 @@ src/renderer/
   mediator/      PlayerMediator (solo compone), events.js, actions.js, handlers/ (uno por caso de uso)
   colleagues/    modelos (Catalog, Playlist = la cola, Lists = listas del usuario, Favorites, Recents, Plays, Settings,
                  Session = lo que sonaba al cerrar, para retomarlo),
-                 servicios (AudioEngine, Equalizer, LibraryService, MediaSessionBridge, SleepTimer) y vistas (Router, HomeView,
+                 servicios (AudioEngine, Equalizer, LibraryService, MediaSessionBridge, DesktopBridge, SleepTimer) y vistas (Router, HomeView,
                  PlaylistView, SearchView, NowPlayingView, ControlsView, ToastView, ConnectionView,
                  ListDialog, EqualizerDialog, KeyboardShortcuts)
   ui/            piezas de UI sin estado de negocio (dom, icons, cover, format, trackList, transport, menu: el «⋯»
