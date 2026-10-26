@@ -80,7 +80,7 @@ describe('actions', () => {
 
     const [[collection, state]] = callsOf(ctx.playlistView.render);
     assert.equal(collection.title, 'Tu biblioteca');
-    assert.deepEqual(state, { favorites: new Set(), currentPath: null, playing: false, download: null });
+    assert.deepEqual(state, { favorites: new Set(), currentPath: null, playing: false, readOnly: false, download: null });
     assert.equal(ctx.router.closeOverlay.mock.callCount(), 1);
     assert.deepEqual(callsOf(ctx.router.show), [['collection', 'library']]);
   });
@@ -108,7 +108,7 @@ describe('actions', () => {
     const ctx = fakeContext();
     ctx.playlist.setQueue(tracks('a'));
     ctx.audio.isPlaying.mock.mockImplementation(() => true);
-    assert.deepEqual(trackListState(ctx), { favorites: new Set(), currentPath: 'a', playing: true });
+    assert.deepEqual(trackListState(ctx), { favorites: new Set(), currentPath: 'a', playing: true, readOnly: false });
   });
 
   test('removeTracks() quita las pistas de modelos y vistas e indica si era la actual', () => {

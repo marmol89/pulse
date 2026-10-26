@@ -6,14 +6,22 @@ const HEAD_BYTES = 512 * 1024; // casi siempre basta para las etiquetas del prin
 const MAX_TAG_BYTES = 16 * 1024 * 1024; // una etiqueta ID3 con carátulas enormes
 const COVER_CACHE_SIZE = 64;
 
-/** Identificador de una pista del bucket: "s3://bucket/clave". */
-export function trackId(bucket, key) {
-  return `s3://${bucket}/${key}`;
+/**
+ * Identificador de una pista: "s3://bucket/clave" en un bucket y "local://carpetas/ruta" en las carpetas del
+ * equipo (`scheme` del storage: src/main/library/folderStorage.js y src/android/folders.js).
+ */
+export function trackId(bucket, key, scheme = 's3') {
+  return `${scheme}://${bucket}/${key}`;
 }
 
 export function parseTrackId(id) {
-  const match = /^s3:\/\/([^/]+)\/(.+)$/.exec(String(id));
-  return match ? { bucket: match[1], key: match[2] } : null;
+  const match = /^(s3|local):\/\/([^/]+)\/(.+)$/.exec(String(id));
+  return match ? { scheme: match[1], bucket: match[2], key: match[3] } : null;
+}
+
+/** ¿Es el id de una pista (del bucket o de las carpetas)? Filtra lo que llega a listas, favoritos y recientes. */
+export function isTrackId(id) {
+  return typeof id === 'string' && parseTrackId(id) !== null;
 }
 
 /** Tamaño total de una etiqueta ID3v2 al principio del archivo (0 si no hay). */
@@ -33,8 +41,9 @@ async function readHead(storage, { key, size }) {
   return tag > bytes.length && tag <= MAX_TAG_BYTES ? storage.readStart(key, Math.min(tag + 64 * 1024, size)) : bytes;
 }
 
-function parseHead(bytes, { key, size }) {
-  return parseBuffer(bytes, { mimeType: mimeFor(key), size }, { duration: false, skipPostHeaders: true });
+/** `name`: nombre del archivo cuando la clave no lo es (en Android, la URI del documento). */
+function parseHead(bytes, { key, name, size }) {
+  return parseBuffer(bytes, { mimeType: mimeFor(name ?? key), size }, { duration: false, skipPostHeaders: true });
 }
 
 /**
@@ -43,8 +52,9 @@ function parseHead(bytes, { key, size }) {
  * `onPicture(registro, carátula)` recibe la carátula incrustada ya leída, para guardarla sin descargarla otra vez.
  */
 export async function readRemoteRecord(storage, object, { onPicture } = {}) {
-  const record = baseRecord(trackId(storage.bucket, object.key), basename(object.key), {
+  const record = baseRecord(trackId(storage.bucket, object.key, storage.scheme), basename(object.name ?? object.key), {
     key: object.key,
+    ...(object.name ? { name: object.name } : {}),
     etag: object.etag,
     size: object.size,
     addedAt: object.lastModified ?? 0,

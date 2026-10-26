@@ -4,13 +4,14 @@
  * Es rápido (no hace falta el emulador) y sirve para revisar el diseño móvil (`@media (max-width: 720px)`).
  * Uso: node .claude/skills/revisar-interfaz/capturas-movil.mjs
  */
-import { mkdtemp, mkdir, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { _electron as electron } from 'playwright-core';
 import { bucketObjects } from '../../../tests/e2e/fixtures.js';
 import { startFakeS3 } from '../../../tests/helpers/fakeS3.js';
+import { createWav } from '../../../tests/helpers/audio.js';
 
 const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const OUTPUT = fileURLToPath(new URL('../../../tests/e2e/output/movil/', import.meta.url));
@@ -137,6 +138,33 @@ try {
     await page.click('.nav__item:has-text("Papelera")');
     await page.waitForSelector('.trash-dialog[open]');
     await shot('15-papelera');
+    await page.click('.trash-dialog .link-button:has-text("Cerrar")');
+  });
+  await step('Carpetas', async () => {
+    // Una carpeta de nombre largo con una canción: el selector de carpetas del sistema se sustituye por uno falso.
+    const folder = path.join(work, 'Música descargada del ordenador viejo');
+    await mkdir(folder, { recursive: true });
+    await writeFile(path.join(folder, 'Local.wav'), createWav({ seconds: 2, tags: { title: 'Canción Local', artist: 'Río Claro' } }));
+    await app.evaluate(({ dialog }, paths) => {
+      dialog.showOpenDialog = async () => ({ canceled: false, filePaths: paths });
+    }, [folder]);
+    await page.click('.nav__item--menu');
+    await page.click('.nav__item:has-text("Conexión")');
+    await page.click('#connection-tab-local');
+    await shot('16-conexion-carpetas-vacia');
+    await page.click('#connection-add-folder');
+    await page.waitForSelector('.connection__folders .list-picker__item');
+    await shot('16b-conexion-carpetas');
+    await page.click('.connection button[type="submit"]');
+    await page.waitForSelector('.connection', { state: 'hidden' });
+    await page.click('.nav__item--menu');
+    await shot('17-tu-musica-carpetas');
+    await page.click('.nav__item--menu');
+    await page.click('.sidebar .nav__item:has-text("Biblioteca")');
+    await page.waitForFunction((row) => document.querySelectorAll(row).length === 1, ROW);
+    await page.click(`${ROW} >> nth=0 >> [data-action="more"]`);
+    await shot('17b-menu-fila-carpetas');
+    await page.keyboard.press('Escape');
   });
   // Nada debe dar scroll horizontal: es la señal más clara de que algo se sale de la pantalla.
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);

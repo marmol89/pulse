@@ -21,6 +21,7 @@ export function lookupStamp(record) {
  * los de las etiquetas y los de internet) y metadatos/caratulas/ (carátulas descargadas de internet).
  * Así otro equipo conectado al mismo bucket no tiene que releer cada archivo ni volver a buscar en internet.
  * La copia local (library.json y covers/) sigue siendo la caché para arrancar al momento y sin conexión.
+ * Con las carpetas del equipo (storage `readOnly`) no hay copia: todo se queda en library.json y covers/.
  */
 export function createMetadataStore({ getStorage, getRecords, files, delay = PUSH_DELAY_MS, maxWait = MAX_PUSH_WAIT_MS, retry = RETRY_MS }) {
   const uploadedCovers = new Set(); // "bucket/clave" ya presentes en el bucket
@@ -60,7 +61,7 @@ export function createMetadataStore({ getStorage, getRecords, files, delay = PUS
     timer = null;
     firstPendingAt = 0;
     const storage = getStorage();
-    if (!storage) return;
+    if (!storage || storage.readOnly) return; // en las carpetas del equipo no se escribe nada
     const records = getRecords().filter((record) => parseTrackId(record.path)?.bucket === storage.bucket);
     try {
       // Primero las carátulas: quien lea el JSON ya las encuentra en el bucket.
@@ -95,7 +96,7 @@ export function createMetadataStore({ getStorage, getRecords, files, delay = PUS
      */
     async pull() {
       const storage = getStorage();
-      if (!storage) return [];
+      if (!storage || storage.readOnly) return [];
       try {
         const data = await storage.read(key(storage, LIBRARY_FILE));
         if (!data) return [];
@@ -126,7 +127,7 @@ export function createMetadataStore({ getStorage, getRecords, files, delay = PUS
       const cached = await files.read(coverFile(name)).catch(() => null);
       if (cached) return cached;
       const storage = getStorage();
-      const data = storage ? await storage.read(coverKey(storage, basename(name))) : null;
+      const data = storage && !storage.readOnly ? await storage.read(coverKey(storage, basename(name))) : null;
       if (!data) return null;
       await files.write(coverFile(name), data);
       return data;

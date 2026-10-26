@@ -13,6 +13,7 @@ import { createRecentStore, recentResult } from '../backend/library/recents.js';
 import { createConnectionStore } from '../backend/s3/connection.js';
 import { createS3Service } from '../backend/s3/service.js';
 import { createS3Storage } from '../backend/s3/storage.js';
+import { createSourceService } from '../backend/source.js';
 import { createHttp } from '../backend/online/http.js';
 import { createEnricher } from '../backend/online/enricher.js';
 import { createEnrichmentQueue } from '../backend/online/queue.js';
@@ -21,12 +22,15 @@ import { createNativeFetch, createS3RequestHandler } from './nativeHttp.js';
 import { coverFileName, createCoverCache } from './covers.js';
 import { createDownloads } from './downloads.js';
 import { pickFiles } from './picker.js';
+import { createAndroidFolderStorage } from './folders.js';
 
 /** Lo máximo que permite una URL firmada de S3: se vuelve a firmar cada vez que llega a la interfaz. */
 const SIGNED_URL_SECONDS = 7 * 24 * 60 * 60;
 const AUDIO_ACCEPT = ['audio/*', ...AUDIO_EXTENSIONS.map((extension) => `.${extension}`)].join(',');
 /** toTrack sin URLs: present() pone las de Android (firmada para el audio, archivo local para la carátula). */
 const NO_URLS = { track: () => '', cover: () => '' };
+/** Sin el plugin PulseFolders (tests): no se puede elegir ninguna carpeta. */
+const NO_FOLDERS = { pick: async () => null, list: async () => ({ files: [] }), release: async () => {} };
 
 /** URL firmada para que el <audio> pida el objeto (y sus rangos) directamente a S3. */
 export function presignUrl(storage, key, seconds = SIGNED_URL_SECONDS) {
@@ -48,8 +52,10 @@ export function collectFiles(files) {
  *
  * @param {{ files, crypto, http, coverUrl: (name: string) => string, fileUrl: (path: string) => string,
  *   downloadFile: (url: string, path: string) => Promise<void>, document, userAgent: string,
+ *   folders?: { pick, list, release }, localFetch?: typeof fetch,
  *   App?: { addListener }, prepare?: () => Promise<void>, presign?: typeof presignUrl, timers?: object }} deps
  *   `http`: plugin CapacitorHttp · `crypto`: createKeystoreCrypto() · `files`: createCapacitorFiles() ·
+ *   `folders`: plugin PulseFolders (carpetas del móvil) · `localFetch`: fetch del WebView (lee su audio) ·
  *   `prepare`: lo que hay que resolver antes de arrancar (carpeta de las carátulas, prefijo del Keystore)
  */
 export function createAndroidApi(deps) {
@@ -94,12 +100,19 @@ export function createAndroidApi(deps) {
     emptyTrash: call(({ trash }) => trash.empty()),
 
     // Conexión S3 (la clave secreta nunca vuelve a la interfaz)
-    getConnection: call(({ s3 }) => s3.summary()),
-    saveConnection: call(({ s3 }, input) => s3.connect(input ?? {})),
-    importCredentials: call(async ({ s3 }) => {
+    getConnection: call(({ source }) => source.summary()),
+    saveConnection: call(({ source }, input) => source.connect(input ?? {})),
+    importCredentials: call(async ({ source }) => {
       const [file] = (await pickFiles(deps.document, { accept: '.json,application/json' })) ?? [];
-      return file ? s3.importCredentials(await file.text()) : null;
+      return file ? source.importCredentials(await file.text()) : null;
     }),
+
+    // Carpetas del móvil, en vez del bucket (de solo lectura)
+    chooseFolder: call(async ({ source }) => {
+      const picked = await (deps.folders ?? NO_FOLDERS).pick();
+      return picked?.uri ? source.offer({ id: picked.uri, name: picked.name }) : null;
+    }),
+    saveFolders: call(({ source }, ids) => source.useFolders(ids)),
 
     // Listas de canciones (compartidas por todos los Pulse del mismo bucket)
     getLists: call(({ lists }) => lists.all()),
@@ -146,7 +159,7 @@ export function createAndroidApi(deps) {
   };
 }
 
-async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downloadFile = async () => {}, userAgent, App, prepare, presign = presignUrl, timers = globalThis }, emit) {
+async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downloadFile = async () => {}, folders = NO_FOLDERS, localFetch = globalThis.fetch, userAgent, App, prepare, presign = presignUrl, timers = globalThis }, emit) {
   await prepare?.();
   const trackOf = (record) => toTrack(record, NO_URLS);
   let metadata = null;
@@ -154,24 +167,30 @@ async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downlo
   await store.load();
 
   const requestHandler = createS3RequestHandler(http);
-  const s3 = createS3Service({
-    connections: createConnectionStore(files, crypto),
-    createStorage: (config) => createS3Storage(config, { requestHandler }),
+  // La música sale del bucket o de carpetas del móvil (PulseFolders: selector del sistema, solo lectura).
+  const source = createSourceService({
+    s3: createS3Service({
+      connections: createConnectionStore(files, crypto),
+      createStorage: (config) => createS3Storage(config, { requestHandler }),
+    }),
+    files,
+    createFolderStorage: (list) => createAndroidFolderStorage(list, { plugin: folders, fetch: localFetch }),
+    release: (folder) => folders.release({ uri: folder.id }),
   });
-  await s3.load();
-  metadata = createMetadataStore({ getStorage: () => s3.storage(), getRecords: () => store.all(), files });
+  await source.load();
+  metadata = createMetadataStore({ getStorage: () => source.storage(), getRecords: () => store.all(), files });
   metadata.schedulePush(); // lo que ya hay en el móvil también llega al bucket
-  const lists = createListStore({ files, getStorage: () => s3.storage(), onChange: (all) => emit('lists', all), timers });
+  const lists = createListStore({ files, getStorage: () => source.storage(), onChange: (all) => emit('lists', all), timers });
   await lists.load();
-  const favorites = createFavoriteStore({ files, getStorage: () => s3.storage(), onChange: (all) => emit('favorites', all), timers });
+  const favorites = createFavoriteStore({ files, getStorage: () => source.storage(), onChange: (all) => emit('favorites', all), timers });
   await favorites.load();
-  const recents = createRecentStore({ files, getStorage: () => s3.storage(), onChange: (all) => emit('recents', all), timers });
+  const recents = createRecentStore({ files, getStorage: () => source.storage(), onChange: (all) => emit('recents', all), timers });
   await recents.load();
 
   const covers = createCoverCache({
     files,
     toUrl: coverUrl,
-    readEmbedded: (record) => (s3.storage() ? readRemoteCover(s3.storage(), record) : Promise.reject(new Error('Sin conexión'))),
+    readEmbedded: (record) => (source.storage() ? readRemoteCover(source.storage(), record) : Promise.reject(new Error('Sin conexión'))),
     readCover: (name) => metadata.readCover(name),
     getRecord: (id) => store.get(id),
     onReady: (ids) => present(ids.map((id) => store.get(id)).filter(Boolean).map(trackOf)).then((tracks) => emit('updated', tracks)),
@@ -180,10 +199,12 @@ async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downlo
   await covers.load();
 
   // Canciones descargadas: se escuchan del móvil aunque no haya conexión.
+  // Las de las carpetas del móvil ya están en él: su URL las sirve el WebView (LocalAudioWebViewClient.java).
   const signedUrl = async (record) => {
-    const storage = s3.storage();
+    const storage = source.storage();
     const target = parseTrackId(record.path);
-    return storage && target?.bucket === storage.bucket ? presign(storage, target.key) : '';
+    if (!storage || target?.bucket !== storage.bucket) return '';
+    return storage.readOnly ? storage.urlOf(target.key) : presign(storage, target.key);
   };
   const downloads = createDownloads({
     files,
@@ -224,7 +245,7 @@ async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downlo
   await artistPictures.load();
   const librarySync = createLibrarySync({
     store,
-    getStorage: () => s3.storage(),
+    getStorage: () => source.storage(),
     toTrack: trackOf,
     pullMetadata: () => metadata.pull(),
     onChange: (change) => {
@@ -241,14 +262,14 @@ async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downlo
     },
   });
   const uploader = createUploader({
-    getStorage: () => s3.storage(),
+    getStorage: () => source.storage(),
     collect: collectFiles,
     afterUpload: () => librarySync.sync(),
     onProgress: (progress) => emit('progress', progress),
   });
   // "Eliminar del bucket": a papelera/, de donde se puede restaurar. Su descarga del móvil se borra.
   const trash = createTrash({
-    getStorage: () => s3.storage(),
+    getStorage: () => source.storage(),
     store,
     afterRestore: () => librarySync.sync(),
     onRemoved: (ids) => downloads.remove(ids).then((summary) => emit('downloads', summary)),
@@ -271,5 +292,5 @@ async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downlo
     if (recents.hasPending()) recents.sync();
   });
 
-  return { store, s3, librarySync, uploader, trash, queue, covers, metadata, lists, favorites, recents, downloads, present, trackOf, artistPictures, pictureUrls };
+  return { store, source, librarySync, uploader, trash, queue, covers, metadata, lists, favorites, recents, downloads, present, trackOf, artistPictures, pictureUrls };
 }

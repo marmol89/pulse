@@ -59,7 +59,7 @@ describe('library/favorites', () => {
 
   test('rechaza lo que no es una canción del bucket y, sin conexión, no hay favoritos', async () => {
     const { favorites } = device();
-    await assert.rejects(favorites.set('/disco/a.mp3', true), /no está en tu bucket/);
+    await assert.rejects(favorites.set('/disco/a.mp3', true), /no está en tu biblioteca/);
     const offline = createFavoriteStore({ files: memoryFiles(), getStorage: () => null, timers: IDLE_TIMERS });
     assert.deepEqual(offline.all(), []);
     await assert.rejects(offline.set(A, true), /Conecta tu bucket/);
@@ -127,6 +127,37 @@ describe('library/favorites', () => {
     await wrongKey.favorites.sync();
     assert.deepEqual(JSON.parse(s3.get('musica', REMOTE).toString()).favorites.map((record) => record.id), [A]);
     assert.equal(wrongKey.favorites.hasPending(), true, 'queda un reintento programado');
+  });
+
+  test('con carpetas del equipo se guardan solo aquí, en su archivo, y cambiar de origen no pisa ninguno', async () => {
+    const LOCAL = 'local://carpetas/C:/Música/a.mp3';
+    const folders = { bucket: 'carpetas', prefix: '', readOnly: true, read: () => assert.fail('no lee'), upload: () => assert.fail('no sube') };
+    const bucket = createS3Storage(s3.config);
+    storages.push(bucket);
+    let storage = bucket;
+    const files = memoryFiles();
+    const changes = [];
+    const favorites = createFavoriteStore({ files, getStorage: () => storage, onChange: (all) => changes.push(all), now: () => clock, minInterval: 0, timers: IDLE_TIMERS });
+    await favorites.set(A, true);
+
+    storage = folders;
+    await favorites.sync();
+    assert.deepEqual(changes.at(-1), [], 'deja de enseñar los del bucket');
+    await favorites.set(LOCAL, true);
+    assert.equal(favorites.hasPending(), false, 'no hay nada que subir');
+    await favorites.sync();
+    assert.deepEqual(JSON.parse(files.text('favorites-local.json')).favorites.map((record) => record.id), [LOCAL]);
+
+    storage = bucket;
+    await favorites.sync();
+    assert.deepEqual(favorites.all(), [A], 'vuelven los del bucket');
+    storage = folders;
+    await favorites.sync();
+    assert.deepEqual(favorites.all(), [LOCAL], 'y al volver a las carpetas, los suyos');
+
+    const again = createFavoriteStore({ files, getStorage: () => folders, timers: IDLE_TIMERS });
+    await again.load();
+    assert.deepEqual(again.all(), [LOCAL], 'al arrancar se leen los del origen de ahora');
   });
 
   test('load() recupera los guardados en este equipo', async () => {

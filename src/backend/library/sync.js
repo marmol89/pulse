@@ -25,12 +25,13 @@ export function createLibrarySync({
   minInterval = MIN_INTERVAL_MS,
 }) {
   let running = null;
+  let runningWith = null; // storage de la sincronización en marcha
   let lastSyncAt = Number.NEGATIVE_INFINITY;
 
-  async function run() {
-    const storage = getStorage();
+  /** Una sincronización con `storage` (el de cuando se pidió: si luego cambia el origen, se pide otra). */
+  async function run(storage) {
     if (!storage) return { removed: [], added: [] };
-    const objects = new Map((await storage.listAudio()).map((object) => [trackId(storage.bucket, object.key), object]));
+    const objects = new Map((await storage.listAudio()).map((object) => [trackId(storage.bucket, object.key, storage.scheme), object]));
     const present = new Set(objects.keys());
     // La fecha de subida (para ordenar por "Añadidas recientemente") llega con el listado: no hace falta releer nada.
     const dated = (record) => withUploadDate(record, objects.get(record.path));
@@ -75,12 +76,20 @@ export function createLibrarySync({
   }
 
   return {
-    /** Sincroniza ya. Si hay una sincronización en marcha, devuelve esa. */
+    /**
+     * Sincroniza ya. Si hay una en marcha con el mismo storage, devuelve esa; si el origen ha cambiado (del bucket
+     * a las carpetas o al revés), espera a que termine y sincroniza con el nuevo.
+     */
     sync() {
-      running ??= run().finally(() => {
-        running = null;
+      const storage = getStorage();
+      if (running && runningWith === storage) return running;
+      const start = () => run(storage);
+      const next = (running ?? Promise.resolve()).then(start, start).finally(() => {
+        if (running === next) running = null;
       });
-      return running;
+      running = next;
+      runningWith = storage;
+      return next;
     },
 
     /** Sincroniza si ha pasado un rato desde la última (al arrancar o volver a la ventana). */

@@ -1355,6 +1355,34 @@
   font-weight: 600;
 }
 
+/* Pestañas "Bucket S3" / "Carpetas" (los chips de Inicio) y lo de cada una */
+.connection__tabs .chip {
+  background: var(--color-bg); /* el diálogo ya es del color de superficie de los chips */
+}
+
+.connection__tabs .chip[aria-pressed='true'] {
+  background: var(--grad-accent);
+}
+
+.connection__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.connection__panel > .button {
+  align-self: flex-start;
+}
+
+.connection__folders .list-picker__name {
+  display: flex;
+  flex-direction: column;
+}
+
+.connection__folder-path {
+  font-weight: 400;
+}
+
 .connection__actions {
   display: flex;
   align-items: center;

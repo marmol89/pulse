@@ -11,6 +11,11 @@ const NAV_ITEMS = [
 ];
 const OVERLAY_DURATION_MS = 260;
 
+/** Nombre corto de una carpeta: "Música" de "C:\Users\ana\Música" (en Android ya viene así). */
+function folderName(folder) {
+  return folder.name.split(/[\\/]/).filter(Boolean).at(-1) ?? folder.name;
+}
+
 /**
  * Esqueleto de la app: sidebar (la tab bar del diseño), qué vista se ve,
  * el overlay Reproduciendo, el estado de la conexión con el bucket y soltar canciones en la ventana.
@@ -34,6 +39,9 @@ export class Router extends Colleague {
   #downloadsHint;
   #crossfade;
   #connectionStatus;
+  #connectionIcon;
+  /** Lo que solo tiene sentido con un bucket: subir canciones y la papelera. */
+  #bucketOnly = [];
   #current = 'home';
   #previous = 'home';
   #returnFocus = null;
@@ -119,10 +127,19 @@ export class Router extends Colleague {
     this.#onlineSwitch.checked = enabled;
   }
 
-  /** Bucket conectado ({ bucket, endpoint } o null) bajo "Conexión S3". */
+  /**
+   * De dónde sale la música ({ mode, bucket, endpoint, folders } o null) bajo "Conexión". Con carpetas del
+   * equipo no se ven "Subir canciones" ni "Papelera": Pulse no escribe en ellas.
+   */
   setConnection(summary) {
-    this.#connectionStatus.textContent = summary ? `${summary.bucket} · ${new URL(summary.endpoint).host}` : 'Sin conectar';
+    const local = summary?.mode === 'local';
+    let status = 'Sin conectar';
+    if (local) status = summary.folders.length === 1 ? folderName(summary.folders[0]) : plural(summary.folders.length, 'carpeta', 'carpetas');
+    else if (summary?.mode === 's3') status = `${summary.bucket} · ${new URL(summary.endpoint).host}`;
+    this.#connectionStatus.textContent = status;
     this.#connectionStatus.classList.toggle('is-off', !summary);
+    this.#connectionIcon.replaceWith((this.#connectionIcon = icon(local ? 'folder' : 'cloud')));
+    for (const element of this.#bucketOnly) element.hidden = local;
   }
 
   /** Listas del usuario bajo "Tus listas" ({ id, name }[]). */
@@ -147,11 +164,12 @@ export class Router extends Colleague {
       nav.append(button);
     }
     this.#connectionStatus = h('span', { class: 'nav__status ellipsis is-off' }, 'Sin conectar');
+    this.#connectionIcon = icon('cloud');
     const connection = h(
       'button',
-      { type: 'button', class: 'nav__item nav__item--status' },
-      icon('cloud'),
-      h('span', { class: 'nav__text' }, 'Conexión S3', this.#connectionStatus),
+      { type: 'button', class: 'nav__item nav__item--status', title: 'Tu bucket S3 o carpetas de este equipo' },
+      this.#connectionIcon,
+      h('span', { class: 'nav__text' }, 'Conexión', this.#connectionStatus),
     );
     const upload = h('button', { type: 'button', class: 'nav__item' }, icon('upload'), 'Subir canciones');
     const refresh = h('button', { type: 'button', class: 'nav__item' }, icon('refresh'), 'Actualizar biblioteca');
@@ -206,14 +224,16 @@ export class Router extends Colleague {
     const newList = h('button', { type: 'button', class: 'nav__item' }, icon('plus'), 'Nueva lista');
     newList.addEventListener('click', act(EVENTS.NEW_LIST));
     this.#listsNav = h('div', { class: 'sidebar__lists-items' });
+    const hint = h('p', { class: 'sidebar__hint' }, 'También puedes arrastrar canciones o carpetas a la ventana para subirlas a tu bucket.');
 
     sidebar.replaceChildren(
       h('div', { class: 'brand' }, h('span', { class: 'brand__logo' }, icon('pulse')), 'Pulse'),
       nav,
       h('div', { class: 'sidebar__section sidebar__lists' }, h('h2', { class: 'sidebar__heading' }, 'Tus listas'), newList, this.#listsNav),
       h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, trash, onlineRow, crossfadeRow, this.#downloadsRow),
-      h('p', { class: 'sidebar__hint' }, 'También puedes arrastrar canciones o carpetas a la ventana para subirlas a tu bucket.'),
+      hint,
     );
+    this.#bucketOnly = [upload, trash, hint];
     this.#setActiveNav('home');
   }
 

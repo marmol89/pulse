@@ -1,15 +1,15 @@
 import { EVENTS } from '../events.js';
-import { loadTrack, playCurrentOrClear, removeTracks } from '../actions.js';
+import { loadTrack, playCurrentOrClear, removeTracks, sourcePlace } from '../actions.js';
 
 /**
- * Errores de reproducción. Si la canción ya no está en el bucket, se quita de la
+ * Errores de reproducción. Si la canción ya no está en el bucket (o en su carpeta), se quita de la
  * biblioteca y sigue la siguiente; si es otro fallo, se avisa y se salta.
  */
 export default {
   async [EVENTS.ERROR](ctx, error) {
     const track = ctx.playlist.current();
     if (track && !(await isAvailable(ctx, track.path))) {
-      ctx.toast.show(`«${track.title}» ya no está en el bucket: se ha quitado de la biblioteca`, { tone: 'error' });
+      ctx.toast.show(`«${track.title}» ya no está ${sourcePlace(ctx)}: se ha quitado de la biblioteca`, { tone: 'error' });
       if (removeTracks(ctx, [track.path])) playCurrentOrClear(ctx, true);
       return;
     }

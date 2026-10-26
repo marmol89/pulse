@@ -37,6 +37,7 @@ export function createUploader({ getStorage, collect, afterUpload = async () => 
   async function run(input) {
     const storage = getStorage();
     if (!storage) return { ok: false, needsConnection: true, error: 'Conecta tu bucket antes de subir canciones' };
+    if (storage.readOnly) return { ok: false, error: 'Con carpetas del equipo no se suben canciones: añade su carpeta en «Conexión»' };
     const files = await collect(input);
     const result = { ok: true, total: files.length, uploaded: 0, skipped: 0, failed: [] };
     for (const [index, { name, size, open }] of files.entries()) {

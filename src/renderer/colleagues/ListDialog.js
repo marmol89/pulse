@@ -6,8 +6,8 @@ import { plural } from '../ui/format.js';
 
 const MODES = {
   pick: { title: 'Añadir a una lista', text: 'Elige una de tus listas o crea una nueva.', label: 'O crea una lista nueva', submit: 'Crear y añadir' },
-  create: { title: 'Nueva lista', text: 'Se guarda en tu bucket y la verás en todos tus Pulse.', label: 'Nombre de la lista', submit: 'Crear' },
-  edit: { title: 'Editar lista', text: 'Los cambios llegan a todos tus Pulse conectados a este bucket.', label: 'Nombre de la lista', submit: 'Guardar' },
+  create: { title: 'Nueva lista', text: 'Con un bucket, la verás en todos tus Pulse conectados a él.', label: 'Nombre de la lista', submit: 'Crear' },
+  edit: { title: 'Editar lista', text: 'Con un bucket, los cambios llegan a todos tus Pulse conectados a él.', label: 'Nombre de la lista', submit: 'Guardar' },
 };
 
 /**

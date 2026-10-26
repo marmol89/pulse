@@ -43,7 +43,7 @@ describe('library/recents', () => {
     await recents.add(B);
     assert.deepEqual(await recents.add(A), [A, B]);
     assert.equal(JSON.parse(files.text(RECENTS_FILE)).recents.length, 2);
-    await assert.rejects(recents.add('/disco/a.mp3'), /no está en tu bucket/);
+    await assert.rejects(recents.add('/disco/a.mp3'), /no está en tu biblioteca/);
   });
 
   test('se ven las 12 últimas', async () => {

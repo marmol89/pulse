@@ -1,12 +1,12 @@
 import { createSharedRecords, mergeRecords, resultOf } from './shared.js';
+import { isTrackId } from './remote.js';
 
 /** Caché local (en los archivos de la app) y copia compartida en el bucket, bajo la carpeta de la conexión. */
 export const FAVORITES_FILE = 'favorites.json';
 const REMOTE_FILE = 'favoritos.json';
 const MAX_IMPORT = 20_000;
 
-const isTrack = (path) => typeof path === 'string' && path.startsWith('s3://');
-const valid = (record) => isTrack(record?.id) && typeof record.createdAt === 'number' && typeof record.updatedAt === 'number';
+const valid = (record) => isTrackId(record?.id) && typeof record.createdAt === 'number' && typeof record.updatedAt === 'number';
 
 /** Resultado para la interfaz: { ok: true, favorites } o { ok: false, error } con el motivo en español. */
 export const favoriteResult = resultOf('favorites');
@@ -40,7 +40,7 @@ export function createFavoriteStore({ now = Date.now, onChange = () => {}, ...de
 
     /** Marca (`favorite`) o desmarca una canción. */
     async set(path, favorite) {
-      if (!isTrack(path)) throw new TypeError('Esa canción no está en tu bucket');
+      if (!isTrackId(path)) throw new TypeError('Esa canción no está en tu biblioteca');
       const paths = await records.update((favorites) => {
         const mine = favorites.find((record) => record.id === path);
         if (Boolean(mine && !mine.deleted) === favorite) return favorites;
@@ -56,7 +56,7 @@ export function createFavoriteStore({ now = Date.now, onChange = () => {}, ...de
      * los que no se hayan marcado ni desmarcado ya en el bucket, conservando su orden.
      */
     async import(paths) {
-      const fresh = [...new Set(Array.isArray(paths) ? paths.filter(isTrack) : [])].slice(-MAX_IMPORT);
+      const fresh = [...new Set(Array.isArray(paths) ? paths.filter(isTrackId) : [])].slice(-MAX_IMPORT);
       const result = await records.update((favorites) => {
         const known = new Set(favorites.map((record) => record.id));
         const added = fresh.filter((path) => !known.has(path));

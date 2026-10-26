@@ -3,7 +3,7 @@ import { EVENTS } from '../mediator/events.js';
 
 /**
  * Único colega que habla con el proceso main (window.api, expuesto por el preload).
- * La música vive en un bucket S3; la clave secreta nunca llega a la ventana.
+ * La música vive en un bucket S3 o en carpetas del equipo; la clave secreta nunca llega a la ventana.
  * Emite: tracks-updated (datos de internet en segundo plano), library-changed (cambios en el bucket),
  * upload-progress (subida de canciones en curso), lists-changed, favorites-changed y recents-changed (cambiados desde
  * otro equipo), artist-pictures-changed (fotos de artista encontradas en segundo plano).
@@ -62,7 +62,10 @@ export class LibraryService extends Colleague {
     return this.#api.uploadPaths(paths);
   }
 
-  /** Conexión guardada sin la clave secreta ({ endpoint, accessKeyId, bucket, prefix }) o null. */
+  /**
+   * De dónde sale la música, sin la clave secreta: { mode: 's3' | 'local', endpoint?, accessKeyId?, bucket?, prefix?,
+   * folders: { id, name }[] } (las carpetas, aunque se use el bucket), o null si aún no hay nada.
+   */
   connection() {
     return this.#api.getConnection();
   }
@@ -75,6 +78,16 @@ export class LibraryService extends Colleague {
   /** Elige un credentials.json y conecta con él. null si se cancela; si falta algo, { ok: false, error, fields }. */
   importCredentials() {
     return this.#api.importCredentials();
+  }
+
+  /** Elige una carpeta en el selector del sistema: { id, name } o null si se cancela. */
+  chooseFolder() {
+    return this.#api.chooseFolder();
+  }
+
+  /** Usa esas carpetas (sus ids) en vez del bucket. @returns {Promise<{ ok, summary?, count?, error? }>} */
+  saveFolders(ids) {
+    return this.#api.saveFolders(ids);
   }
 
   /**

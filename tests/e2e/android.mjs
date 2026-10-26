@@ -2,7 +2,7 @@
  * Prueba de humo del APK en un emulador (o móvil por USB) con playwright-core (_android):
  * instala dist/Pulse-X.Y.Z-debug.apk desde cero, conecta la app con un S3 falso que corre en este
  * equipo (el emulador lo ve en 10.0.2.2), recorre las pantallas, reproduce desde una URL firmada,
- * salta, sube una canción y guarda capturas en tests/e2e/output/android-*.png. Nunca usa tu S3 real.
+ * salta, sube una canción, usa una carpeta del móvil (selector del sistema) y guarda capturas en tests/e2e/output/android-*.png. Nunca usa tu S3 real.
  * Uso: npm run android:apk && npm run test:e2e:android   (con el emulador arrancado; volumen multimedia a 0)
  */
 import { mkdir, readFile } from 'node:fs/promises';
@@ -18,6 +18,27 @@ const OUTPUT = fileURLToPath(new URL('output/', import.meta.url));
 const PACKAGE = 'com.marmol89.pulse';
 /** Desde el emulador, el equipo es 10.0.2.2 (con un móvil por USB: PULSE_HOST=<ip del equipo>). */
 const HOST = process.env.PULSE_HOST ?? '10.0.2.2';
+
+/** Carpeta del móvil para la prueba de las carpetas (se elige en el selector del sistema). */
+const PHONE_FOLDER = '/sdcard/Music/Pulse e2e';
+
+/**
+ * Toca el elemento nativo con ese texto (el selector de carpetas del sistema está fuera del WebView): lo busca en
+ * un volcado de uiautomator y toca su centro, sin necesitar el driver de Playwright para Android.
+ */
+async function tapText(device, text) {
+  const pattern = new RegExp(`text="${text}"[^>]*bounds=".(\\d+),(\\d+)..(\\d+),(\\d+)."`, 'i');
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await device.shell('uiautomator dump /sdcard/pulse-ui.xml');
+    const match = pattern.exec((await device.shell('cat /sdcard/pulse-ui.xml')).toString());
+    if (match) {
+      await device.shell(`input tap ${(Number(match[1]) + Number(match[3])) >> 1} ${(Number(match[2]) + Number(match[4])) >> 1}`);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 700));
+  }
+  throw new Error(`No aparece «${text}» en la pantalla`);
+}
 
 const problems = [];
 const check = (condition, message) => {
@@ -234,6 +255,49 @@ try {
   await page.waitForFunction(() => document.querySelector('.player .seek-bar__time')?.textContent === '0:00', null, { timeout: 15000 });
   await page.waitForFunction(() => document.querySelector('.player .seek-bar__time')?.textContent >= '0:02', null, { timeout: 15000 });
   check(true, 'sin conexión con el bucket, la canción descargada suena desde el móvil');
+  s3.setOffline(false);
+
+  // Carpetas del móvil en vez del bucket: el selector del sistema (SAF) se recorre tocando sus textos.
+  await device.shell(`mkdir -p '${PHONE_FOLDER}'`);
+  await device.push(createWav({ seconds: 10, tags: { title: 'Canción del móvil', artist: 'Río Claro' } }), `${PHONE_FOLDER}/Local.wav`);
+  await page.click('.nav__item--menu');
+  await page.click('.nav__item:has-text("Conexión")');
+  await page.click('#connection-tab-local');
+  await page.click('#connection-add-folder');
+  for (const text of ['Music', 'Pulse e2e', 'USE THIS FOLDER', 'ALLOW']) await tapText(device, text);
+  await page.waitForSelector('.connection__folders .list-picker__item:has-text("Pulse e2e")', { timeout: 15000 });
+  await shot('10-carpetas');
+  await page.click('.connection button[type="submit"]');
+  await page.waitForSelector('.connection', { state: 'hidden', timeout: 20000 });
+  await page.waitForFunction(() => document.querySelector('.nav__status')?.textContent === 'Pulse e2e', null, { timeout: 15000 });
+  await page.click('.nav__item:has-text("Biblioteca")');
+  await page.waitForFunction(() => {
+    const rows = document.querySelectorAll('.view--collection:not([hidden]) .track-row');
+    return rows.length === 1 && rows[0].textContent.includes('Canción del móvil');
+  }, null, { timeout: 20000 });
+  check(true, 'con una carpeta del móvil, la biblioteca es su música (con sus etiquetas)');
+  await page.click('.view--collection:not([hidden]) .collection-actions .play-button');
+  await page.waitForFunction(() => document.querySelector('.player__title')?.textContent === 'Canción del móvil' && document.querySelector('.player .seek-bar__time')?.textContent >= '0:01', null, { timeout: 15000 });
+  await page.evaluate(() => {
+    const range = document.querySelector('.player .seek-bar__range');
+    range.value = '7';
+    range.dispatchEvent(new Event('input'));
+    range.dispatchEvent(new Event('change'));
+  });
+  const seeked = await page.waitForFunction(() => document.querySelector('.player .seek-bar__time')?.textContent >= '0:07', null, { timeout: 8000 }).then(() => true, () => false);
+  check(seeked, 'la canción de la carpeta suena y se puede saltar (rangos servidos por el WebView)');
+  const tail = await page.evaluate(async () => {
+    const url = performance.getEntriesByType('resource').find((entry) => entry.name.includes('/_pulse_local_/'))?.name;
+    const response = await fetch(url, { headers: { Range: 'bytes=400000-' } });
+    return [response.status, (await response.arrayBuffer()).byteLength];
+  });
+  check(tail[0] === 206 && tail[1] === 441140 - 400000, `un rango a mitad del archivo devuelve solo ese trozo (${tail.join(', ')})`);
+  const forbidden = await page.evaluate(() => fetch(`/_pulse_local_/?uri=${encodeURIComponent('content://com.android.externalstorage.documents/tree/primary%3ADCIM/document/primary%3ADCIM')}`).then((response) => response.status));
+  check(forbidden === 403, 'el WebView no sirve nada de fuera de las carpetas elegidas');
+  await page.click('.view--collection:not([hidden]) .track-row [data-action="more"]');
+  check((await page.locator('.menu__item:has-text("Eliminar del bucket")').count()) === 0, 'el «⋯» no ofrece eliminar canciones de las carpetas');
+  await shot('11-carpetas-biblioteca');
+  await page.keyboard.press('Escape');
 } finally {
   if (volumeBefore) await device.shell(`cmd media_session volume ${MUSIC_STREAM} --set ${volumeBefore}`);
   await s3.close();

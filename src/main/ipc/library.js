@@ -4,10 +4,10 @@ import { AUDIO_EXTENSIONS } from '../../backend/library/tracks.js';
 import { mediaTrack } from '../protocol/urls.js';
 
 /**
- * Canales IPC de la biblioteca (que vive en el bucket S3) y de la conexión.
+ * Canales IPC de la biblioteca (en el bucket S3 o en carpetas del equipo) y de la conexión.
  * El renderer solo llega a ellos a través de window.api; la clave secreta nunca vuelve a la ventana.
  */
-export function registerLibraryIpc({ store, s3, librarySync, uploader, trash, lists, favorites, recents }) {
+export function registerLibraryIpc({ store, source, librarySync, uploader, trash, lists, favorites, recents }) {
   ipcMain.handle('library:load', () => store.all().map(mediaTrack));
 
   // Los cambios llegan a la ventana por 'library:changed' (y los de las listas y favoritos, por 'lists:changed' y 'favorites:changed');
@@ -38,9 +38,9 @@ export function registerLibraryIpc({ store, s3, librarySync, uploader, trash, li
   ipcMain.handle('trash:restore', (_event, key) => trash.restore(key));
   ipcMain.handle('trash:empty', () => trash.empty());
 
-  ipcMain.handle('connection:get', () => s3.summary());
+  ipcMain.handle('connection:get', () => source.summary());
 
-  ipcMain.handle('connection:save', (_event, input) => s3.connect(input ?? {}));
+  ipcMain.handle('connection:save', (_event, input) => source.connect(input ?? {}));
 
   ipcMain.handle('connection:import', async (event) => {
     const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), {
@@ -49,6 +49,17 @@ export function registerLibraryIpc({ store, s3, librarySync, uploader, trash, li
       filters: [{ name: 'Credenciales', extensions: ['json'] }],
     });
     if (canceled || !filePaths[0]) return null;
-    return s3.importCredentials(await readFile(filePaths[0], 'utf8'));
+    return source.importCredentials(await readFile(filePaths[0], 'utf8'));
   });
+
+  // Carpetas del equipo (en vez del bucket): solo se aceptan las elegidas en este diálogo o ya guardadas.
+  ipcMain.handle('folders:choose', async (event) => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), {
+      title: 'Añadir una carpeta con música',
+      properties: ['openDirectory'],
+    });
+    return canceled || !filePaths[0] ? null : source.offer({ id: filePaths[0], name: filePaths[0] });
+  });
+
+  ipcMain.handle('folders:save', (_event, ids) => source.useFolders(ids));
 }
