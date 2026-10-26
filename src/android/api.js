@@ -3,6 +3,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { createLibraryStore } from '../backend/library/store.js';
 import { AUDIO_EXTENSIONS, isAudioFile, toTrack } from '../backend/library/tracks.js';
 import { parseTrackId, readRemoteCover } from '../backend/library/remote.js';
+import { MAX_PLAYLIST_BYTES, playlistFileName, playlistName } from '../backend/paths.js';
 import { createLibrarySync } from '../backend/library/sync.js';
 import { createUploader } from '../backend/library/upload.js';
 import { createTrash } from '../backend/library/trash.js';
@@ -127,8 +128,7 @@ export function createAndroidApi(deps) {
     // Listas M3U: se guardan donde elija el usuario (selector de documentos) y se leen con el de archivos.
     exportPlaylist: async (name, text) => {
       try {
-        const file = String(name ?? '').replace(/[<>:"/\\|?*]/g, ' ').replace(/\s+/g, ' ').trim() || 'Lista';
-        return await (deps.folders ?? NO_FOLDERS).save({ name: `${file}.m3u8`, type: 'audio/x-mpegurl', text: String(text ?? '') });
+        return await (deps.folders ?? NO_FOLDERS).save({ name: playlistFileName(name), type: 'audio/x-mpegurl', text: String(text ?? '') });
       } catch {
         return { saved: false, error: 'No se pudo guardar la lista' };
       }
@@ -136,8 +136,8 @@ export function createAndroidApi(deps) {
     importPlaylist: async () => {
       const [file] = (await pickFiles(deps.document, { accept: '.m3u,.m3u8,audio/x-mpegurl,audio/mpegurl' })) ?? [];
       if (!file) return null;
-      if (file.size > 2 * 1024 * 1024) return { error: 'Ese archivo es demasiado grande para ser una lista' };
-      return { name: file.name.replace(/.m3u8?$/i, ''), text: await file.text() };
+      if (file.size > MAX_PLAYLIST_BYTES) return { error: 'Ese archivo es demasiado grande para ser una lista' };
+      return { name: playlistName(file.name), text: await file.text() };
     },
     onListsChanged: subscribe('lists'),
 
