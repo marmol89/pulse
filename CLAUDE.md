@@ -54,7 +54,7 @@ src/main/        adaptador de Electron (NO forma parte del mediator)
                  library/folderStorage.js: las carpetas del ordenador con la forma del storage de S3 (solo lectura)
   protocol/      media://track|cover/<id>: audio desde S3 con rangos, solo pistas de la biblioteca (403 si no)
   ipc/           library.js (library:*, connection:*, folders:*), metadata.js (metadata:*), lists.js (lists:*), favorites.js
-                 (favorites:*) y recents.js (recents:*); los usa el preload
+                 (favorites:*), recents.js (recents:*) y playlists.js (playlists:*: diálogos de las listas M3U); los usa el preload
 src/preload/preload.cjs   window.api (contextBridge, sandbox)
 src/android/     window.api de Android sobre el mismo backend (esbuild → www/api.js, antes que app.js)
   api.js         mismos métodos que el preload; audio con URLs firmadas de S3 (7 días)
@@ -65,7 +65,7 @@ src/android/     window.api de Android sobre el mismo backend (esbuild → www/a
   mediaSession.js navigator.mediaSession (y MediaMetadata) sobre el plugin nativo PulsePlayback
 android/         proyecto Gradle de Capacitor (la versión se lee de package.json); www/ se genera y no va al repo
   app/src/main/java/…/  PlaybackService (servicio en primer plano + MediaSession) y PlaybackPlugin; FoldersPlugin
-                 (selector de carpetas SAF) y LocalAudioWebViewClient (sirve su audio con rangos en /_pulse_local_/)
+                 (selector de carpetas SAF y `save`: guardar una lista M3U con ACTION_CREATE_DOCUMENT) y LocalAudioWebViewClient (sirve su audio con rangos en /_pulse_local_/)
 src/renderer/
   app.js         raíz de composición: crea colegas → PlayerMediator → app-ready
   core/          Mediator (solo enruta) y Colleague
@@ -78,7 +78,7 @@ src/renderer/
   ui/            piezas de UI sin estado de negocio (dom, icons, cover, format, trackList, transport, menu: el «⋯»
                  de las filas, con todas sus opciones; en el móvil es su único botón, reorder: arrastrar filas con
                  el asa y Alt+↑/↓)
-  lib/           utilidades puras (storage, text, artists: separar colaboraciones)
+  lib/           utilidades puras (storage, text, artists: separar colaboraciones, lrc, m3u: listas M3U)
   styles/        tokens.css (único sitio con valores), layout.css, components.css
 tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con ID3, FakeAudio) + e2e/
 ```
@@ -149,6 +149,12 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   arrancar, al volver a la ventana y con "Actualizar biblioteca" (`lists-changed`). Al juntar dos copias gana, por
   lista, la de `updatedAt` mayor; las borradas quedan como marca (`deleted`) para no resucitar. Si no se puede leer
   el bucket no se sube nada (no se pisan las de otros). Handlers: `lists.js` y `listTracks.js`.
+- **Listas M3U** (`lib/m3u.js`, handler `m3uLists.js`): «Exportar (.m3u8)» en el «⋯» de la cabecera de cualquier
+  colección (`#EXTINF:duración,Artista - Título` y la clave de cada canción, sin `s3://bucket/`) e «Importar lista»
+  en Tu música: cada entrada se busca por el final más largo de su ruta (vale una ruta absoluta de otro equipo; si
+  empatan varias canciones, no vale ninguna) y luego por «Artista - Título»; se crea la lista con lo encontrado (nombre
+  libre con `Lists.freeName`) y se avisa de cuántas faltan. Electron: diálogos del main (`ipc/playlists.js`);
+  Android: guardar con `PulseFolders.save` (SAF) e importar con `picker.js`.
 - **Favoritos** (`favorites.js`, sobre el mismo `shared.js` que las listas): `metadatos/favoritos.json`, un registro
   por canción (`deleted` al desmarcarla, para que otra copia no la vuelva a marcar). Se guardan en `favorites.json`,
   se suben a los 2 s y llegan como `favorites-changed`. El corazón cambia al momento y, si el main no puede guardarlo,

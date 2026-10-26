@@ -16,7 +16,7 @@ Leyenda del esfuerzo: **S** (un par de commits), **M** (una PR normal), **L** (v
 | 3 | Contador de escuchas y listas inteligentes | M | todas | ✅ |
 | 4 | Bandeja del sistema y botones en la barra de tareas | M | escritorio | ✅ |
 | 5 | Mini-reproductor | M | escritorio | ✅ |
-| 6 | Exportar e importar listas (M3U) | M | todas | ☐ |
+| 6 | Exportar e importar listas (M3U) | M | todas | ✅ |
 | 7 | Editar los datos de una canción | L | todas | ☐ |
 | 8 | Actualizaciones automáticas | M | escritorio | ☐ |
 
@@ -110,7 +110,9 @@ multimedia del teclado ya funcionan con la ventana en segundo plano gracias a la
   por el nombre del archivo y por último por "Artista - Título" (`lib/m3u.js`, puro). Crea la lista con lo
   encontrado y avisa de cuántas no estaban.
 - Electron: diálogos de guardar/abrir del main. Android: importar con el selector de archivos (`picker.js`) y
-  exportar a Documentos (`Filesystem`).
+  exportar con el selector de documentos del sistema (`PulseFolders.save`, SAF: el usuario elige dónde, sin permisos).
+- Hecho: el «⋯» de la cabecera sale en todas las colecciones (también en escritorio). Una ruta que coincide con
+  varias canciones (p. ej. solo «01.mp3») no vale y se prueba con «Artista - Título».
 
 **Pruebas:** `tests/lib/m3u.test.js` (formatos, rutas de Windows y relativas, BOM, emparejado) y handler `m3uLists.js`.
 
