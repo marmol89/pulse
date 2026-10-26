@@ -1791,4 +1791,38 @@
   .collection-actions__download[data-state='all'] {
     color: var(--color-primary);
   }
+
+  /* Chips de Inicio en una sola fila que se desliza */
+  .chips {
+    flex-wrap: nowrap;
+    margin-right: calc(-1 * var(--narrow-gutter));
+    padding-right: var(--narrow-gutter);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  /* El WebView de Android no conoce scrollbar-width */
+  .chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chip {
+    flex: none;
+  }
+
+  /* El texto de "Mix diario" no pasa por debajo de su botón de play */
+  .feature-card__text {
+    padding-right: calc(var(--space-12) + var(--space-6));
+  }
+
+  /* Salidas de audio: el menú no pasa del ancho de la pantalla (nombres largos con "…") */
+  .device__menu {
+    max-width: calc(100vw - 2 * var(--narrow-gutter));
+  }
+
+  .device__option {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
