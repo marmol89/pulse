@@ -30,7 +30,7 @@ export function createLibrarySync({
   async function run() {
     const storage = getStorage();
     if (!storage) return { removed: [], added: [] };
-    const objects = new Map((await storage.listAudio()).map((object) => [trackId(storage.bucket, object.key), object]));
+    const objects = new Map((await storage.listAudio()).map((object) => [trackId(storage.bucket, object.key, storage.scheme), object]));
     const present = new Set(objects.keys());
     // La fecha de subida (para ordenar por "Añadidas recientemente") llega con el listado: no hace falta releer nada.
     const dated = (record) => withUploadDate(record, objects.get(record.path));

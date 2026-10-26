@@ -3,6 +3,8 @@ import { freeKey } from './upload.js';
 import { describeDeleteError, TRASH_FOLDER } from '../s3/storage.js';
 
 const NO_CONNECTION = { ok: false, error: 'Conecta tu bucket para eliminar o restaurar canciones' };
+/** Las carpetas del equipo son de solo lectura: Pulse nunca borra ni mueve esos archivos. */
+const READ_ONLY = { ok: false, error: 'Pulse no borra canciones de las carpetas de tu equipo' };
 
 /**
  * Papelera del bucket: "Eliminar del bucket" mueve la canción a papelera/ (bajo la carpeta de la conexión:
@@ -18,6 +20,7 @@ export function createTrash({ getStorage, store, afterRestore = async () => {}, 
   async function attempt(task) {
     const storage = getStorage();
     if (!storage) return NO_CONNECTION;
+    if (storage.readOnly) return READ_ONLY;
     try {
       return await task(storage);
     } catch (error) {

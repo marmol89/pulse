@@ -2,7 +2,7 @@ import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { isAudioFile, baseRecord, readRecordCover, toTrack } from '../../src/backend/library/tracks.js';
 import { mediaTrack } from '../../src/main/protocol/urls.js';
-import { trackId, parseTrackId, id3Size, readRemoteRecord, readRemoteCover } from '../../src/backend/library/remote.js';
+import { trackId, isTrackId, parseTrackId, id3Size, readRemoteRecord, readRemoteCover } from '../../src/backend/library/remote.js';
 import { createLibraryStore } from '../../src/backend/library/store.js';
 import { createS3Storage } from '../../src/backend/s3/storage.js';
 import { startFakeS3 } from '../helpers/fakeS3.js';
@@ -96,8 +96,13 @@ describe('library/remote', () => {
 
   test('trackId() y parseTrackId() son inversas', () => {
     assert.equal(trackId('musica', 'pop/a b.mp3'), 's3://musica/pop/a b.mp3');
-    assert.deepEqual(parseTrackId('s3://musica/pop/a b.mp3'), { bucket: 'musica', key: 'pop/a b.mp3' });
+    assert.deepEqual(parseTrackId('s3://musica/pop/a b.mp3'), { scheme: 's3', bucket: 'musica', key: 'pop/a b.mp3' });
+    assert.equal(trackId('carpetas', 'C:/Música/a.mp3', 'local'), 'local://carpetas/C:/Música/a.mp3');
+    assert.deepEqual(parseTrackId('local://carpetas/C:/Música/a.mp3'), { scheme: 'local', bucket: 'carpetas', key: 'C:/Música/a.mp3' });
     assert.equal(parseTrackId('C:\\a.mp3'), null);
+    assert.equal(parseTrackId('http://servidor/a.mp3'), null);
+    assert.equal(isTrackId('local://carpetas/content://com.android.externalstorage.documents/document/primary%3AMusic%2Fa.mp3'), true);
+    assert.equal(isTrackId(42), false);
   });
 
   test('id3Size() lee el tamaño de una etiqueta ID3v2 al principio', () => {

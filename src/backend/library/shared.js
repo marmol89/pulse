@@ -37,11 +37,16 @@ export function resultOf(key) {
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
+/** Archivo de este equipo para los registros de las carpetas locales: "lists.json" → "lists-local.json". */
+export const localOnlyFile = (file) => file.replace(/\.json$/, '-local.json');
+
 /**
  * Registros del usuario compartidos por todos los Pulse conectados al mismo bucket (metadatos/<remoteFile>,
  * bajo la carpeta de la conexión). Cada cambio se guarda al momento en este equipo (`localFile`) y se sube
  * poco después; `sync()` (al arrancar, al volver a la app y con "Actualizar biblioteca") trae lo de los demás
  * y avisa con `onChange(visibles)`. Cada registro: { id, createdAt, updatedAt, deleted?, … }.
+ * Con las carpetas del equipo (storage `readOnly`) no se sube nada: se guardan solo aquí y en otro archivo
+ * (`localOnlyFile`), así cambiar entre el bucket y las carpetas no pisa los de ninguno de los dos.
  * `key` es el campo de los JSON, `valid` filtra lo que llega y `show` da la forma que ve la interfaz.
  */
 export function createSharedRecords({
@@ -49,6 +54,7 @@ export function createSharedRecords({
   files, getStorage, onChange = () => {}, now = Date.now, delay = PUSH_DELAY_MS, retry = RETRY_MS, minInterval = MIN_INTERVAL_MS, timers = globalThis,
 }) {
   let scope = null; // "bucket/carpeta" de la conexión a la que pertenecen
+  let file = localFile; // donde están: localFile (bucket) o localOnlyFile(localFile) (carpetas)
   let records = [];
   let timer = null;
   let running = null;
@@ -58,7 +64,20 @@ export function createSharedRecords({
   const scopeOf = (storage) => (storage ? `${storage.bucket}/${storage.prefix}` : null);
   const remoteKey = (storage) => `${storage.prefix}${METADATA_FOLDER}${remoteFile}`;
   const visible = () => records.filter((record) => !record.deleted).map(show);
-  const saveLocal = () => files.write(localFile, JSON.stringify({ version: VERSION, scope, [key]: records }));
+  const fileOf = (storage) => (storage?.readOnly ? localOnlyFile(localFile) : localFile);
+  const saveLocal = () => files.write(file, JSON.stringify({ version: VERSION, scope, [key]: records }));
+
+  /** Lo guardado en un archivo de este equipo: { scope, records } (vacío si no hay o está dañado). */
+  async function readSaved(name) {
+    try {
+      const text = await files.readText(name);
+      const saved = text === null ? {} : JSON.parse(text);
+      return { scope: saved.scope ?? null, records: (saved[key] ?? []).filter(valid) };
+    } catch (error) {
+      console.warn(`[${tag}] no se pudo leer ${name}, se empieza vacío`, error);
+      return { scope: null, records: [] };
+    }
+  }
 
   function warn(message, error) {
     const text = `${message}: ${describeUploadError(error)}`;
@@ -66,15 +85,20 @@ export function createSharedRecords({
     lastWarning = text;
   }
 
-  /** Si cambió la conexión, los registros de la anterior no valen: se empieza vacío y se traen los del bucket. */
-  function currentScope() {
+  /**
+   * Si cambió la conexión, los registros de la anterior no valen: se empieza vacío y se traen los del bucket.
+   * Al pasar del bucket a las carpetas (o al revés) cambia el archivo, y se toman los que ya tenía.
+   */
+  async function currentScope() {
     const storage = getStorage();
     if (!storage) throw new TypeError(offlineMessage);
     if (scopeOf(storage) !== scope) {
-      const hadRecords = visible().length > 0;
+      const before = visible();
+      const saved = fileOf(storage) === file ? null : await readSaved(fileOf(storage));
+      file = fileOf(storage);
       scope = scopeOf(storage);
-      records = [];
-      if (hadRecords) onChange([]); // la ventana deja de enseñar los de la conexión anterior
+      records = saved?.scope === scope ? saved.records : [];
+      if (!same(before, visible())) onChange(visible()); // la ventana deja de enseñar los de la conexión anterior
     }
     return storage;
   }
@@ -85,7 +109,11 @@ export function createSharedRecords({
     timer = null;
     const storage = getStorage();
     if (!storage) return;
-    currentScope();
+    await currentScope();
+    if (storage.readOnly) {
+      lastSyncAt = now(); // carpetas del equipo: no hay copia que traer ni adonde subir
+      return;
+    }
     try {
       const data = await storage.read(remoteKey(storage)); // null si aún no hay: un error lanza y no se pisa nada
       const remote = data ? (JSON.parse(new TextDecoder().decode(data))[key] ?? []).filter(valid) : [];
@@ -123,16 +151,10 @@ export function createSharedRecords({
   }
 
   return {
+    /** Los guardados en este equipo para el origen de ahora (el bucket o las carpetas). */
     async load() {
-      try {
-        const text = await files.readText(localFile);
-        if (text === null) return;
-        const saved = JSON.parse(text);
-        scope = saved.scope ?? null;
-        records = (saved[key] ?? []).filter(valid);
-      } catch (error) {
-        console.warn(`[${tag}] no se pudo leer ${localFile}, se empieza vacío`, error);
-      }
+      file = fileOf(getStorage());
+      ({ scope, records } = await readSaved(file));
     },
 
     /** Los de la conexión actual ([] sin conexión), en orden de creación. */
@@ -146,12 +168,12 @@ export function createSharedRecords({
      * @returns {Promise<object[]>} los visibles
      */
     async update(change) {
-      currentScope();
+      const storage = await currentScope();
       const next = change(records);
       if (next !== records) {
         records = next;
         await saveLocal();
-        schedule(delay);
+        if (!storage.readOnly) schedule(delay);
       }
       return visible();
     },

@@ -1,4 +1,5 @@
 import { createSharedRecords, mergeRecords, resultOf } from './shared.js';
+import { isTrackId } from './remote.js';
 
 /** Caché local (en los archivos de la app) y copia compartida en el bucket, bajo la carpeta de la conexión. */
 export const LISTS_FILE = 'lists.json';
@@ -25,7 +26,7 @@ function cleanName(name) {
 }
 
 function cleanPaths(paths) {
-  return Array.isArray(paths) ? [...new Set(paths.filter((path) => typeof path === 'string' && path.startsWith('s3://')))] : [];
+  return Array.isArray(paths) ? [...new Set(paths.filter(isTrackId))] : [];
 }
 
 /**
