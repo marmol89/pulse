@@ -38,7 +38,8 @@ src/backend/     lógica común a Electron y Android, SIN Node ni Electron (lo c
                  metadatos/ del bucket), edits.js (datos editados a mano: `edited` + `editedAt`), lists.js (listas de canciones: lists.js aquí y metadatos/listas.json),
                  favorites.js (favoritos: favorites.json y metadatos/favoritos.json), recents.js (recientes:
                  recents.json y metadatos/recientes.json), plays.js (escuchas: plays.json y metadatos/escuchas.json), shared.js (lo que comparten listas, favoritos y
-                 recientes: guardar aquí, subir, juntar copias por `updatedAt`),
+                 recientes: guardar aquí, subir, juntar copias por `updatedAt`), userData.js (`loadUserData`: crea, carga y
+                 sincroniza juntos listas, favoritos, recientes y escuchas, igual en Electron y en Android),
                  tracks.js (registro ↔ pista), store.js (library.json: caché local), covers.js (carátulas
                  incrustadas en covers/: se guardan al sincronizar y se leen del bucket como mucho 4 a la vez)
   online/        datos de internet: matching, itunes, deezer, lrclib, http, enricher, queue (ver abajo)
