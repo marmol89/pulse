@@ -107,12 +107,15 @@ export function pictureFrom(common) {
  * Registro persistido → pista para la interfaz. Las URLs del audio y de la carátula las pone
  * cada plataforma (`urls`: media:// en Electron, URL firmada y archivo local en Android);
  * `urls.cover` solo se pide si la pista tiene carátula (incrustada o de internet).
+ * Los datos editados a mano ganan a los demás; `edited` dice si los hay (para "Restaurar datos del archivo").
  * @param {{ track: (record) => string, cover: (record) => string }} urls
  */
 export function toTrack(record, urls) {
-  const { hasCover, coverName, titleFromFile, key, etag, size, tagsVersion, ...fields } = record;
+  const { hasCover, coverName, titleFromFile, key, etag, size, tagsVersion, edited, editedAt, ...fields } = record;
   return {
     ...fields,
+    ...edited,
+    edited: Boolean(edited),
     trackCount: fields.trackCount ?? 0,
     replayGain: fields.replayGain ?? null,
     online: fields.online ?? null,

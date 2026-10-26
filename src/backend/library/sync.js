@@ -68,7 +68,7 @@ export function createLibrarySync({
 
   /**
    * De los metadatos del bucket, los que sirven: el objeto sigue igual (mismo ETag) y aquí no está
-   * (`known`, no hace falta leerlo) o está con datos de internet más antiguos (`improved`).
+   * (`known`, no hace falta leerlo) o está con datos de internet o editados más antiguos (`improved`).
    */
   function fromMetadata(remote, objects) {
     const known = [];
@@ -77,7 +77,7 @@ export function createLibrarySync({
       if (objects.get(record.path)?.etag !== record.etag) continue; // borrado o cambiado: se lee
       const local = store.get(record.path);
       if (local?.etag !== record.etag) known.push(record);
-      else if (lookupStamp(record) > lookupStamp(local)) improved.push(record);
+      else if (lookupStamp(record) > lookupStamp(local) || (record.editedAt ?? 0) > (local.editedAt ?? 0)) improved.push(record);
     }
     return { known, improved };
   }

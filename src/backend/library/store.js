@@ -1,4 +1,5 @@
 import { basename } from '../paths.js';
+import { keepNewestEdits } from './edits.js';
 
 const VERSION = 1;
 export const LIBRARY_FILE = 'library.json';
@@ -45,8 +46,9 @@ export function createLibraryStore(files, { onSave = () => {} } = {}) {
       return [...records.values()];
     },
 
+    /** Lo editado a mano solo lo cambia una edición más reciente (no la cola de internet ni releer el archivo). */
     add(list) {
-      for (const record of list) records.set(record.path, record);
+      for (const record of list) records.set(record.path, keepNewestEdits(record, records.get(record.path)));
     },
 
     remove(paths) {
