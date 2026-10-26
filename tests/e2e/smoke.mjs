@@ -479,6 +479,26 @@ try {
   await page.locator('#loudness-select').scrollIntoViewIfNeeded();
   await shot('09c-volumen-uniforme');
 
+  // Ecualizador: monta Web Audio al dejar de estar plano y la música sigue sonando (media:// con CORS).
+  await page.click('.nav__item:has-text("Ecualizador")');
+  await page.waitForSelector('#equalizer-dialog[open]');
+  check((await page.getAttribute('#equalizer-dialog [data-preset="flat"]', 'aria-pressed')) === 'true', 'el ecualizador empieza plano');
+  await page.click('#equalizer-dialog [data-preset="bass"]');
+  check((await page.textContent('#equalizer-dialog .eq__band >> nth=0')).includes('+6 dB'), 'el preajuste "Graves" sube los graves');
+  await page.locator('#equalizer-dialog .eq__range >> nth=4').fill('5');
+  await page.waitForFunction(() => !document.querySelector('#equalizer-dialog .chip--static').hidden);
+  check(true, 'mover una banda lo deja en "Personalizado"');
+  await shot('09d-ecualizador');
+  await page.click('#equalizer-dialog button:has-text("Cerrar")');
+  await page.dblclick('.view--collection .track-row:has-text("Atardecer")');
+  await page.waitForFunction(() => document.querySelector('.player__title')?.textContent === 'Atardecer' && document.querySelector('.player .seek-bar__time')?.textContent >= '0:02', null, { timeout: 8000 }).then(
+    () => check(true, 'con el ecualizador, las pistas suenan (el tiempo avanza)'),
+    () => check(false, 'con el ecualizador, las pistas suenan (el tiempo avanza)'),
+  );
+  await page.click('.nav__item:has-text("Ecualizador")');
+  await page.click('#equalizer-dialog [data-preset="flat"]');
+  await page.click('#equalizer-dialog button:has-text("Cerrar")');
+
   // Papelera: "⋯" › "Eliminar del bucket" (con confirmación), restaurar desde "Papelera" y vaciarla.
   const toastIs = (text) => page.waitForFunction((expected) => document.querySelector('.toast')?.textContent === expected, text);
   const hasRow = (title) => page.locator(`.view--collection .track-row:has-text("${title}")`).count().then((count) => count > 0);
