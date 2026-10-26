@@ -7,6 +7,7 @@ import { Playlist } from './colleagues/Playlist.js';
 import { Catalog } from './colleagues/Catalog.js';
 import { Favorites } from './colleagues/Favorites.js';
 import { Recents } from './colleagues/Recents.js';
+import { Plays } from './colleagues/Plays.js';
 import { Lists } from './colleagues/Lists.js';
 import { Settings } from './colleagues/Settings.js';
 import { Downloads } from './colleagues/Downloads.js';
@@ -44,6 +45,7 @@ const mediator = new PlayerMediator({
   catalog: new Catalog(),
   favorites: new Favorites(storage),
   recents: new Recents(storage),
+  plays: new Plays(),
   lists: new Lists(),
   settings: new Settings(storage),
   downloads: new Downloads(),

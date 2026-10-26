@@ -134,3 +134,9 @@ describe('Catalog', () => {
     assert.deepEqual(titles('nada de esto'), []);
   });
 });
+
+test('Catalog.addedSince() da las subidas desde esa fecha, la más nueva primero', () => {
+  const catalog = new Catalog();
+  catalog.add([track('vieja', { addedAt: 10 }), track('nueva', { addedAt: 300 }), track('media', { addedAt: 200 })]);
+  assert.deepEqual(catalog.addedSince(100).map((t) => t.path), ['nueva', 'media']);
+});

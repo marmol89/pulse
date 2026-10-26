@@ -8,6 +8,7 @@ import { Lists } from '../../src/renderer/colleagues/Lists.js';
 import { SleepTimer } from '../../src/renderer/colleagues/SleepTimer.js';
 import { Session } from '../../src/renderer/colleagues/Session.js';
 import { Downloads } from '../../src/renderer/colleagues/Downloads.js';
+import { Plays } from '../../src/renderer/colleagues/Plays.js';
 import { createStorage, createMemoryBackend } from '../../src/renderer/lib/storage.js';
 
 /**
@@ -55,11 +56,12 @@ export function fakeContext(overrides = {}) {
     catalog: new Catalog(),
     favorites: new Favorites(storage),
     recents: new Recents(storage),
+    plays: new Plays(),
     lists: new Lists(),
     settings: new Settings(storage),
     downloads: new Downloads(),
     session: new Session(storage),
-    library: spy({ load: [], sync: { added: 0, removed: 0 }, verify: true, connection: null, importCredentials: null, lookup: null, canDownload: false, lists: [], favorites: [], setFavorite: { ok: true, favorites: [] }, importFavorites: { ok: true, favorites: [] }, recents: [], addRecent: { ok: true, recents: [] }, importRecents: { ok: true, recents: [] } }),
+    library: spy({ load: [], sync: { added: 0, removed: 0 }, verify: true, connection: null, importCredentials: null, lookup: null, canDownload: false, lists: [], favorites: [], setFavorite: { ok: true, favorites: [] }, importFavorites: { ok: true, favorites: [] }, recents: [], addRecent: { ok: true, recents: [] }, importRecents: { ok: true, recents: [] }, plays: {}, addPlay: { ok: true, plays: {} } }),
     mediaSession: spy(),
     equalizer: spy({ available: false, setOutputDevice: async () => {} }),
     equalizerDialog: spy(),

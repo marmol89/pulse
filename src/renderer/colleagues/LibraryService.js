@@ -5,7 +5,7 @@ import { EVENTS } from '../mediator/events.js';
  * Único colega que habla con el proceso main (window.api, expuesto por el preload).
  * La música vive en un bucket S3 o en carpetas del equipo; la clave secreta nunca llega a la ventana.
  * Emite: tracks-updated (datos de internet en segundo plano), library-changed (cambios en el bucket),
- * upload-progress (subida de canciones en curso), lists-changed, favorites-changed y recents-changed (cambiados desde
+ * upload-progress (subida de canciones en curso), lists-changed, favorites-changed, recents-changed y plays-changed (cambiados desde
  * otro equipo), artist-pictures-changed (fotos de artista encontradas en segundo plano).
  */
 export class LibraryService extends Colleague {
@@ -20,6 +20,7 @@ export class LibraryService extends Colleague {
     api.onListsChanged?.((lists) => this.notify(EVENTS.LISTS_CHANGED, lists));
     api.onFavoritesChanged?.((paths) => this.notify(EVENTS.FAVORITES_CHANGED, paths));
     api.onRecentsChanged?.((paths) => this.notify(EVENTS.RECENTS_CHANGED, paths));
+    api.onPlaysChanged?.((plays) => this.notify(EVENTS.PLAYS_CHANGED, plays));
     api.onArtistPicturesChanged?.((pictures) => this.notify(EVENTS.ARTIST_PICTURES_CHANGED, pictures));
     api.onDownloadsChanged?.((summary) => this.notify(EVENTS.DOWNLOADS_CHANGED, summary));
   }
@@ -194,6 +195,16 @@ export class LibraryService extends Colleague {
   /** Sube los recientes que solo estaban en este equipo (de la más antigua a la más reciente). @returns {Promise<RecentResult>} */
   importRecents(paths) {
     return this.#api.importRecents(paths);
+  }
+
+  /** Escuchas de cada canción (en el bucket, de todos los equipos): { ruta: veces }. */
+  plays() {
+    return this.#api.getPlays?.() ?? {};
+  }
+
+  /** Se ha escuchado lo bastante para contar. @returns {Promise<{ ok: true, plays: object } | { ok: false, error: string }>} */
+  addPlay(path) {
+    return this.#api.addPlay?.(path) ?? { ok: false, error: 'Sin escuchas' };
   }
 
   /**

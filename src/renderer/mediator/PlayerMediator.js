@@ -25,6 +25,7 @@ import downloads from './handlers/downloads.js';
 import trash from './handlers/trash.js';
 import loudness from './handlers/loudness.js';
 import equalizer from './handlers/equalizer.js';
+import plays from './handlers/plays.js';
 
 /**
  * Solo compone: conecta colegas y registra módulos de handlers.
@@ -35,7 +36,7 @@ export class PlayerMediator extends Mediator {
 
   /**
    * @param {{
-   *   audio, equalizer, playlist, catalog, favorites, recents, lists, settings, session, library, mediaSession, sleepTimer,
+   *   audio, equalizer, playlist, catalog, favorites, recents, plays, lists, settings, session, library, mediaSession, sleepTimer,
    *   router, home, search, playlistView, nowPlaying, controls, toast, connection, listDialog, trashDialog, equalizerDialog, keyboard?
    * }} colleagues
    */
@@ -69,7 +70,8 @@ export class PlayerMediator extends Mediator {
       .use(downloads)
       .use(trash)
       .use(loudness)
-      .use(equalizer);
+      .use(equalizer)
+      .use(plays);
   }
 
   get context() {

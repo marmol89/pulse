@@ -90,6 +90,12 @@ export function applyTrackUpdates(ctx, tracks) {
   refreshHome(ctx);
 }
 
+const SMART_LIMIT = 50; // "Más escuchadas"
+const RECENT_DAYS = 30; // "Añadidas recientemente"
+const DAY_MS = 86_400_000;
+/** Listas inteligentes de Inicio ("Hechas para ti"): se rehacen solas con las escuchas y la biblioteca. */
+export const SMART_KINDS = ['most-played', 'recently-added', 'unplayed'];
+
 /** Colecciones que combinan varios modelos (también las listas del usuario); el resto las resuelve Catalog. */
 export function resolveCollection(ctx, source) {
   switch (source.kind) {
@@ -101,6 +107,12 @@ export function resolveCollection(ctx, source) {
       return { source, title: 'Escuchado recientemente', byline: 'Creado por ti', tracks: ctx.catalog.byPaths(ctx.recents.list()) };
     case 'mix':
       return { source, title: 'Mix diario', byline: 'Para ti', tracks: ctx.catalog.all() };
+    case 'most-played':
+      return { source, title: 'Más escuchadas', byline: 'Hecha para ti', tracks: ctx.catalog.byPaths(ctx.plays.mostPlayed(SMART_LIMIT)) };
+    case 'unplayed':
+      return { source, title: 'Sin escuchar', byline: 'Hecha para ti', tracks: ctx.catalog.library().filter((track) => ctx.plays.count(track.path) === 0) };
+    case 'recently-added':
+      return { source, title: 'Añadidas recientemente', byline: 'Hecha para ti', tracks: ctx.catalog.addedSince(Date.now() - RECENT_DAYS * DAY_MS) };
     case 'list': {
       const list = ctx.lists.get(source.id);
       return { source, title: list?.name ?? 'Lista eliminada', byline: 'Tu lista · en tu bucket', tracks: list ? ctx.catalog.byPaths(list.tracks) : [] };
@@ -195,6 +207,10 @@ export function refreshHome(ctx) {
     albums: ctx.catalog.albums(),
     artists: ctx.catalog.artists(),
     favoriteTracks: ctx.catalog.byPaths(ctx.favorites.list()),
+    smart: SMART_KINDS.map((kind) => {
+      const { title, tracks } = resolveCollection(ctx, { kind });
+      return { kind, title, count: tracks.length, sample: tracks.find((track) => track.cover) ?? tracks[0] ?? null };
+    }).filter((smart) => smart.count > 0),
     lists: ctx.lists.all().map((list) => {
       const tracks = ctx.catalog.byPaths(list.tracks);
       return { id: list.id, name: list.name, count: tracks.length, sample: tracks.find((track) => track.cover) ?? tracks[0] ?? null };
