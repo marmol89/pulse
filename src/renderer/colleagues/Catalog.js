@@ -134,6 +134,11 @@ export class Catalog extends Colleague {
     return tracks.sort(LIBRARY_SORTS[sort] ?? LIBRARY_SORTS[DEFAULT_LIBRARY_SORT]);
   }
 
+  /** Las subidas desde `since` (ms), la más nueva primero. */
+  addedSince(since) {
+    return this.library({ sort: 'added' }).filter((track) => (track.addedAt ?? 0) >= since);
+  }
+
   /** @param {CollectionSource} source @returns {Collection} */
   collection(source) {
     const { kind, key } = source;

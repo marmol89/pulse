@@ -13,6 +13,7 @@ import { createMetadataStore } from '../backend/library/metadata.js';
 import { createListStore } from '../backend/library/lists.js';
 import { createFavoriteStore } from '../backend/library/favorites.js';
 import { createRecentStore } from '../backend/library/recents.js';
+import { createPlayStore, deviceId } from '../backend/library/plays.js';
 import { objectResponse } from './protocol/responses.js';
 import { mediaTrack } from './protocol/urls.js';
 import { createConnectionStore } from '../backend/s3/connection.js';
@@ -28,6 +29,7 @@ import { artistPictureUrls, registerMetadataIpc } from './ipc/metadata.js';
 import { registerListsIpc } from './ipc/lists.js';
 import { registerFavoritesIpc } from './ipc/favorites.js';
 import { registerRecentsIpc } from './ipc/recents.js';
+import { registerPlaysIpc } from './ipc/plays.js';
 import { createNodeFiles } from './files.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -83,6 +85,9 @@ async function start() {
   // Recientes: recents.json aquí y metadatos/recientes.json en el bucket, igual que los favoritos.
   const recents = createRecentStore({ files, getStorage: () => source.storage(), onChange: (all) => broadcast('recents:changed', all) });
   await recents.load();
+  // Escuchas: plays.json aquí y metadatos/escuchas.json en el bucket, un registro por canción y por equipo.
+  const plays = createPlayStore({ device: await deviceId(files), files, getStorage: () => source.storage(), onChange: (all) => broadcast('plays:changed', all) });
+  await plays.load();
   // Carátulas incrustadas en covers/ de userData: se descargan del bucket una sola vez.
   const embeddedCovers = createEmbeddedCovers({ files, getStorage: () => source.storage() });
   const librarySync = createLibrarySync({
@@ -121,11 +126,12 @@ async function start() {
       return storage && key ? objectResponse(storage, key, range) : new Response('Sin conexión con el almacenamiento', { status: 503 });
     },
   });
-  registerLibraryIpc({ store, source, librarySync, uploader, trash, lists, favorites, recents });
+  registerLibraryIpc({ store, source, librarySync, uploader, trash, lists, favorites, recents, plays });
   registerMetadataIpc({ store, queue, artistPictures });
   registerListsIpc({ lists });
   registerFavoritesIpc({ favorites });
   registerRecentsIpc({ recents });
+  registerPlaysIpc({ plays });
   if (app.isPackaged) Menu.setApplicationMenu(null);
 
   // Cambios hechos en el bucket desde fuera (canciones, listas y favoritos): al arrancar y al volver a la ventana.
@@ -134,14 +140,16 @@ async function start() {
     lists.syncSoon();
     favorites.syncSoon();
     recents.syncSoon();
+    plays.syncSoon();
   };
   createWindow().webContents.once('did-finish-load', syncSoon);
   app.on('browser-window-focus', syncSoon);
-  // No cerrar con metadatos, listas, favoritos o recientes sin subir al bucket.
+  // No cerrar con metadatos, listas, favoritos, recientes o escuchas sin subir al bucket.
   app.on('before-quit', (event) => {
-    if (!metadata.hasPending() && !lists.hasPending() && !favorites.hasPending() && !recents.hasPending()) return;
+    const shared = [lists, favorites, recents, plays];
+    if (!metadata.hasPending() && !shared.some((records) => records.hasPending())) return;
     event.preventDefault();
-    Promise.all([metadata.hasPending() && metadata.flush(), lists.hasPending() && lists.sync(), favorites.hasPending() && favorites.sync(), recents.hasPending() && recents.sync()]).finally(() => app.quit());
+    Promise.all([metadata.hasPending() && metadata.flush(), ...shared.map((records) => records.hasPending() && records.sync())]).finally(() => app.quit());
   });
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

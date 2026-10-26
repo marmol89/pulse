@@ -77,6 +77,9 @@ export const EVENTS = Object.freeze({
   // Escuchado recientemente (en el bucket, como los favoritos)
   RECENTS_CHANGED: 'recents-changed', // (paths[]) — llegaron cambios de otro equipo (la última que sonó primero)
 
+  // Escuchas de cada canción (en el bucket) para "Más escuchadas" y "Sin escuchar"
+  PLAYS_CHANGED: 'plays-changed', // ({ ruta: escuchas }) — llegaron cambios de otro equipo
+
   // Papelera del bucket ("Eliminar del bucket" en el "⋯" de cada fila y "Papelera" en Tu música)
   TRASH_TRACK: 'trash-track', // (path) — pide confirmación
   CONFIRM_TRASH: 'confirm-trash', // (path) — la mueve a la papelera
