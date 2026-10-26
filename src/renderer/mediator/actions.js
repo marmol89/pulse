@@ -24,6 +24,7 @@ export function loadTrack(ctx, track, autoplay = true, startAt = 0) {
   if (!track) return false;
   if (startAt > 0) ctx.audio.load(track.url, autoplay, startAt);
   else ctx.audio.load(track.url, autoplay);
+  ctx.audio.setReplayGain(track.replayGain ?? null);
   showTrack(ctx, track);
   eachTrackListView(ctx, (view) => view.highlight(track.path));
   return true;

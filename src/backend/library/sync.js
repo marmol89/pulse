@@ -1,5 +1,6 @@
 import { parseTrackId, readRemoteRecord, trackId } from './remote.js';
 import { lookupStamp } from './metadata.js';
+import { needsReread, withRereadTags } from './tracks.js';
 
 const MIN_INTERVAL_MS = 15_000; // como mucho una sincronización automática cada 15 s
 const CONCURRENCY = 4; // pistas leídas a la vez
@@ -40,16 +41,22 @@ export function createLibrarySync({
     const redated = store.all().filter((record) => objects.get(record.path)?.etag === record.etag && dated(record) !== record);
     store.add(redated.map(dated));
     improved.push(...redated);
-    const pending = [...objects].filter(([id, object]) => store.get(id)?.etag !== object.etag).map(([, object]) => object);
+    const isStale = (id, object) => store.get(id)?.etag !== object.etag || needsReread(store.get(id));
+    const pending = [...objects].filter(([id, object]) => isStale(id, object)).map(([, object]) => object);
     // También se quitan las de otro bucket (si cambió la conexión) o de versiones locales antiguas.
     const removed = store
       .all()
       .map((record) => record.path)
       .filter((id) => !present.has(id));
     // Si un objeto no se puede descargar ahora (red, S3), no se guarda: se reintenta en la próxima.
-    const records = (await mapLimit(pending, CONCURRENCY, (object) => readRecord(storage, object, { onPicture }).catch(() => null))).filter(Boolean);
+    const read = (await mapLimit(pending, CONCURRENCY, (object) => readRecord(storage, object, { onPicture }).catch(() => null))).filter(Boolean);
+    // Mismo archivo releído por una versión nueva de las etiquetas: no es nuevo, solo se completa.
+    const reread = read.filter((record) => store.get(record.path)?.etag === record.etag);
+    const records = read.filter((record) => !reread.includes(record));
     store.remove(removed);
     store.add(records);
+    store.add(reread.map((record) => withRereadTags(store.get(record.path), record)));
+    improved.push(...reread);
     const added = [...known, ...records].map((record) => store.get(record.path) ?? record);
     if (removed.length + added.length + improved.length > 0) await store.save();
     lastSyncAt = now();

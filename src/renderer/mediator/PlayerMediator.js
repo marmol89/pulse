@@ -23,6 +23,7 @@ import librarySort from './handlers/librarySort.js';
 import crossfade from './handlers/crossfade.js';
 import downloads from './handlers/downloads.js';
 import trash from './handlers/trash.js';
+import loudness from './handlers/loudness.js';
 
 /**
  * Solo compone: conecta colegas y registra módulos de handlers.
@@ -65,7 +66,8 @@ export class PlayerMediator extends Mediator {
       .use(librarySort)
       .use(crossfade)
       .use(downloads)
-      .use(trash);
+      .use(trash)
+      .use(loudness);
   }
 
   get context() {

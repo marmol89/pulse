@@ -1,7 +1,8 @@
 import { Colleague } from '../core/Colleague.js';
 import { EVENTS } from '../mediator/events.js';
 
-const STORAGE_KEYS = { volume: 'volume', muted: 'muted', outputDevice: 'outputDevice', crossfade: 'crossfade' };
+const STORAGE_KEYS = { volume: 'volume', muted: 'muted', outputDevice: 'outputDevice', crossfade: 'crossfade', loudness: 'loudness' };
+const LOUDNESS_MODES = ['off', 'track', 'album']; // volumen uniforme: sin, ganancia de la pista o del disco
 const DEFAULT_VOLUME = 0.8;
 const PRELOAD_SECONDS = 20; // near-end: cuándo empezar a cargar la siguiente
 const MAX_CROSSFADE_SECONDS = 8;
@@ -19,6 +20,8 @@ const ERROR_MESSAGES = {
  * `prepareNext(url)` carga ahí la siguiente y `load()` de esa URL solo cambia de elemento. Con fundido
  * (`setCrossfade`), ended llega esos segundos antes y las dos pistas se cruzan. Solo uno es "el reproductor":
  * los eventos del otro (que precarga o se está apagando) se ignoran.
+ * Volumen uniforme (`setLoudness`): cada elemento baja según la ganancia ReplayGain de su pista (`setReplayGain`).
+ * Un <audio> no pasa del 100 %: las ganancias positivas no suben nada.
  * Emite: time-update, state-change, track-started, near-end, ended, error.
  */
 export class AudioEngine extends Colleague {
@@ -31,6 +34,8 @@ export class AudioEngine extends Colleague {
   #timers;
   #volume;
   #gains = new Map(); // elemento → 0..1 (fundidos)
+  #replayGains = new Map(); // elemento → { track, album } en dB de la pista que tiene cargada
+  #loudness;
   #fades = new Map(); // elemento → intervalo del fundido en curso
   #crossfade;
   #hasTrack = false;
@@ -49,6 +54,7 @@ export class AudioEngine extends Colleague {
     this.#timers = timers;
     this.#volume = clamp(storage.get(STORAGE_KEYS.volume, DEFAULT_VOLUME));
     this.#crossfade = standby ? clamp(storage.get(STORAGE_KEYS.crossfade, 0), 0, MAX_CROSSFADE_SECONDS) : 0;
+    this.#loudness = loudnessMode(storage.get(STORAGE_KEYS.loudness, 'track'));
     const muted = Boolean(storage.get(STORAGE_KEYS.muted, false));
     for (const element of this.#elements()) {
       element.preload = 'auto';
@@ -209,7 +215,33 @@ export class AudioEngine extends Colleague {
   }
 
   #applyVolume(element) {
-    element.volume = clamp(this.#volume * (this.#gains.get(element) ?? 1));
+    element.volume = clamp(this.#volume * (this.#gains.get(element) ?? 1) * this.#loudnessFactor(element));
+  }
+
+  /** Cuánto baja ese elemento para el volumen uniforme (1: nada). Sin la ganancia elegida, usa la otra. */
+  #loudnessFactor(element) {
+    const gain = this.#replayGains.get(element);
+    if (this.#loudness === 'off' || !gain) return 1;
+    const dB = this.#loudness === 'album' ? gain.album ?? gain.track : gain.track ?? gain.album;
+    return Number.isFinite(dB) ? Math.min(1, 10 ** (dB / 20)) : 1;
+  }
+
+  /** Ganancia ReplayGain ({ track, album } en dB, o null) de la pista recién cargada con `load()`. */
+  setReplayGain(replayGain) {
+    this.#replayGains.set(this.#audio, replayGain ?? null);
+    this.#applyVolume(this.#audio);
+  }
+
+  /** Volumen uniforme: 'off', 'track' (por canción) u 'album' (por disco). */
+  loudness() {
+    return this.#loudness;
+  }
+
+  setLoudness(mode) {
+    this.#loudness = loudnessMode(mode);
+    this.#storage.set(STORAGE_KEYS.loudness, this.#loudness);
+    for (const element of this.#elements()) this.#applyVolume(element);
+    return this.#loudness;
   }
 
   /** Segundos de fundido entre canciones (0: sin fundido). Sin segundo elemento no hay fundido. */
@@ -355,6 +387,10 @@ export class AudioEngine extends Colleague {
     await Promise.all(this.#elements().map((element) => element.setSinkId(deviceId)));
     this.#storage.set(STORAGE_KEYS.outputDevice, deviceId);
   }
+}
+
+function loudnessMode(mode) {
+  return LOUDNESS_MODES.includes(mode) ? mode : 'track';
 }
 
 function clamp(value, min = 0, max = 1) {
