@@ -35,6 +35,7 @@ import { createNodeFiles } from './files.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BACKGROUND = '#0E0E12'; // --color-bg del diseño: sin destello blanco al abrir
+const QUIT_WAIT_MS = 15_000; // lo más que se espera al cerrar a subir lo pendiente al bucket
 
 registerMediaScheme();
 // La interfaz está en español: también los textos de Chromium (p. ej. "Predeterminado" en las salidas de audio).
@@ -156,10 +157,18 @@ async function start() {
   app.on('browser-window-focus', syncSoon);
   updates.start();
   // No cerrar con metadatos, listas, favoritos, recientes o escuchas sin subir al bucket.
+  // Se espera una sola vez y como mucho QUIT_WAIT_MS: si falla (sin red), lo pendiente se reintenta en la próxima
+  // sesión y no se vuelve a esperar (seguiría pendiente y la app no llegaría a cerrarse nunca).
+  let flushedBeforeQuit = false;
   app.on('before-quit', (event) => {
-    if (!metadata.hasPending() && !userData.hasPending()) return;
+    if (flushedBeforeQuit || (!metadata.hasPending() && !userData.hasPending())) return;
+    flushedBeforeQuit = true;
     event.preventDefault();
-    Promise.all([metadata.hasPending() && metadata.flush(), userData.flush()]).finally(() => app.quit());
+    const uploads = Promise.all([metadata.hasPending() && metadata.flush(), userData.flush()]);
+    const deadline = new Promise((resolve) => setTimeout(resolve, QUIT_WAIT_MS));
+    Promise.race([uploads, deadline])
+      .catch(() => {})
+      .then(() => app.quit());
   });
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) desktop.attach(createWindow());
