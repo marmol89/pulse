@@ -86,10 +86,11 @@ public class LocalAudioWebViewClient extends BridgeWebViewClient {
                 headers.put("Content-Range", "bytes */" + size);
                 return new WebResourceResponse(mime, null, 416, "Range Not Satisfiable", headers, new ByteArrayInputStream(new byte[0]));
             }
-            input.getChannel().position(start);
+            // El stream va desde el principio: con un Range, el WebView calcula el trozo con available() y salta
+            // él mismo hasta el inicio (si se le da ya colocado, los rangos que no empiezan en 0 fallan).
             headers.put("Content-Length", String.valueOf(end - start + 1));
             headers.put("Content-Range", "bytes " + start + "-" + end + "/" + size);
-            return new WebResourceResponse(mime, null, 206, "Partial Content", headers, new LimitedInputStream(input, end - start + 1));
+            return new WebResourceResponse(mime, null, 206, "Partial Content", headers, new LimitedInputStream(input, end + 1));
         } catch (IOException error) {
             return status(500, "Internal Server Error");
         }
@@ -124,7 +125,7 @@ public class LocalAudioWebViewClient extends BridgeWebViewClient {
         return new WebResourceResponse("text/plain", "utf-8", code, reason, new HashMap<>(), new ByteArrayInputStream(new byte[0]));
     }
 
-    /** Las primeras `remaining` bytes de un stream (el final del rango pedido). */
+    /** Los primeros `remaining` bytes de un stream: hasta el final del rango pedido. */
     private static class LimitedInputStream extends FilterInputStream {
 
         private long remaining;
