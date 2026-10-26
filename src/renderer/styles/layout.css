@@ -452,6 +452,23 @@ svg {
     transform: none;
   }
 
+  /* Fondo oscuro detrás del panel: lo separa de la pantalla y tocarlo lo cierra (Router). */
+  .sidebar::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: var(--color-scrim-soft);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-fast) var(--ease);
+  }
+
+  .sidebar.is-menu-open::before {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   .sidebar .sidebar__section .nav__item {
     flex-direction: row;
     justify-content: flex-start;

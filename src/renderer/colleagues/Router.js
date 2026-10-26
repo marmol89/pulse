@@ -51,6 +51,10 @@ export class Router extends Colleague {
     window.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') this.#setMenuOpen(false);
     });
+    // Tocar el fondo oscuro de "Tu música" (el ::before de la sidebar) lo cierra.
+    this.#sidebar.addEventListener('click', (event) => {
+      if (event.target === this.#sidebar) this.#setMenuOpen(false);
+    });
   }
 
   /** @param {'home'|'search'|'collection'} view @param {string|null} nav elemento de la sidebar a resaltar ('list:<id>' para una lista) */
