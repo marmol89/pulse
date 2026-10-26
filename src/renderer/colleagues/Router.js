@@ -38,6 +38,7 @@ export class Router extends Colleague {
   #downloadsRow;
   #downloadsHint;
   #crossfade;
+  #loudness;
   #connectionStatus;
   #connectionIcon;
   /** Lo que solo tiene sentido con un bucket: subir canciones y la papelera. */
@@ -120,6 +121,11 @@ export class Router extends Colleague {
   /** Segundos de fundido elegidos (0: sin fundido). */
   setCrossfade(seconds) {
     this.#crossfade.value = String(seconds);
+  }
+
+  /** Volumen uniforme elegido ('off', 'track' o 'album'). */
+  setLoudness(mode) {
+    this.#loudness.value = mode;
   }
 
   /** Refleja si se buscan carátulas e información en internet. */
@@ -221,6 +227,18 @@ export class Router extends Colleague {
       h('span', { class: 'switch-row__text' }, h('span', { class: 'switch-row__title' }, 'Fundido'), h('span', { class: 'switch-row__hint' }, 'Entre canciones')),
       this.#crossfade,
     );
+    this.#loudness = h(
+      'select',
+      { class: 'setting-row__select', id: 'loudness-select' },
+      ...Object.entries({ off: 'No', track: 'Canción', album: 'Disco' }).map(([mode, label]) => h('option', { value: mode }, label)),
+    );
+    this.#loudness.addEventListener('change', () => this.notify(EVENTS.SET_LOUDNESS, this.#loudness.value));
+    const loudnessRow = h(
+      'label',
+      { class: 'switch-row', for: 'loudness-select', title: 'Iguala el volumen de las canciones que traen la etiqueta ReplayGain (por canción o por disco)' },
+      h('span', { class: 'switch-row__text' }, h('span', { class: 'switch-row__title' }, 'Volumen uniforme'), h('span', { class: 'switch-row__hint' }, 'Con ReplayGain')),
+      this.#loudness,
+    );
     const newList = h('button', { type: 'button', class: 'nav__item' }, icon('plus'), 'Nueva lista');
     newList.addEventListener('click', act(EVENTS.NEW_LIST));
     this.#listsNav = h('div', { class: 'sidebar__lists-items' });
@@ -230,7 +248,7 @@ export class Router extends Colleague {
       h('div', { class: 'brand' }, h('span', { class: 'brand__logo' }, icon('pulse')), 'Pulse'),
       nav,
       h('div', { class: 'sidebar__section sidebar__lists' }, h('h2', { class: 'sidebar__heading' }, 'Tus listas'), newList, this.#listsNav),
-      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, trash, onlineRow, crossfadeRow, this.#downloadsRow),
+      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, trash, onlineRow, crossfadeRow, loudnessRow, this.#downloadsRow),
       hint,
     );
     this.#bucketOnly = [upload, trash, hint];
