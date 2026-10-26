@@ -1,7 +1,8 @@
 # Pulse — reproductor de música (Electron + patrón Mediator)
 
 Reproductor nativo para **Windows, Linux (Electron) y Android (Capacitor, APK)** en JavaScript puro (sin frameworks de UI). **La música viene de un bucket S3**
-(o compatible, como MinIO); las canciones del ordenador se suben al bucket. Diseño de referencia:
+(o compatible, como MinIO; las canciones del ordenador se suben al bucket) **o de carpetas del equipo** (solo lectura),
+nunca de los dos a la vez. Diseño de referencia:
 `app-musica-figma.svg` (móvil) y su adaptación a escritorio en `.claude/skills/iniciar-proyecto/reference/diseno.md`.
 La skill `iniciar-proyecto` es la fuente de las reglas de abajo: tenla presente antes de tocar código.
 
@@ -28,9 +29,10 @@ Electron 45 descarga su binario la primera vez que se usa; para forzarlo: `node 
 src/backend/     lógica común a Electron y Android, SIN Node ni Electron (lo comprueba tests/backend/portable.test.js):
                  la plataforma inyecta `files` (leer/escribir por nombre), `crypto`, `http`, `toTrack` (URLs) y `collect`
   paths.js       basename/extname POSIX y nombre de carátula
+  source.js      origen de la música: bucket (s3) o carpetas (local.json); storage() da el de S3 o el de carpetas
   s3/           storage.js (SDK: leer, subir y, solo para la papelera, copiar y borrar; admite otro requestHandler), connection.js (conexión
                  con la clave secreta cifrada por el `crypto` inyectado), service.js
-  library/       remote.js (id s3://bucket/clave, etiquetas leyendo el principio del objeto), sync.js
+  library/       remote.js (id s3://bucket/clave o local://carpetas/clave, etiquetas leyendo el principio del objeto), sync.js
                  (biblioteca = bucket), upload.js (sube lo que da `collect`: {name,size,open}), trash.js (papelera del bucket),
                  metadata.js (copia en
                  metadatos/ del bucket), lists.js (listas de canciones: lists.js aquí y metadatos/listas.json),
@@ -42,19 +44,22 @@ src/backend/     lógica común a Electron y Android, SIN Node ni Electron (lo c
   online/        datos de internet: matching, itunes, deezer, lrclib, http, enricher, queue (ver abajo)
 src/main/        adaptador de Electron (NO forma parte del mediator)
   main.js        ventana, instancia única, sin navegación, --lang=es
-  files.js       `files` sobre fs en userData; library/collect.js recorre archivos y carpetas para subir
+  files.js       `files` sobre fs en userData; library/collect.js recorre archivos y carpetas para subir;
+                 library/folderStorage.js: las carpetas del ordenador con la forma del storage de S3 (solo lectura)
   protocol/      media://track|cover/<id>: audio desde S3 con rangos, solo pistas de la biblioteca (403 si no)
-  ipc/           library.js (library:*, connection:*), metadata.js (metadata:*), lists.js (lists:*), favorites.js
+  ipc/           library.js (library:*, connection:*, folders:*), metadata.js (metadata:*), lists.js (lists:*), favorites.js
                  (favorites:*) y recents.js (recents:*); los usa el preload
 src/preload/preload.cjs   window.api (contextBridge, sandbox)
 src/android/     window.api de Android sobre el mismo backend (esbuild → www/api.js, antes que app.js)
   api.js         mismos métodos que el preload; audio con URLs firmadas de S3 (7 días)
   main.js        punto de entrada con los plugins reales (Filesystem, SecureStorage, App, CapacitorHttp)
   nativeHttp.js  red nativa sin CORS (y requestHandler del SDK de S3); files.js, secret.js (Keystore),
-                 covers.js (carátulas en el móvil), downloads.js (canciones sin conexión), picker.js, backButton.js
+                 covers.js (carátulas en el móvil), downloads.js (canciones sin conexión), picker.js, backButton.js,
+                 folders.js (carpetas del móvil sobre el plugin PulseFolders)
   mediaSession.js navigator.mediaSession (y MediaMetadata) sobre el plugin nativo PulsePlayback
 android/         proyecto Gradle de Capacitor (la versión se lee de package.json); www/ se genera y no va al repo
-  app/src/main/java/…/  PlaybackService (servicio en primer plano + MediaSession) y PlaybackPlugin
+  app/src/main/java/…/  PlaybackService (servicio en primer plano + MediaSession) y PlaybackPlugin; FoldersPlugin
+                 (selector de carpetas SAF) y LocalAudioWebViewClient (sirve su audio con rangos en /_pulse_local_/)
 src/renderer/
   app.js         raíz de composición: crea colegas → PlayerMediator → app-ready
   core/          Mediator (solo enruta) y Colleague
@@ -92,7 +97,7 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
 
 ## Música en S3
 
-- La conexión (servidor, claves, bucket, carpeta) se configura en la app ("Conexión S3" en la sidebar, o el
+- La conexión (servidor, claves, bucket, carpeta) se configura en la app ("Conexión" en la sidebar, o el
   formulario que se abre la primera vez) o importando un `credentials.json` (formato MinIO o estilo AWS).
 - **Las claves no van en el repo ni en el instalador.** Se guardan en `userData/s3.json` con la clave secreta
   cifrada (`safeStorage`: DPAPI en Windows, llavero en Linux) y la clave secreta nunca vuelve a la ventana.
@@ -136,6 +141,13 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   con la última vez que sonó (gana la escucha más reciente; se guardan 100 y se ven 12). Se suben a los 2 s y llegan
   como `recents-changed`; los de antes (en `localStorage`) se suben una vez al arrancar con `import()`.
 - Si una canción falla al sonar se comprueba en el bucket (`library:verify`); si ya no está, se quita.
+- **Carpetas del equipo** (`source.js`): en "Conexión", pestaña "Carpetas", se añaden o quitan carpetas (diálogo del
+  sistema; en Android, el selector SAF con permiso persistente). Es **solo lectura total**: Pulse nunca toca esos
+  archivos (sin subir, ni papelera, ni descargas; `readOnly` en el storage). Las pistas son `local://carpetas/<clave>`
+  (en Electron, la ruta; en Android, la URI del documento) y listas, favoritos y recientes van solo al equipo
+  (`lists-local.json`…, `shared.js`), sin metadatos en ningún bucket. Al cambiar de origen se sincroniza con el
+  nuevo y las pistas del otro salen de la biblioteca. En Android, el WebView ya resuelve el `Range` de las
+  respuestas interceptadas (mide con `available()` y salta él): el stream que se le da empieza en el byte 0.
 - Los tests nunca usan el S3 real: `tests/helpers/fakeS3.js` es un servidor S3 mínimo (listar, rangos, subidas, 403, solo lectura…).
 
 ## Android (Capacitor 8)
