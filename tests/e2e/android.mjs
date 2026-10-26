@@ -187,6 +187,14 @@ try {
     return false;
   };
   check(await favoritesInBucket(), 'el corazón se sube a metadatos/favoritos.json del bucket');
+  // Lo que sonó entero en segundo plano ya cuenta como escuchado (y va al bucket con el id de este móvil).
+  let plays = [];
+  for (let i = 0; i < 40 && plays.length === 0; i += 1) {
+    const body = s3.get('musica', 'metadatos/escuchas.json');
+    plays = body ? JSON.parse(body.toString()).plays : [];
+    if (plays.length === 0) await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  check(plays.length > 0 && plays.every((play) => play.count > 0), `lo escuchado se cuenta en metadatos/escuchas.json (${plays.length} canciones)`);
   await page.click('.nav__item:has-text("Inicio")');
   await page.waitForSelector('.section[aria-label="Tus listas"] .media-card:has-text("Para correr")');
   await shot('06-inicio-listas');

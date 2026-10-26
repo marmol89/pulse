@@ -499,6 +499,25 @@ try {
   await page.click('#equalizer-dialog [data-preset="flat"]');
   await page.click('#equalizer-dialog button:has-text("Cerrar")');
 
+  // Escuchas: lo escuchado (la mitad de una pista de 10 s) cuenta, va a metadatos/escuchas.json y sale en "Más escuchadas".
+  let playsInBucket = [];
+  for (let i = 0; i < 40 && playsInBucket.length === 0; i += 1) {
+    const body = s3.get('musica', 'metadatos/escuchas.json');
+    playsInBucket = body ? JSON.parse(body.toString()).plays : [];
+    if (playsInBucket.length === 0) await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  check(playsInBucket.length > 0 && playsInBucket.every((play) => play.count > 0 && play.id.endsWith(play.path)), `lo escuchado se cuenta en metadatos/escuchas.json del bucket (${playsInBucket.length} canciones)`);
+  await page.click('.nav__item:has-text("Inicio")');
+  await page.click('.chip:has-text("Todo")');
+  await page.waitForSelector('.view--home [aria-label="Hechas para ti"] .media-card:has-text("Más escuchadas")');
+  check(true, 'Inicio muestra "Hechas para ti" con "Más escuchadas"');
+  await page.locator('.view--home [aria-label="Hechas para ti"]').scrollIntoViewIfNeeded();
+  await shot('09e-hechas-para-ti');
+  await page.click('.view--home [aria-label="Hechas para ti"] .media-card:has-text("Más escuchadas")');
+  const mostPlayed = await page.locator('.view--collection .track-row').count();
+  check(mostPlayed === playsInBucket.length, `"Más escuchadas" tiene las canciones escuchadas (${mostPlayed})`);
+  await page.click('.nav__item:has-text("Biblioteca")');
+
   // Papelera: "⋯" › "Eliminar del bucket" (con confirmación), restaurar desde "Papelera" y vaciarla.
   const toastIs = (text) => page.waitForFunction((expected) => document.querySelector('.toast')?.textContent === expected, text);
   const hasRow = (title) => page.locator(`.view--collection .track-row:has-text("${title}")`).count().then((count) => count > 0);
