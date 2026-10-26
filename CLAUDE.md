@@ -94,6 +94,11 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   `handlers/crossfade.js` precarga ahí `Playlist.upcoming()` y `load()` de esa URL solo cambia de elemento.
 - "Fundido" en la sidebar (0–8 s, guardado en `crossfade`): `ended` llega esos segundos antes y las dos pistas se cruzan.
   Solo cuenta el elemento activo; volumen, silencio y salida (`setSinkId`) se aplican a los dos.
+- "Igualar volumen" (No / Pista / Disco, guardado en `loudness`; por defecto, Pista): `tracks.js` lee la ganancia
+  ReplayGain de las etiquetas (`replayGain: { track, album }` en dB) y `loadTrack()` se la pasa a `AudioEngine.setReplayGain()`,
+  que baja el `volume` de ese elemento (nunca lo sube del 100 %: sin Web Audio, vale igual en Android y en segundo plano).
+  Handler `loudness.js`. Subir `TAGS_VERSION` (`tracks.js`) hace que la próxima sincronización relea una vez las
+  etiquetas de todo, conservando los datos de internet.
 
 ## Música en S3
 

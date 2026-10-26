@@ -11,7 +11,7 @@ Leyenda del esfuerzo: **S** (un par de commits), **M** (una PR normal), **L** (v
 
 | # | Mejora | Esfuerzo | Plataformas | Estado |
 |---|---|---|---|---|
-| 1 | Volumen uniforme (ReplayGain) | M | todas | ☐ |
+| 1 | Volumen uniforme (ReplayGain) | M | todas | ✅ |
 | 2 | Ecualizador | M | escritorio | ☐ |
 | 3 | Contador de escuchas y listas inteligentes | M | todas | ☐ |
 | 4 | Bandeja del sistema y botones en la barra de tareas | M | escritorio | ☐ |
