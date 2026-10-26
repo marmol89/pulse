@@ -2,6 +2,8 @@
 # (firmado si están los secretos ANDROID_*; si no, debug).
 # - Desde "Versiones", al publicar una versión: los adjunta a su release de GitHub.
 # - A mano (pestaña Actions → "Instaladores" → Run workflow): los deja como artefactos del run, sin publicar nada.
+# latest.yml / latest-linux.yml y los .blockmap van con ellos: de ahí lee la app instalada si hay una versión nueva
+# (electron-updater, src/main/updates.js).
 name: Instaladores
 
 on:
@@ -27,11 +29,11 @@ jobs:
           - nombre: Windows
             os: windows-latest
             destino: --win
-            archivos: dist/*.exe
+            archivos: dist/*.exe dist/latest.yml dist/*.blockmap
           - nombre: Linux
             os: ubuntu-latest
             destino: --linux
-            archivos: dist/*.AppImage dist/*.deb
+            archivos: dist/*.AppImage dist/*.deb dist/latest-linux.yml dist/*.blockmap
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,7 +57,10 @@ jobs:
       - name: Adjuntar a la release
         if: inputs.etiqueta
         shell: bash
-        run: gh release upload "${{ inputs.etiqueta }}" ${{ matrix.archivos }} --clobber
+        # nullglob: si una plataforma no deja .blockmap, el patrón no debe llegar tal cual a gh.
+        run: |
+          shopt -s nullglob
+          gh release upload "${{ inputs.etiqueta }}" ${{ matrix.archivos }} --clobber
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -68,6 +73,8 @@ jobs:
             dist/*.exe
             dist/*.AppImage
             dist/*.deb
+            dist/latest*.yml
+            dist/*.blockmap
           if-no-files-found: error
 
   android:
