@@ -338,3 +338,52 @@ describe('AudioEngine · sin cortes y fundido', () => {
     assert.deepEqual([first.volume, second.volume, first.muted, second.muted, first.sinkId, second.sinkId], [0.3, 0.3, true, true, 'usb', 'usb']);
   });
 });
+
+describe('AudioEngine · volumen uniforme', () => {
+  test('por canción (lo predeterminado), baja según la ganancia de la pista; las positivas no suben', () => {
+    const { audio, engine } = setup();
+    engine.setVolume(0.8);
+    engine.load('media://track/a');
+    engine.setReplayGain({ track: -6.02, album: -3 });
+    assert.equal(engine.loudness(), 'track');
+    assert.ok(Math.abs(audio.volume - 0.4) < 0.001, `0,8 × −6 dB ≈ 0,4 (${audio.volume})`);
+
+    engine.load('media://track/b');
+    engine.setReplayGain({ track: 4, album: null });
+    assert.equal(audio.volume, 0.8);
+    engine.load('media://track/c');
+    engine.setReplayGain(null);
+    assert.equal(audio.volume, 0.8, 'sin etiqueta, sin cambios');
+  });
+
+  test('por disco usa la del disco (o la de la pista si no hay); desactivado no toca nada; se guarda', () => {
+    const { audio, engine, storage } = setup();
+    engine.setVolume(1);
+    engine.load('media://track/a');
+    engine.setReplayGain({ track: -20, album: -6.02 });
+    assert.equal(engine.setLoudness('album'), 'album');
+    assert.ok(Math.abs(audio.volume - 0.5) < 0.001);
+    engine.setReplayGain({ track: -6.02, album: null });
+    assert.ok(Math.abs(audio.volume - 0.5) < 0.001);
+    engine.setLoudness('off');
+    assert.equal(audio.volume, 1);
+    assert.equal(storage.get('loudness'), 'off');
+    assert.equal(engine.setLoudness('raro'), 'track');
+    assert.equal(setup({ storage }).engine.loudness(), 'track');
+  });
+
+  test('con fundido, cada elemento conserva la ganancia de su pista', () => {
+    const { first, second, engine, timers } = setupTwo({ crossfade: 4 });
+    engine.setVolume(1);
+    engine.load('media://track/a');
+    engine.setReplayGain({ track: -6.02 });
+    playTo(first, 197);
+    engine.load('media://track/b');
+    engine.setReplayGain({ track: 0 });
+    timers.tick(40);
+    assert.ok(Math.abs(first.volume - 0.25) < 0.001, `la que baja: 0,5 × 0,5 (${first.volume})`);
+    assert.equal(second.volume, 0.5);
+    timers.tick(40);
+    assert.equal(second.volume, 1);
+  });
+});
