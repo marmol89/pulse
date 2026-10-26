@@ -78,6 +78,7 @@ contextBridge.exposeInMainWorld('api', {
   desktop: {
     update: (state) => ipcRenderer.send('desktop:update', state),
     setCloseToTray: (enabled) => ipcRenderer.send('desktop:close-to-tray', enabled),
+    setMini: (enabled) => ipcRenderer.send('desktop:mini', enabled),
     /** 'toggle', 'next' o 'previous' desde la bandeja o la miniatura. Devuelve la función para dejar de escuchar. */
     onCommand: (callback) => {
       const listener = (_event, command) => callback(command);
