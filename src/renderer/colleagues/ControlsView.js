@@ -1,6 +1,6 @@
 import { Colleague } from '../core/Colleague.js';
 import { EVENTS } from '../mediator/events.js';
-import { h, iconButton, favoriteButton, setFavoriteButton } from '../ui/dom.js';
+import { h, iconButton, favoriteButton, setFavoriteButton, setIcon } from '../ui/dom.js';
 import { createCover, trackSeed } from '../ui/cover.js';
 import { createSeekBar, createTransport, createVolumeControl } from '../ui/transport.js';
 
@@ -10,7 +10,8 @@ const EMPTY_ARTIST = 'Elige una canción de tu biblioteca';
 /**
  * Player bar: el mini-player del diseño ampliado a todo el ancho
  * (pista + corazón · transporte + progreso · volumen + abrir Reproduciendo).
- * Emite: open-now-playing, toggle-favorite, seek, volumen y controles de transporte.
+ * En escritorio, también el botón del mini-reproductor (y doble clic en la portada para volver de él).
+ * Emite: open-now-playing, toggle-favorite, seek, toggle-mini-player, volumen y controles de transporte.
  */
 export class ControlsView extends Colleague {
   #cover;
@@ -21,6 +22,8 @@ export class ControlsView extends Colleague {
   #seek;
   #volume;
   #expand;
+  #mini;
+  #isMini = false;
   #currentPath = null;
 
   constructor(root) {
@@ -30,7 +33,8 @@ export class ControlsView extends Colleague {
       { type: 'button', class: 'player__cover', 'aria-label': 'Abrir Reproduciendo', title: 'Abrir Reproduciendo', disabled: true },
       createCover({ className: 'cover--thumb', tag: 'span' }),
     );
-    this.#cover.addEventListener('click', () => this.notify(EVENTS.OPEN_NOW_PLAYING));
+    // En el mini-reproductor no cabe Reproduciendo: la portada vuelve a la ventana normal.
+    this.#cover.addEventListener('click', () => this.notify(this.#isMini ? EVENTS.TOGGLE_MINI_PLAYER : EVENTS.OPEN_NOW_PLAYING));
     this.#title = h('span', { class: 'player__title ellipsis' }, EMPTY_TITLE);
     this.#artist = h('span', { class: 'player__artist ellipsis' }, EMPTY_ARTIST);
     this.#favorite = favoriteButton(false, { hidden: true });
@@ -40,6 +44,8 @@ export class ControlsView extends Colleague {
     this.#volume = createVolumeControl((event, payload) => this.notify(event, payload));
     this.#expand = iconButton('chevron-up', 'Abrir Reproduciendo', { disabled: true });
     this.#expand.addEventListener('click', () => this.notify(EVENTS.OPEN_NOW_PLAYING));
+    this.#mini = iconButton('miniplayer', 'Mini-reproductor (Ctrl+M)', { className: 'player__mini', hidden: true });
+    this.#mini.addEventListener('click', () => this.notify(EVENTS.TOGGLE_MINI_PLAYER));
 
     root.replaceChildren(
       h(
@@ -47,7 +53,7 @@ export class ControlsView extends Colleague {
         { class: 'player' },
         h('div', { class: 'player__track' }, this.#cover, h('div', { class: 'player__text' }, this.#title, this.#artist), this.#favorite),
         h('div', { class: 'player__center' }, this.#transport.element, this.#seek.element),
-        h('div', { class: 'player__extras' }, this.#volume.element, this.#expand),
+        h('div', { class: 'player__extras' }, this.#volume.element, this.#mini, this.#expand),
       ),
     );
   }
@@ -98,5 +104,21 @@ export class ControlsView extends Colleague {
 
   setFavorite(path, isFavorite) {
     if (path === this.#currentPath) setFavoriteButton(this.#favorite, isFavorite);
+  }
+
+  /** El botón del mini-reproductor solo existe en escritorio. */
+  setMiniAvailable(available) {
+    this.#mini.hidden = !available;
+  }
+
+  setMini(mini) {
+    this.#isMini = mini;
+    const label = mini ? 'Volver a la ventana (Ctrl+M)' : 'Mini-reproductor (Ctrl+M)';
+    setIcon(this.#mini, mini ? 'maximize' : 'miniplayer');
+    this.#mini.setAttribute('aria-label', label);
+    this.#mini.title = label;
+    const cover = mini ? 'Volver a la ventana' : 'Abrir Reproduciendo';
+    this.#cover.setAttribute('aria-label', cover);
+    this.#cover.title = cover;
   }
 }

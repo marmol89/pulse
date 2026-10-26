@@ -57,6 +57,7 @@
   --radius-bar: 16px;
   --radius-lyrics: 20px;
   --radius-round: 50%;
+  --radius-none: 0; /* mini-reproductor: la player bar ocupa toda la ventana */
 
   /* Tipografía · Inter */
   --font: 'Inter', system-ui, sans-serif;

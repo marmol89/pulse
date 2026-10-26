@@ -126,6 +126,18 @@ export class Router extends Colleague {
     this.#crossfade.value = String(seconds);
   }
 
+  /** Mini-reproductor (estado de UI): cambia la interfaz y devuelve si queda activado. */
+  toggleMini() {
+    const mini = !this.#root.classList.contains('is-mini');
+    if (mini) this.closeOverlay();
+    this.#root.classList.toggle('is-mini', mini);
+    return mini;
+  }
+
+  isMini() {
+    return this.#root.classList.contains('is-mini');
+  }
+
   /** "Seguir en la bandeja": solo en escritorio (`available`). */
   setCloseToTray(enabled, available) {
     this.#traySwitch.checked = enabled;

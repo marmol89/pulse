@@ -35,6 +35,19 @@ function fakes(platform = 'win32') {
     hide() { this.hidden = true; },
     focus() {},
     setThumbarButtons(buttons) { this.thumbar = buttons; },
+    bounds: { x: 10, y: 20, width: 1280, height: 800 },
+    minimum: [960, 600],
+    onTop: false,
+    maximized: false,
+    getBounds() { return { ...this.bounds }; },
+    setBounds(bounds) { this.bounds = { ...bounds }; },
+    getMinimumSize() { return [...this.minimum]; },
+    setMinimumSize(width, height) { this.minimum = [width, height]; },
+    setContentSize(width, height) { this.bounds = { ...this.bounds, width, height }; },
+    setAlwaysOnTop(onTop) { this.onTop = onTop; },
+    isMaximized() { return this.maximized; },
+    maximize() { this.maximized = true; },
+    unmaximize() { this.maximized = false; },
   });
   const desktop = createDesktop({ Tray, Menu, nativeImage, app, platform, assets: '/assets', getWindow: () => win, send: (command) => sent.push(command) });
   return { desktop, sent, trays, app, win };
@@ -96,5 +109,16 @@ describe('main/desktop', () => {
     other.desktop.setCloseToTray(true);
     other.app.emit('before-quit');
     assert.equal(close(other.win), false, 'al salir (p. ej. al apagar) no se queda oculta');
+  });
+
+  test('el mini-reproductor hace la ventana pequeña y siempre encima; al volver, como estaba', () => {
+    const { desktop, win } = fakes();
+    win.maximized = true;
+    desktop.setMini(true);
+    desktop.setMini(true); // dos veces seguidas no pierde el tamaño de antes
+    assert.deepEqual([win.bounds.width, win.bounds.height, win.onTop, win.maximized], [380, 92, true, false]);
+    assert.deepEqual(win.minimum, [300, 92]);
+    desktop.setMini(false);
+    assert.deepEqual([win.bounds, win.minimum, win.onTop, win.maximized], [{ x: 10, y: 20, width: 1280, height: 800 }, [960, 600], false, true]);
   });
 });
