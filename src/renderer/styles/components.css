@@ -1157,6 +1157,18 @@
   display: contents;
 }
 
+.info-card__edit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.info-card__edit .icon {
+  width: 16px;
+  height: 16px;
+}
+
 .info-card__row dt {
   color: var(--color-text-2);
   font-size: var(--fs-body);

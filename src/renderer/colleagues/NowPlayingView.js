@@ -23,7 +23,7 @@ const SLEEP_OPTIONS = [
  * progreso, controles, salida de audio ("Altavoz de la sala"), cola, información y letra
  * (sincronizada si la hay: el verso que suena se resalta y pulsar uno salta a él).
  * Emite: close-now-playing, toggle-favorite, seek, controles de transporte,
- * show-output-devices, output-device-change, open-collection (cola), lookup-track, choose-list, set-sleep-timer.
+ * show-output-devices, output-device-change, open-collection (cola), lookup-track, edit-track, choose-list, set-sleep-timer.
  */
 export class NowPlayingView extends Colleague {
   #art;
@@ -275,11 +275,17 @@ export class NowPlayingView extends Colleague {
     this.#lookupButton.addEventListener('click', () => {
       if (this.#currentPath) this.notify(EVENTS.LOOKUP_TRACK, this.#currentPath);
     });
+    // En su propia fila (en el móvil, nada de varios botones juntos).
+    const editButton = h('button', { type: 'button', class: 'link-button info-card__edit', title: 'Cambiar el título, el artista, el álbum…' }, icon('pencil'), 'Editar datos');
+    editButton.addEventListener('click', () => {
+      if (this.#currentPath) this.notify(EVENTS.EDIT_TRACK, this.#currentPath);
+    });
     return h(
       'section',
       { class: 'info-card', 'aria-label': 'Información de la canción' },
       h('header', { class: 'info-card__header' }, h('h3', { class: 'info-card__title' }, 'Información'), this.#lookupButton),
       this.#infoList,
+      editButton,
     );
   }
 
