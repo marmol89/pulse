@@ -6,6 +6,8 @@
  * - docs/play/icono-512.png: icono de Google Play, cuadrado entero (Play le pone las esquinas).
  * - android/app/src/main/res/mipmap-*: icono clásico, redondo y adaptativo
  *   (fondo con el gradiente + pulso en primer plano, que sirve también de monocromo).
+ * - src/assets/controles/*.png (32×32, blancos): Anterior, Reproducir, Pausa y Siguiente para los botones de la
+ *   miniatura de la barra de tareas de Windows (las mismas formas que ui/icons.js).
  * Uso: npm run icons
  */
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -18,6 +20,8 @@ const OUTPUT = new URL('../src/assets/icon.png', import.meta.url);
 const PLAY_ICON = new URL('../docs/play/icono-512.png', import.meta.url);
 const ANDROID_RES = new URL('../android/app/src/main/res/', import.meta.url);
 const DENSITIES = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
+const CONTROLS = new URL('../src/assets/controles/', import.meta.url);
+const CONTROL_SIZE = 32;
 
 // Icono adaptativo de Android: lienzo de 108 dp del que se ven los 72 dp centrales.
 const ADAPTIVE = 108;
@@ -81,6 +85,28 @@ const ANDROID_ICONS = [
   { name: 'ic_launcher_foreground', dp: ADAPTIVE, shader: adaptive((u, v) => (onPulse(u, v) ? WHITE : TRANSPARENT)) },
 ];
 
+/** ¿Está (x, y) dentro del triángulo? (coordenadas del viewBox de ui/icons.js) */
+function inTriangle(x, y, [a, b, c]) {
+  const side = (p, q) => (q[0] - p[0]) * (y - p[1]) - (q[1] - p[1]) * (x - p[0]);
+  const [d1, d2, d3] = [side(a, b), side(b, c), side(c, a)];
+  return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
+}
+
+const inRect = (x, y, [left, top, width, height]) => x >= left && x <= left + width && y >= top && y <= top + height;
+
+/** Botón blanco de 32 px con las formas de `shapes` (viewBox de -size a size, centrado). */
+const control = (size, { triangles = [], rects = [] }) => (u, v) => {
+  const [x, y] = [(u - 0.5) * 2 * size, (v - 0.5) * 2 * size];
+  return triangles.some((points) => inTriangle(x, y, points)) || rects.some((rect) => inRect(x, y, rect)) ? WHITE : TRANSPARENT;
+};
+
+const CONTROL_ICONS = {
+  play: control(14, { triangles: [[[-7, -12], [11, 0], [-7, 12]]] }),
+  pause: control(16, { rects: [[-12, -15, 8, 30], [4, -15, 8, 30]] }),
+  previous: control(13, { triangles: [[[10, -12], [-6, 0], [10, 12]]], rects: [[-12, -12, 4, 24]] }),
+  next: control(13, { triangles: [[[-10, -12], [6, 0], [-10, 12]]], rects: [[8, -12, 4, 24]] }),
+};
+
 async function writePng(url, size, shader) {
   await writeFile(url, encodePng(size, size, paint(size, size, shader, 4)));
 }
@@ -100,3 +126,7 @@ for (const [density, scale] of Object.entries(DENSITIES)) {
   }
 }
 console.log(`Iconos de Android generados en ${fileURLToPath(ANDROID_RES)}mipmap-*`);
+
+await mkdir(CONTROLS, { recursive: true });
+for (const [name, shader] of Object.entries(CONTROL_ICONS)) await writePng(new URL(`${name}.png`, CONTROLS), CONTROL_SIZE, shader);
+console.log(`Botones de la barra de tareas generados en ${fileURLToPath(CONTROLS)}`);
