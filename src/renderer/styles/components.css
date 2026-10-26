@@ -1854,3 +1854,84 @@
     white-space: nowrap;
   }
 }
+
+/* ---------- Ecualizador ---------- */
+
+.chip--static {
+  display: inline-flex;
+  align-items: center;
+  background: var(--grad-accent);
+  cursor: default;
+}
+
+.eq-dialog .chip {
+  background: var(--color-bg); /* el diálogo ya es del color de superficie de los chips */
+}
+
+.eq-dialog .chip[aria-pressed='true'],
+.eq-dialog .chip--static {
+  background: var(--grad-accent);
+}
+
+.eq__bands {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  border-radius: var(--radius-row);
+  background: var(--color-bg);
+}
+
+.eq__band {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.eq__gain {
+  color: var(--color-text);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.eq__frequency {
+  color: var(--color-text-3);
+  font-size: var(--fs-small);
+}
+
+/* Vertical: arriba sube (+12 dB) y abajo baja (−12 dB). */
+.eq__range {
+  width: 16px;
+  height: 160px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  appearance: none;
+}
+
+.eq__range::-webkit-slider-runnable-track {
+  width: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-track);
+}
+
+.eq__range::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-left: -6px;
+  border-radius: var(--radius-round);
+  background: var(--grad-accent);
+  appearance: none;
+}
+
+.eq__range:focus-visible {
+  outline: none;
+}
+
+.eq__range:focus-visible::-webkit-slider-thumb {
+  box-shadow: var(--focus-ring);
+}

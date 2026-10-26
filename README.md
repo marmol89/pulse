@@ -44,6 +44,7 @@ Por dentro está organizado con el patrón **Mediator**.
   directos, otros artistas o duraciones que no encajan).
 - 🎤 **Letra sincronizada**: en Reproduciendo se resalta el verso que suena y, al pulsar uno, la canción salta a él.
 - 🎚️ **Sin cortes entre canciones** y con **fundido** opcional (0–8 s, en la barra lateral).
+- 🎛️ **Ecualizador** de cinco bandas con preajustes (en el ordenador).
 - 🔉 **Igualar volumen** con las etiquetas ReplayGain de tus canciones, por pista o por disco.
 - ❤️ Favoritos, listas de canciones y escuchado recientemente, **compartidos por el bucket entre todos tus equipos**.
   Mix diario, álbumes y artistas (con su foto), y tu biblioteca ordenada y filtrada como quieras.

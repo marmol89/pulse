@@ -2,6 +2,7 @@ import { PlayerMediator } from './mediator/PlayerMediator.js';
 import { EVENTS } from './mediator/events.js';
 import { createStorage } from './lib/storage.js';
 import { AudioEngine } from './colleagues/AudioEngine.js';
+import { Equalizer } from './colleagues/Equalizer.js';
 import { Playlist } from './colleagues/Playlist.js';
 import { Catalog } from './colleagues/Catalog.js';
 import { Favorites } from './colleagues/Favorites.js';
@@ -23,15 +24,22 @@ import { ToastView } from './colleagues/ToastView.js';
 import { ConnectionView } from './colleagues/ConnectionView.js';
 import { ListDialog } from './colleagues/ListDialog.js';
 import { TrashDialog } from './colleagues/TrashDialog.js';
+import { EqualizerDialog } from './colleagues/EqualizerDialog.js';
 import { KeyboardShortcuts } from './colleagues/KeyboardShortcuts.js';
 
 /** Raíz de composición: crea los colegas, los conecta con el mediator y arranca la app. */
 const storage = createStorage(window.localStorage);
 const $ = (selector) => document.querySelector(selector);
+// Los dos <audio> de AudioEngine (sin cortes y fundido). En escritorio pasan por el ecualizador: media:// admite
+// CORS y sin crossOrigin Web Audio solo daría silencio. En Android no (URLs firmadas de otro origen).
+const webAudio = document.documentElement.dataset.platform !== 'android' && typeof window.AudioContext === 'function';
+const players = [new Audio(), new Audio()];
+if (webAudio) for (const player of players) player.crossOrigin = 'anonymous';
 
 const mediator = new PlayerMediator({
   // Modelos y servicios
-  audio: new AudioEngine(new Audio(), storage, undefined, { standby: new Audio() }),
+  audio: new AudioEngine(players[0], storage, undefined, { standby: players[1] }),
+  equalizer: new Equalizer(players, storage, { available: webAudio }),
   playlist: new Playlist(),
   catalog: new Catalog(),
   favorites: new Favorites(storage),
@@ -54,6 +62,7 @@ const mediator = new PlayerMediator({
   connection: new ConnectionView($('#connection')),
   listDialog: new ListDialog($('#list-dialog')),
   trashDialog: new TrashDialog($('#trash-dialog')),
+  equalizerDialog: new EqualizerDialog($('#equalizer-dialog')),
   keyboard: new KeyboardShortcuts(window),
 });
 

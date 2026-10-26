@@ -66,9 +66,9 @@ src/renderer/
   mediator/      PlayerMediator (solo compone), events.js, actions.js, handlers/ (uno por caso de uso)
   colleagues/    modelos (Catalog, Playlist = la cola, Lists = listas del usuario, Favorites, Recents, Settings,
                  Session = lo que sonaba al cerrar, para retomarlo),
-                 servicios (AudioEngine, LibraryService, MediaSessionBridge, SleepTimer) y vistas (Router, HomeView,
+                 servicios (AudioEngine, Equalizer, LibraryService, MediaSessionBridge, SleepTimer) y vistas (Router, HomeView,
                  PlaylistView, SearchView, NowPlayingView, ControlsView, ToastView, ConnectionView,
-                 ListDialog, KeyboardShortcuts)
+                 ListDialog, EqualizerDialog, KeyboardShortcuts)
   ui/            piezas de UI sin estado de negocio (dom, icons, cover, format, trackList, transport, menu: el «⋯»
                  de las filas, con todas sus opciones; en el móvil es su único botón, reorder: arrastrar filas con
                  el asa y Alt+↑/↓)
@@ -99,6 +99,11 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   que baja el `volume` de ese elemento (nunca lo sube del 100 %: sin Web Audio, vale igual en Android y en segundo plano).
   Handler `loudness.js`. Subir `TAGS_VERSION` (`tracks.js`) hace que la próxima sincronización relea una vez las
   etiquetas de todo, conservando los datos de internet.
+- **Ecualizador** (solo escritorio): colega `Equalizer` (5 bandas, preajustes, guardado en `equalizer`) sobre los dos
+  `<audio>` que crea `app.js`. La cadena de Web Audio se monta solo cuando deja de estar plano; desde entonces la
+  salida la pone `AudioContext.setSinkId()`. En escritorio los `<audio>` llevan `crossOrigin = 'anonymous'` (sin él
+  Web Audio da silencio) y `media://` responde con CORS. En Android no (`available()` falso): URLs firmadas de otro
+  origen y audio en segundo plano. Diálogo `EqualizerDialog` y handler `equalizer.js`.
 
 ## Música en S3
 

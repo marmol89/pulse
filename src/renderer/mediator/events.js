@@ -106,6 +106,11 @@ export const EVENTS = Object.freeze({
   SET_ONLINE_LOOKUP: 'set-online-lookup', // (activado)
   SET_CROSSFADE: 'set-crossfade', // (segundos: 0 = sin fundido)
   SET_LOUDNESS: 'set-loudness', // ('off' | 'track' | 'album') — volumen uniforme con ReplayGain
+
+  // Ecualizador (solo escritorio: Web Audio)
+  OPEN_EQUALIZER: 'open-equalizer', // ()
+  SET_EQUALIZER_PRESET: 'set-equalizer-preset', // (nombre: 'flat' | 'bass' | 'vocal' | 'treble' | 'acoustic' | 'electronic')
+  SET_EQUALIZER_BAND: 'set-equalizer-band', // ({ index, gain }) — gain en dB, de −12 a 12
   LOOKUP_TRACK: 'lookup-track', // (path) — búsqueda pedida por el usuario
   TRACKS_UPDATED: 'tracks-updated', // (Track[]) — completadas en segundo plano
   ARTIST_PICTURES_CHANGED: 'artist-pictures-changed', // ({ nombre: URL }) — fotos de artista nuevas

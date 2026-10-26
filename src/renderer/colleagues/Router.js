@@ -22,7 +22,7 @@ function folderName(folder) {
  * En pantallas estrechas (Android) la sidebar es la tab bar de abajo y "Tu música" se abre como un
  * panel desde su pestaña (estado de UI: `is-menu-open`).
  * En la sidebar también están "Tus listas" (en pantallas estrechas se llega a ellas desde Inicio).
- * Emite: navigate, open-connection, upload-songs, files-dropped, sync-library, open-trash, set-online-lookup,
+ * Emite: navigate, open-connection, upload-songs, files-dropped, sync-library, open-trash, open-equalizer, set-online-lookup,
  * new-list, open-collection (una lista).
  */
 export class Router extends Colleague {
@@ -39,6 +39,7 @@ export class Router extends Colleague {
   #downloadsHint;
   #crossfade;
   #loudness;
+  #equalizerButton;
   #connectionStatus;
   #connectionIcon;
   /** Lo que solo tiene sentido con un bucket: subir canciones y la papelera. */
@@ -123,6 +124,11 @@ export class Router extends Colleague {
     this.#crossfade.value = String(seconds);
   }
 
+  /** El ecualizador solo se ofrece donde funciona (escritorio). */
+  setEqualizerAvailable(available) {
+    this.#equalizerButton.hidden = !available;
+  }
+
   /** Volumen uniforme elegido ('off', 'track' o 'album'). */
   setLoudness(mode) {
     this.#loudness.value = mode;
@@ -188,6 +194,8 @@ export class Router extends Colleague {
     upload.addEventListener('click', act(EVENTS.UPLOAD_SONGS));
     refresh.addEventListener('click', act(EVENTS.SYNC_LIBRARY));
     trash.addEventListener('click', act(EVENTS.OPEN_TRASH));
+    this.#equalizerButton = h('button', { type: 'button', class: 'nav__item', hidden: true, title: 'Graves, medios y agudos' }, icon('equalizer'), 'Ecualizador');
+    this.#equalizerButton.addEventListener('click', act(EVENTS.OPEN_EQUALIZER));
     // Solo se ve en pantallas estrechas: abre "Tu música" encima de la tab bar.
     this.#menuButton = h(
       'button',
@@ -248,7 +256,7 @@ export class Router extends Colleague {
       h('div', { class: 'brand' }, h('span', { class: 'brand__logo' }, icon('pulse')), 'Pulse'),
       nav,
       h('div', { class: 'sidebar__section sidebar__lists' }, h('h2', { class: 'sidebar__heading' }, 'Tus listas'), newList, this.#listsNav),
-      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, trash, onlineRow, crossfadeRow, loudnessRow, this.#downloadsRow),
+      h('div', { class: 'sidebar__section', id: 'sidebar-menu' }, h('h2', { class: 'sidebar__heading' }, 'Tu música'), connection, upload, refresh, trash, onlineRow, crossfadeRow, loudnessRow, this.#equalizerButton, this.#downloadsRow),
       hint,
     );
     this.#bucketOnly = [upload, trash, hint];
