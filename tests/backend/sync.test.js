@@ -194,4 +194,21 @@ describe('library/sync', () => {
     const disconnected = createLibrarySync({ toTrack: mediaTrack, store: memoryStore(), getStorage: () => null, onChange() {} });
     assert.deepEqual(await disconnected.sync(), { removed: [], added: [] });
   });
+
+  test('si cambia el origen con una sincronización en marcha, no devuelve esa: sincroniza con el nuevo detrás', async () => {
+    let release;
+    const stuck = { bucket: 'musica', prefix: '', listAudio: () => new Promise((resolve, reject) => (release = () => reject(new Error('sin red')))) };
+    const folders = { bucket: 'carpetas', prefix: '', scheme: 'local', readOnly: true, listAudio: async () => [] };
+    let current = stuck;
+    const switching = createLibrarySync({ toTrack: mediaTrack, store: memoryStore(), getStorage: () => current, onChange() {} });
+    const first = switching.sync();
+    assert.equal(switching.sync(), first, 'con el mismo storage, la misma');
+    current = folders;
+    const second = switching.sync();
+    assert.notEqual(second, first);
+    await new Promise((resolve) => setImmediate(resolve)); // que la primera llegue a listar
+    release();
+    await assert.rejects(first, /sin red/);
+    assert.deepEqual(await second, { removed: [], added: [] });
+  });
 });
