@@ -1,5 +1,12 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
+/** Escucha un aviso del main; devuelve la función para dejar de escuchar. */
+const subscribe = (channel) => (callback) => {
+  const listener = (_event, payload) => callback(payload);
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.removeListener(channel, listener);
+};
+
 /** Única puerta del renderer al proceso main (contextIsolation + sandbox). */
 contextBridge.exposeInMainWorld('api', {
   // Biblioteca (en el bucket S3)
@@ -7,24 +14,16 @@ contextBridge.exposeInMainWorld('api', {
   syncLibrary: () => ipcRenderer.invoke('library:sync'),
   /** ¿Sigue la pista en el bucket? */
   verifyTrack: (id) => ipcRenderer.invoke('library:verify', id),
-  /** Pistas nuevas, cambiadas o borradas en el bucket. Devuelve la función para dejar de escuchar. */
-  onLibraryChanged: (callback) => {
-    const listener = (_event, change) => callback(change);
-    ipcRenderer.on('library:changed', listener);
-    return () => ipcRenderer.removeListener('library:changed', listener);
-  },
+  /** Pistas nuevas, cambiadas o borradas en el bucket. */
+  onLibraryChanged: subscribe('library:changed'),
   /** Elige canciones del ordenador y las sube al bucket. null si se cancela. */
   chooseUploads: () => ipcRenderer.invoke('library:choose-uploads'),
   /** Sube archivos o carpetas (rutas absolutas) al bucket. */
   uploadPaths: (paths) => ipcRenderer.invoke('library:upload', paths),
   /** Ruta en disco de un File arrastrado a la ventana ('' si no viene de un archivo). */
   pathForFile: (file) => webUtils.getPathForFile(file),
-  /** Progreso de una subida ({ current, total, name }). Devuelve la función para dejar de escuchar. */
-  onUploadProgress: (callback) => {
-    const listener = (_event, progress) => callback(progress);
-    ipcRenderer.on('library:upload-progress', listener);
-    return () => ipcRenderer.removeListener('library:upload-progress', listener);
-  },
+  /** Progreso de una subida ({ current, total, name }). */
+  onUploadProgress: subscribe('library:upload-progress'),
 
   // Papelera del bucket. Devuelven { ok, ... } o { ok: false, error }.
   /** Mueve una canción a la papelera del bucket (desaparece de la biblioteca). */
@@ -55,28 +54,28 @@ contextBridge.exposeInMainWorld('api', {
   // Listas M3U: guardar el texto en un archivo / leer uno (diálogos del sistema). { saved, error? } y { name, text } | { error } | null.
   exportPlaylist: (name, text) => ipcRenderer.invoke('playlists:export', name, text),
   importPlaylist: () => ipcRenderer.invoke('playlists:import'),
-  /** Listas cambiadas desde otro equipo. Devuelve la función para dejar de escuchar. */
-  onListsChanged: (callback) => {
-    const listener = (_event, lists) => callback(lists);
-    ipcRenderer.on('lists:changed', listener);
-    return () => ipcRenderer.removeListener('lists:changed', listener);
-  },
+  /** Listas cambiadas desde otro equipo. */
+  onListsChanged: subscribe('lists:changed'),
 
   // Favoritos (compartidos como las listas). Las rutas, las más recientes primero; devuelven { ok, favorites } o { ok: false, error }.
   getFavorites: () => ipcRenderer.invoke('favorites:get'),
   setFavorite: (path, favorite) => ipcRenderer.invoke('favorites:set', path, favorite),
   /** Sube los favoritos que solo estaban en este equipo (de antes de compartirse). */
   importFavorites: (paths) => ipcRenderer.invoke('favorites:import', paths),
-  /** Favoritos cambiados desde otro equipo. Devuelve la función para dejar de escuchar. */
+  /** Favoritos cambiados desde otro equipo. */
+  onFavoritesChanged: subscribe('favorites:changed'),
+
   // Recientes (compartidos como los favoritos): las rutas, la última que sonó primero.
   getRecents: () => ipcRenderer.invoke('recents:get'),
   addRecent: (path) => ipcRenderer.invoke('recents:add', path),
   importRecents: (paths) => ipcRenderer.invoke('recents:import', paths),
-  onRecentsChanged: (callback) => {
-    const listener = (_event, recents) => callback(recents);
-    ipcRenderer.on('recents:changed', listener);
-    return () => ipcRenderer.removeListener('recents:changed', listener);
-  },
+  onRecentsChanged: subscribe('recents:changed'),
+
+  // Escuchas (compartidas como los recientes): { ruta: veces que ha sonado }.
+  getPlays: () => ipcRenderer.invoke('plays:get'),
+  addPlay: (path) => ipcRenderer.invoke('plays:add', path),
+  onPlaysChanged: subscribe('plays:changed'),
+
   // Bandeja del sistema y barra de tareas (solo escritorio).
   desktop: {
     update: (state) => ipcRenderer.send('desktop:update', state),
@@ -85,30 +84,9 @@ contextBridge.exposeInMainWorld('api', {
     /** Actualización: { state: 'unavailable' | 'idle' | 'ready', version }; 'ready' = descargada, se instala al cerrar. */
     updateStatus: () => ipcRenderer.invoke('desktop:update-status'),
     installUpdate: () => ipcRenderer.send('desktop:install-update'),
-    onUpdateStatus: (callback) => {
-      const listener = (_event, status) => callback(status);
-      ipcRenderer.on('desktop:update-changed', listener);
-      return () => ipcRenderer.removeListener('desktop:update-changed', listener);
-    },
-    /** 'toggle', 'next' o 'previous' desde la bandeja o la miniatura. Devuelve la función para dejar de escuchar. */
-    onCommand: (callback) => {
-      const listener = (_event, command) => callback(command);
-      ipcRenderer.on('desktop:command', listener);
-      return () => ipcRenderer.removeListener('desktop:command', listener);
-    },
-  },
-  // Escuchas (compartidas como los recientes): { ruta: veces que ha sonado }.
-  getPlays: () => ipcRenderer.invoke('plays:get'),
-  addPlay: (path) => ipcRenderer.invoke('plays:add', path),
-  onPlaysChanged: (callback) => {
-    const listener = (_event, plays) => callback(plays);
-    ipcRenderer.on('plays:changed', listener);
-    return () => ipcRenderer.removeListener('plays:changed', listener);
-  },
-  onFavoritesChanged: (callback) => {
-    const listener = (_event, favorites) => callback(favorites);
-    ipcRenderer.on('favorites:changed', listener);
-    return () => ipcRenderer.removeListener('favorites:changed', listener);
+    onUpdateStatus: subscribe('desktop:update-changed'),
+    /** 'toggle', 'next' o 'previous' desde la bandeja o la miniatura. */
+    onCommand: subscribe('desktop:command'),
   },
 
   // Datos de internet (carátulas, álbum, año, género, letra)
@@ -118,15 +96,7 @@ contextBridge.exposeInMainWorld('api', {
   setOnlineLookup: (enabled) => ipcRenderer.invoke('metadata:set-enabled', enabled),
   /** Fotos de artista ya guardadas ({ nombre: URL }); las que faltan se buscan y llegan con onArtistPicturesChanged. */
   getArtistPictures: (names) => ipcRenderer.invoke('artists:pictures', names),
-  onArtistPicturesChanged: (callback) => {
-    const listener = (_event, pictures) => callback(pictures);
-    ipcRenderer.on('artists:pictures-changed', listener);
-    return () => ipcRenderer.removeListener('artists:pictures-changed', listener);
-  },
-  /** Pistas completadas en segundo plano. Devuelve la función para dejar de escuchar. */
-  onTracksUpdated: (callback) => {
-    const listener = (_event, tracks) => callback(tracks);
-    ipcRenderer.on('library:tracks-updated', listener);
-    return () => ipcRenderer.removeListener('library:tracks-updated', listener);
-  },
+  onArtistPicturesChanged: subscribe('artists:pictures-changed'),
+  /** Pistas completadas en segundo plano. */
+  onTracksUpdated: subscribe('library:tracks-updated'),
 });
