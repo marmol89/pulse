@@ -518,6 +518,32 @@ try {
   check(mostPlayed === playsInBucket.length, `"Más escuchadas" tiene las canciones escuchadas (${mostPlayed})`);
   await page.click('.nav__item:has-text("Biblioteca")');
 
+  // Bandeja y barra de tareas: sus órdenes llegan desde el main; "Seguir en la bandeja" oculta la ventana al cerrar.
+  const sendCommand = (command) => app.evaluate(({ BrowserWindow }, name) => BrowserWindow.getAllWindows()[0].webContents.send('desktop:command', name), command);
+  await page.dblclick('.view--collection .track-row >> nth=0');
+  const trayBefore = await page.textContent('.player__title');
+  await sendCommand('next');
+  await page.waitForFunction((title) => document.querySelector('.player__title')?.textContent !== title, trayBefore);
+  check(true, 'la bandeja (o la miniatura) pasa a la siguiente');
+  await sendCommand('toggle');
+  await page.waitForSelector('.player button[aria-label="Reproducir"]');
+  check(true, 'la bandeja pausa');
+  await page.locator('.switch-row:has-text("Seguir en la bandeja")').scrollIntoViewIfNeeded();
+  check(await page.isVisible('.switch-row:has-text("Seguir en la bandeja")'), 'en escritorio se ofrece "Seguir en la bandeja"');
+  await page.click('.switch-row:has-text("Seguir en la bandeja") .switch');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent.includes('seguirá sonando en la bandeja'));
+  await shot('09f-bandeja');
+  const hidden = await app.evaluate(async ({ BrowserWindow }) => {
+    const [win] = BrowserWindow.getAllWindows();
+    win.close();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const result = { exists: !win.isDestroyed(), visible: win.isVisible() };
+    win.show();
+    return result;
+  });
+  check(hidden.exists && !hidden.visible, 'con "Seguir en la bandeja", cerrar oculta la ventana y Pulse sigue abierto');
+  await page.click('.switch-row:has-text("Seguir en la bandeja") .switch');
+
   // Papelera: "⋯" › "Eliminar del bucket" (con confirmación), restaurar desde "Papelera" y vaciarla.
   const toastIs = (text) => page.waitForFunction((expected) => document.querySelector('.toast')?.textContent === expected, text);
   const hasRow = (title) => page.locator(`.view--collection .track-row:has-text("${title}")`).count().then((count) => count > 0);
