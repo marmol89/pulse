@@ -37,7 +37,7 @@ src/backend/     lógica común a Electron y Android, SIN Node ni Electron (lo c
                  metadata.js (copia en
                  metadatos/ del bucket), lists.js (listas de canciones: lists.js aquí y metadatos/listas.json),
                  favorites.js (favoritos: favorites.json y metadatos/favoritos.json), recents.js (recientes:
-                 recents.json y metadatos/recientes.json), shared.js (lo que comparten listas, favoritos y
+                 recents.json y metadatos/recientes.json), plays.js (escuchas: plays.json y metadatos/escuchas.json), shared.js (lo que comparten listas, favoritos y
                  recientes: guardar aquí, subir, juntar copias por `updatedAt`),
                  tracks.js (registro ↔ pista), store.js (library.json: caché local), covers.js (carátulas
                  incrustadas en covers/: se guardan al sincronizar y se leen del bucket como mucho 4 a la vez)
@@ -64,7 +64,7 @@ src/renderer/
   app.js         raíz de composición: crea colegas → PlayerMediator → app-ready
   core/          Mediator (solo enruta) y Colleague
   mediator/      PlayerMediator (solo compone), events.js, actions.js, handlers/ (uno por caso de uso)
-  colleagues/    modelos (Catalog, Playlist = la cola, Lists = listas del usuario, Favorites, Recents, Settings,
+  colleagues/    modelos (Catalog, Playlist = la cola, Lists = listas del usuario, Favorites, Recents, Plays, Settings,
                  Session = lo que sonaba al cerrar, para retomarlo),
                  servicios (AudioEngine, Equalizer, LibraryService, MediaSessionBridge, SleepTimer) y vistas (Router, HomeView,
                  PlaylistView, SearchView, NowPlayingView, ControlsView, ToastView, ConnectionView,
@@ -150,6 +150,12 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
 - **Escuchado recientemente** (`recents.js`, sobre `shared.js`): `metadatos/recientes.json`, un registro por canción
   con la última vez que sonó (gana la escucha más reciente; se guardan 100 y se ven 12). Se suben a los 2 s y llegan
   como `recents-changed`; los de antes (en `localStorage`) se suben una vez al arrancar con `import()`.
+- **Escuchas** (`plays.js`, sobre `shared.js`): `metadatos/escuchas.json`, un registro por canción **y por equipo**
+  (`equipo|ruta`, el id del equipo en `device.json`): cada equipo solo cambia los suyos, así que juntar copias por
+  `updatedAt` no pierde escuchas y el total es la suma. Cuenta el modelo `Plays` (30 s o la mitad **escuchados**, una vez
+  por reproducción; handler `plays.js` sobre `time-update`) y llegan como `plays-changed`. Con ellas, las listas
+  inteligentes de Inicio («Hechas para ti»: Más escuchadas, Añadidas recientemente —30 días— y Sin escuchar), que
+  resuelve `actions.resolveCollection` (`SMART_KINDS`).
 - Si una canción falla al sonar se comprueba en el bucket (`library:verify`); si ya no está, se quita.
 - **Carpetas del equipo** (`source.js`): en "Conexión", pestaña "Carpetas", se añaden o quitan carpetas (diálogo del
   sistema; en Android, el selector SAF con permiso persistente). Es **solo lectura total**: Pulse nunca toca esos
