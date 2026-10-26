@@ -74,6 +74,14 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('recents:changed', listener);
     return () => ipcRenderer.removeListener('recents:changed', listener);
   },
+  // Escuchas (compartidas como los recientes): { ruta: veces que ha sonado }.
+  getPlays: () => ipcRenderer.invoke('plays:get'),
+  addPlay: (path) => ipcRenderer.invoke('plays:add', path),
+  onPlaysChanged: (callback) => {
+    const listener = (_event, plays) => callback(plays);
+    ipcRenderer.on('plays:changed', listener);
+    return () => ipcRenderer.removeListener('plays:changed', listener);
+  },
   onFavoritesChanged: (callback) => {
     const listener = (_event, favorites) => callback(favorites);
     ipcRenderer.on('favorites:changed', listener);
