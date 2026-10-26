@@ -63,6 +63,7 @@ export function fakeContext(overrides = {}) {
     session: new Session(storage),
     library: spy({ load: [], sync: { added: 0, removed: 0 }, verify: true, connection: null, importCredentials: null, lookup: null, canDownload: false, lists: [], favorites: [], setFavorite: { ok: true, favorites: [] }, importFavorites: { ok: true, favorites: [] }, recents: [], addRecent: { ok: true, recents: [] }, importRecents: { ok: true, recents: [] }, plays: {}, addPlay: { ok: true, plays: {} } }),
     mediaSession: spy(),
+    desktop: spy({ available: false }),
     equalizer: spy({ available: false, setOutputDevice: async () => {} }),
     equalizerDialog: spy(),
     sleepTimer: new SleepTimer({ timers: { setTimeout: () => 1, clearTimeout() {} }, now: () => 0 }),
