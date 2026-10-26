@@ -529,6 +529,54 @@ try {
   const paused = (await page.getAttribute('.player .play-button', 'aria-label')) === 'Reproducir';
   check(resumed && paused && resumedAt === leftAt, `al volver a abrir retoma la pista en pausa donde se dejó (${resumedAt}; se dejó en ${leftAt})`);
   await shot('10-retomar');
+
+  // Carpetas del ordenador en vez del bucket: de solo lectura, con saltos (rangos) y sin subir ni papelera.
+  const localErrors = [];
+  page.on('pageerror', (error) => localErrors.push(error.message));
+  const folder = path.join(work, 'Mi música');
+  await mkdir(path.join(folder, 'Disco'), { recursive: true });
+  await writeFile(path.join(folder, 'Disco', 'Local.wav'), createWav({ seconds: 10, tags: { title: 'Canción Local', artist: 'Río Claro', album: 'Orilla' } }));
+  await fakeDialog([folder]);
+  await page.click('.nav__item:has-text("Conexión")');
+  await page.click('#connection-tab-local');
+  await shot('15-conexion-carpetas-vacia');
+  await page.click('#connection-add-folder');
+  await page.waitForSelector('.connection__folders .list-picker__item:has-text("Mi música")');
+  await shot('15b-conexion-carpetas');
+  await page.click('.connection button[type="submit"]');
+  await page.waitForSelector('.connection', { state: 'hidden' });
+  await page.waitForFunction(() => document.querySelector('.nav__status')?.textContent === 'Mi música');
+  check((await page.textContent('.nav__status')) === 'Mi música', 'la sidebar muestra la carpeta en uso');
+  check(!(await page.isVisible('.nav__item:has-text("Subir canciones")')) && !(await page.isVisible('.nav__item:has-text("Papelera")')), 'con carpetas no se ofrece subir ni la papelera');
+  await page.click('.nav__item:has-text("Biblioteca")');
+  await page.waitForFunction(() => document.querySelectorAll('.view--collection .track-row').length === 1);
+  check((await page.textContent('.view--collection .track-row .track-row__title')) === 'Canción Local', 'la biblioteca es la música de la carpeta, con sus etiquetas');
+  await page.dblclick('.view--collection .track-row:has-text("Canción Local")');
+  await page.waitForFunction(() => document.querySelector('.player__title')?.textContent === 'Canción Local' && document.querySelector('.player .seek-bar__time')?.textContent >= '0:01', null, { timeout: 10000 });
+  await page.evaluate(() => {
+    const range = document.querySelector('.player .seek-bar__range');
+    range.value = '7';
+    range.dispatchEvent(new Event('input'));
+    range.dispatchEvent(new Event('change'));
+  });
+  const seeked = await page.waitForFunction(() => document.querySelector('.player .seek-bar__time')?.textContent >= '0:07', null, { timeout: 5000 }).then(() => true, () => false);
+  check(seeked, 'una canción de la carpeta suena y se puede saltar (rangos desde el disco)');
+  await page.click('.view--collection .track-row:has-text("Canción Local") [data-action="more"]');
+  check((await page.locator('.menu__item:has-text("Eliminar del bucket")').count()) === 0, 'el «⋯» no ofrece eliminar canciones de las carpetas');
+  await page.keyboard.press('Escape');
+  await shot('16-carpetas-biblioteca');
+  check((await readdir(folder)).join() === 'Disco' && (await readdir(path.join(folder, 'Disco'))).join() === 'Local.wav', 'Pulse no escribe nada en la carpeta');
+
+  await page.click('.nav__item:has-text("Conexión")');
+  await page.click('#connection-tab-s3');
+  await page.click('.connection button[type="submit"]'); // la clave secreta guardada se conserva
+  await page.waitForSelector('.connection', { state: 'hidden' });
+
+  await page.waitForFunction(() => document.querySelector('.nav__status')?.textContent.startsWith('musica'));
+  await page.click('.nav__item:has-text("Biblioteca")');
+  await page.waitForFunction(() => document.querySelectorAll('.view--collection .track-row').length > 1 && !document.querySelector('.view--collection')?.textContent.includes('Canción Local'));
+  check(await page.isVisible('.nav__item:has-text("Subir canciones")'), 'al volver al bucket vuelve su música y «Subir canciones»');
+  check(localErrors.length === 0, `sin errores de página con carpetas${localErrors.length ? `: ${localErrors.join(' · ')}` : ''}`);
 } finally {
   await app.close();
   await s3.close();
