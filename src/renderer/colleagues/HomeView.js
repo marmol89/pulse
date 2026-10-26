@@ -53,7 +53,7 @@ export class HomeView extends Colleague {
   }
 
   /**
-   * @param {{ isEmpty, recents, genres, albums, artists, favoriteTracks, lists, favorites, currentPath, playing }} data
+   * @param {{ isEmpty, recents, genres, albums, artists, favoriteTracks, lists, favorites, currentPath, playing, readOnly }} data
    *   `lists`: [{ id, name, count, sample }] (sample: una pista para la portada, o null)
    */
   render(data) {
@@ -92,7 +92,7 @@ export class HomeView extends Colleague {
     const data = this.#data;
     if (!data) return;
     if (data.isEmpty) {
-      this.#content.replaceChildren(this.#welcome());
+      this.#content.replaceChildren(this.#welcome(data.readOnly));
       return;
     }
     const sections = {
@@ -167,7 +167,7 @@ export class HomeView extends Colleague {
     return this.#card({
       cover: h('span', { class: 'cover cover--card cover--new' }, icon('plus')),
       title: 'Nueva lista',
-      subtitle: 'Se guarda en tu bucket',
+      subtitle: 'Junta tus canciones',
       onClick: () => this.notify(EVENTS.NEW_LIST),
     });
   }
@@ -217,11 +217,11 @@ export class HomeView extends Colleague {
     );
   }
 
-  #favoritesList({ favoriteTracks, favorites, currentPath, playing }) {
+  #favoritesList({ favoriteTracks, favorites, currentPath, playing, readOnly }) {
     if (favoriteTracks.length === 0) {
       return h('p', { class: 'hint' }, 'Aún no tienes favoritos. Pulsa el corazón de cualquier canción para guardarla aquí.');
     }
-    this.#favorites.render(favoriteTracks, { favorites, currentPath, playing });
+    this.#favorites.render(favoriteTracks, { favorites, currentPath, playing, readOnly });
     return this.#favorites.element;
   }
 
@@ -237,9 +237,10 @@ export class HomeView extends Colleague {
     return card;
   }
 
-  #welcome() {
-    const connect = h('button', { type: 'button', class: 'button button--primary' }, icon('cloud'), 'Conectar mi bucket');
-    const upload = h('button', { type: 'button', class: 'button button--secondary' }, icon('upload'), 'Subir canciones');
+  /** `readOnly`: la música sale de carpetas del equipo (no se suben canciones). */
+  #welcome(readOnly) {
+    const connect = h('button', { type: 'button', class: 'button button--primary' }, icon('cloud'), readOnly ? 'Elegir mis carpetas' : 'Conectar mi música');
+    const upload = h('button', { type: 'button', class: 'button button--secondary', hidden: readOnly }, icon('upload'), 'Subir canciones');
     const refresh = h('button', { type: 'button', class: 'button button--secondary' }, icon('refresh'), 'Actualizar biblioteca');
     connect.addEventListener('click', () => this.notify(EVENTS.OPEN_CONNECTION));
     upload.addEventListener('click', () => this.notify(EVENTS.UPLOAD_SONGS));
@@ -252,7 +253,9 @@ export class HomeView extends Colleague {
       h(
         'p',
         { class: 'welcome-card__text' },
-        'Tu música vive en un bucket S3 (o compatible, como MinIO). Conéctalo y sube canciones desde tu ordenador: con el botón o arrastrándolas a la ventana.',
+        readOnly
+          ? 'Pulse reproduce las canciones de las carpetas que elijas, sin tocar tus archivos. Si acabas de añadir música, pulsa «Actualizar biblioteca».'
+          : 'Tu música puede vivir en un bucket S3 (o compatible, como MinIO) o en carpetas de este equipo. Con un bucket, sube canciones con el botón o arrastrándolas a la ventana.',
       ),
       h('div', { class: 'welcome-card__actions' }, connect, upload, refresh),
     );

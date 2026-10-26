@@ -16,6 +16,7 @@ export function trackListState(ctx) {
     favorites: new Set(ctx.favorites.list()),
     currentPath: ctx.playlist.current()?.path ?? null,
     playing: ctx.audio.isPlaying(),
+    readOnly: ctx.settings.isReadOnly(), // carpetas del equipo: sin «Eliminar del bucket»
   };
 }
 
@@ -142,7 +143,7 @@ const DOWNLOADABLE = new Set(['list', 'favorites', 'album']);
 export function renderCollection(ctx, source) {
   const collection = resolveCollection(ctx, source);
   const paths = collection.tracks.map((track) => track.path);
-  const download = ctx.downloads.supported() && DOWNLOADABLE.has(source.kind) ? ctx.downloads.stateOf(paths) : null;
+  const download = ctx.downloads.supported() && !ctx.settings.isReadOnly() && DOWNLOADABLE.has(source.kind) ? ctx.downloads.stateOf(paths) : null;
   ctx.playlistView.render(collection, { ...trackListState(ctx), download });
 }
 
@@ -217,4 +218,44 @@ export function showModes(ctx) {
   ctx.controls.setModes(modes);
   ctx.nowPlaying.setModes(modes);
   ctx.playlistView.setModes(modes);
+}
+
+/** De dónde sale la música (el bucket o las carpetas del equipo): la sidebar y lo que se puede hacer con cada canción. */
+export function showSource(ctx, summary) {
+  ctx.settings.setSource(summary?.mode);
+  ctx.router.setConnection(summary);
+  repaintLibraryViews(ctx);
+}
+
+/**
+ * Tras conectar el bucket o elegir carpetas (`result` del proceso main): cierra el formulario, avisa con `message`
+ * y trae la música, que llega con library-changed. Si no se pudo, el formulario explica por qué.
+ */
+export async function finishConnection(ctx, result, message) {
+  if (!result.ok) {
+    ctx.connection.showError(result.error);
+    return;
+  }
+  ctx.connection.close();
+  showSource(ctx, result.summary);
+  ctx.toast.show(message);
+  try {
+    await ctx.library.sync();
+  } catch {
+    ctx.toast.show('No se pudo leer tu música', { tone: 'error' });
+  }
+}
+
+/** Dónde vive la música, para los avisos: "en el bucket" o "en tus carpetas". */
+export function sourcePlace(ctx) {
+  return ctx.settings.isReadOnly() ? 'en tus carpetas' : 'en el bucket';
+}
+
+/**
+ * Las canciones de `paths` que son del origen de ahora (local:// o s3://). Al cambiar del bucket a las carpetas
+ * (o al revés) las del otro salen de la biblioteca, pero no se han borrado: no hay que avisar de ellas.
+ */
+export function fromCurrentSource(ctx, paths) {
+  const source = ctx.settings.source();
+  return source ? paths.filter((path) => path.startsWith(source === 'local' ? 'local://' : 's3://')) : paths;
 }

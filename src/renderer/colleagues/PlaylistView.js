@@ -20,7 +20,7 @@ const KIND_LABELS = {
   list: 'Lista',
 };
 const EMPTY_MESSAGES = {
-  library: 'Tu biblioteca está vacía. Sube canciones a tu bucket y pulsa «Actualizar biblioteca» en la barra lateral.',
+  library: 'Tu biblioteca está vacía. Sube canciones a tu bucket (o añádelas a tus carpetas) y pulsa «Actualizar biblioteca» en la barra lateral.',
   favorites: 'Aún no tienes favoritos. Pulsa el corazón de cualquier canción para guardarla aquí.',
   recents: 'Todavía no has escuchado nada.',
   queue: 'La cola está vacía.',

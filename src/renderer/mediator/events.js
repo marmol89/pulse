@@ -55,10 +55,12 @@ export const EVENTS = Object.freeze({
   FILES_DROPPED: 'files-dropped', // (File[]) — archivos o carpetas arrastrados a la ventana
   UPLOAD_PROGRESS: 'upload-progress', // ({ current, total, name }) — subiendo la canción current de total
 
-  // Conexión S3
+  // Conexión: el bucket S3 o carpetas del equipo (nunca las dos a la vez)
   OPEN_CONNECTION: 'open-connection', // ()
   SAVE_CONNECTION: 'save-connection', // ({ endpoint, accessKeyId, secretAccessKey, bucket, prefix })
   IMPORT_CREDENTIALS: 'import-credentials', // () — elegir un credentials.json
+  CHOOSE_FOLDER: 'choose-folder', // () — "Añadir carpeta": elegirla en el selector del sistema
+  SAVE_FOLDERS: 'save-folders', // (ids[]) — usar esas carpetas en vez del bucket
 
   // Vistas
   NAVIGATE: 'navigate', // ('home' | 'search' | 'library')

@@ -32,6 +32,16 @@ describe('handlers/changes', () => {
     assert.deepEqual(toasts(ctx), ['1 canción ya no está en el bucket']);
   });
 
+  test('al pasar a las carpetas, las del bucket salen sin avisar de que se hayan borrado', () => {
+    const ctx = library({ playing: false });
+    ctx.settings.setSource('local');
+    const local = track('local://carpetas/C:/Música/x.mp3');
+    changes[EVENTS.LIBRARY_CHANGED](ctx, { removed: ['s3://musica/a.mp3', 's3://musica/b.mp3'], added: [local] });
+    assert.deepEqual(toasts(ctx), ['1 canción nueva']);
+    changes[EVENTS.LIBRARY_CHANGED](ctx, { removed: [local.path], added: [] });
+    assert.deepEqual(toasts(ctx).at(-1), '1 canción ya no está en tus carpetas');
+  });
+
   test('si sonaba una de las que faltan, sigue sonando la siguiente', () => {
     const ctx = library({ current: b, playing: true });
     changes[EVENTS.LIBRARY_CHANGED](ctx, { removed: [b.path], added: [] });
