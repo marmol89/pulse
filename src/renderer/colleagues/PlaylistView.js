@@ -45,7 +45,8 @@ const TRACK_COVER_KINDS = new Set(['album', 'artist']);
  * aleatorio + play y la lista de pistas de cualquier colección.
  * En una lista del usuario, además: "Editar lista" y quitar canciones.
  * Emite: navigate-back, play-collection, toggle-shuffle, track-selected, toggle-favorite, choose-list,
- * edit-list, remove-from-list, move-in-list, play-next, enqueue, remove-from-queue, move-in-queue.
+ * edit-list, export-collection, remove-from-list, move-in-list, play-next, enqueue, remove-from-queue, move-in-queue,
+ * edit-track, trash-track.
  * En "Tu biblioteca": sort-library y filter-library.
  */
 export class PlaylistView extends Colleague {
@@ -110,6 +111,7 @@ export class PlaylistView extends Colleague {
       onToggleFavorite: (path) => this.notify(EVENTS.TOGGLE_FAVORITE, path),
       onAddToList: (path) => this.notify(EVENTS.CHOOSE_LIST, path),
       onPlayNext: (path) => this.notify(EVENTS.PLAY_NEXT, [path]),
+      onEdit: (path) => this.notify(EVENTS.EDIT_TRACK, path),
       onTrash: (path) => this.notify(EVENTS.TRASH_TRACK, path),
       onEnqueue: (path) => this.notify(EVENTS.ENQUEUE, [path]),
       onMove: (path, to) =>

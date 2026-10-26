@@ -1157,6 +1157,18 @@
   display: contents;
 }
 
+.info-card__edit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.info-card__edit .icon {
+  width: 16px;
+  height: 16px;
+}
+
 .info-card__row dt {
   color: var(--color-text-2);
   font-size: var(--fs-body);
@@ -1657,6 +1669,18 @@
 
 .list-dialog__delete.is-confirming {
   color: var(--color-accent);
+}
+
+/* "Editar datos" de una canción: año, pista y disco en una fila; "Restaurar" a la izquierda de los botones */
+.track-edit__numbers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.track-edit__restore {
+  margin-right: auto;
+  color: var(--color-text-2);
 }
 
 /* Papelera del bucket (mismo diálogo que las listas) */

@@ -36,6 +36,8 @@ export class KeyboardShortcuts extends Colleague {
     const key = event.key?.length === 1 ? event.key.toLowerCase() : event.key;
     const shortcut = SHORTCUTS.find((candidate) => candidate.key === key && Boolean(candidate.ctrl) === ctrl);
     if (!shortcut) return;
+    // En un diálogo (conexión, listas, editar datos…) las teclas son suyas: Esc lo cierra.
+    if (event.target?.closest?.('dialog[open]')) return;
     if (isTextField(event.target) && !shortcut.inText) return;
     // En un deslizador, las flechas mueven el propio deslizador.
     if (isRange(event.target) && key.startsWith('Arrow') && !ctrl) return;

@@ -95,4 +95,12 @@ describe('KeyboardShortcuts', () => {
     target.dispatchEvent(handled);
     assert.deepEqual(events, []);
   });
+
+  test('dentro de un diálogo abierto no hay atajos: Esc lo cierra y Espacio pulsa sus botones', () => {
+    const { target, events } = setup(element({ closest: (selector) => (selector === 'dialog[open]' ? {} : null) }));
+    const escape = press(target, 'Escape');
+    press(target, ' ');
+    assert.deepEqual(events, []);
+    assert.equal(escape.defaultPrevented, false);
+  });
 });

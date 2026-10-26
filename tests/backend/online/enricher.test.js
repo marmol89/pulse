@@ -59,6 +59,19 @@ describe('online/enricher', () => {
     assert.equal(needsInfo(record({ online: { checkedAt: 5, status: 'found' } })), false);
   });
 
+  test('con el título y el artista editados a mano, busca esos y guarda lo encontrado debajo de lo editado', async () => {
+    const { enricher, fetch } = setup();
+    const badName = record({ title: 'pista 07', titleFromFile: true, artist: 'Artista desconocido', edited: { title: 'Despacito', artist: 'Luis Fonsi' }, editedAt: 5 });
+
+    const { record: updated } = await enricher.enrich(badName, { force: true });
+
+    const term = new URL(fetch.requests.find((request) => request.url.startsWith(ITUNES)).url).searchParams.get('term');
+    assert.match(term, /Despacito/);
+    assert.match(term, /Fonsi/);
+    assert.equal(updated.album, 'VIDA');
+    assert.deepEqual(updated.edited, { title: 'Despacito', artist: 'Luis Fonsi' }, 'lo editado sigue aparte');
+  });
+
   test('rellena álbum, año, género, pista y carátula sin pisar las etiquetas', async () => {
     const { enricher, files } = setup();
 

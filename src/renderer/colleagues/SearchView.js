@@ -9,7 +9,7 @@ const DEFAULT_HINT = 'Busca entre las canciones de tu biblioteca por título, ar
 
 /**
  * Buscar: campo de búsqueda y resultados. Esc borra la búsqueda.
- * Emite: search, track-selected, toggle-favorite, choose-list, play-next, enqueue.
+ * Emite: search, track-selected, toggle-favorite, choose-list, play-next, enqueue, edit-track, trash-track.
  */
 export class SearchView extends Colleague {
   #input;
@@ -45,6 +45,7 @@ export class SearchView extends Colleague {
       onToggleFavorite: (path) => this.notify(EVENTS.TOGGLE_FAVORITE, path),
       onAddToList: (path) => this.notify(EVENTS.CHOOSE_LIST, path),
       onPlayNext: (path) => this.notify(EVENTS.PLAY_NEXT, [path]),
+      onEdit: (path) => this.notify(EVENTS.EDIT_TRACK, path),
       onTrash: (path) => this.notify(EVENTS.TRASH_TRACK, path),
       onEnqueue: (path) => this.notify(EVENTS.ENQUEUE, [path]),
     });

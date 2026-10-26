@@ -35,7 +35,7 @@ src/backend/     lógica común a Electron y Android, SIN Node ni Electron (lo c
   library/       remote.js (id s3://bucket/clave o local://carpetas/clave, etiquetas leyendo el principio del objeto), sync.js
                  (biblioteca = bucket), upload.js (sube lo que da `collect`: {name,size,open}), trash.js (papelera del bucket),
                  metadata.js (copia en
-                 metadatos/ del bucket), lists.js (listas de canciones: lists.js aquí y metadatos/listas.json),
+                 metadatos/ del bucket), edits.js (datos editados a mano: `edited` + `editedAt`), lists.js (listas de canciones: lists.js aquí y metadatos/listas.json),
                  favorites.js (favoritos: favorites.json y metadatos/favoritos.json), recents.js (recientes:
                  recents.json y metadatos/recientes.json), plays.js (escuchas: plays.json y metadatos/escuchas.json), shared.js (lo que comparten listas, favoritos y
                  recientes: guardar aquí, subir, juntar copias por `updatedAt`),
@@ -74,7 +74,7 @@ src/renderer/
                  Session = lo que sonaba al cerrar, para retomarlo),
                  servicios (AudioEngine, Equalizer, LibraryService, MediaSessionBridge, DesktopBridge, SleepTimer) y vistas (Router, HomeView,
                  PlaylistView, SearchView, NowPlayingView, ControlsView, ToastView, ConnectionView,
-                 ListDialog, EqualizerDialog, KeyboardShortcuts)
+                 ListDialog, EqualizerDialog, TrackEditDialog, KeyboardShortcuts)
   ui/            piezas de UI sin estado de negocio (dom, icons, cover, format, trackList, transport, menu: el «⋯»
                  de las filas, con todas sus opciones; en el móvil es su único botón, reorder: arrastrar filas con
                  el asa y Alt+↑/↓)
@@ -144,6 +144,13 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
   cerrar; si falla, se reintenta al minuto. Cada sincronización lo lee primero: lo que tenga el mismo ETag no se
   relee del archivo y los datos de internet más recientes (`lookupStamp`) llegan como `tracks-updated`.
   `library.json` y `covers/` en userData quedan como caché (arranque al momento y sin conexión).
+- **Editar datos** (`edits.js`, handler `editTrack.js`, `TrackEditDialog`): en el «⋯» de cada fila y en Reproduciendo.
+  **No toca el archivo**: lo cambiado va aparte en el registro (`edited`, solo lo que difiere, y `editedAt`) y
+  `toTrack` lo pone encima de etiquetas e internet (`track.edited` dice si lo hay). `store.add` conserva siempre la
+  edición más reciente (`keepNewestEdits`: la cola de internet ni releer un archivo cambiado la pisan) y viaja en
+  `biblioteca.json` (una más reciente de otro equipo llega como `tracks-updated`). «Restaurar datos del archivo»
+  deja `edited: null` con su fecha. La búsqueda en internet usa el título y el artista editados. Con carpetas, solo
+  en ese equipo. Los atajos de teclado no actúan dentro de un `<dialog>` abierto (Esc lo cierra).
 - **Listas de canciones** (`lists.js`): `metadatos/listas.json` bajo la carpeta de la conexión, compartidas por
   todos los Pulse de ese bucket. Cada cambio se guarda al momento en `lists.json` y se sube a los 2 s; se traen al
   arrancar, al volver a la ventana y con "Actualizar biblioteca" (`lists-changed`). Al juntar dos copias gana, por

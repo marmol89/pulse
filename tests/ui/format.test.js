@@ -63,6 +63,7 @@ describe('ui/format', () => {
     assert.equal(formatDataSource(null), 'Del archivo');
     assert.equal(formatDataSource({ status: 'not-found' }), 'Del archivo');
     assert.equal(formatDataSource({ status: 'found', source: 'iTunes', lyricsSource: 'LRCLIB' }), 'Del archivo y de iTunes · letra de LRCLIB');
+    assert.equal(formatDataSource(null, true), 'Del archivo · editados a mano');
   });
 
   test('trackDetails() da las filas de "Información" con valor, en orden', () => {

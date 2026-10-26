@@ -16,6 +16,16 @@ const LYRICS_VERSION = 3;
 
 const outdated = (version, current = LOOKUP_VERSION) => (version ?? 1) < current;
 
+/**
+ * Lo que se busca: con el título o el artista editados a mano, esos (el usuario los ha corregido). Lo encontrado se
+ * guarda igualmente en el registro, debajo de lo editado.
+ */
+function searchQueries(record) {
+  const { title, artist } = record.edited ?? {};
+  if (!title && !artist) return queriesFromRecord(record);
+  return queriesFromRecord({ ...record, title: title ?? record.title, artist: artist ?? record.artist, titleFromFile: title ? false : record.titleFromFile });
+}
+
 /** A la pista le falta algo que internet puede aportar y todavía no se ha buscado (con esta versión). */
 export function needsInfo(record) {
   const { online } = record;
@@ -55,7 +65,7 @@ export function createEnricher({ http, files, now = Date.now }) {
 
   async function lookupInfo(record) {
     // Las lecturas del nombre tienen las mismas palabras: una búsqueda por servicio vale para todas.
-    const queries = queriesFromRecord(record);
+    const queries = searchQueries(record);
     let match = pickBestOf(queries, await orFallback(() => searchItunes(http, queries[0]), []));
     match ??= pickBestOf(queries, await orFallback(() => searchDeezer(http, queries[0]), []));
     const online = { ...record.online, checkedAt: now(), version: LOOKUP_VERSION };
@@ -67,7 +77,7 @@ export function createEnricher({ http, files, now = Date.now }) {
   // Con los datos ya completados, o con las lecturas del nombre del archivo si no se encontraron.
   async function lookupLyrics(record) {
     let found = null;
-    for (const query of queriesFromRecord(record)) {
+    for (const query of searchQueries(record)) {
       found = await orFallback(() => findLyrics(http, query), null);
       if (found) break;
     }

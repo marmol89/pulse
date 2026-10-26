@@ -17,7 +17,7 @@ Leyenda del esfuerzo: **S** (un par de commits), **M** (una PR normal), **L** (v
 | 4 | Bandeja del sistema y botones en la barra de tareas | M | escritorio | ✅ |
 | 5 | Mini-reproductor | M | escritorio | ✅ |
 | 6 | Exportar e importar listas (M3U) | M | todas | ✅ |
-| 7 | Editar los datos de una canción | L | todas | ☐ |
+| 7 | Editar los datos de una canción | L | todas | ✅ |
 | 8 | Actualizaciones automáticas | M | escritorio | ☐ |
 
 ---
@@ -130,7 +130,10 @@ subir.
 - Si se edita título o artista, la búsqueda de internet usa lo editado (y se puede repetir).
 - "Restaurar datos del archivo" quita lo editado.
 
-**Pruebas:** `tests/backend/` (`toTrack` con `edited`, juntar copias), handler `editTrack.js`, diálogo en e2e.
+- Hecho: también el disco. `store.add` conserva siempre la edición más reciente, así que ni la cola de internet ni
+  releer un archivo cambiado la pierden. De paso: los atajos de teclado ya no se comen el Esc de los diálogos.
+
+**Pruebas:** `tests/backend/edits.test.js` (`toTrack` con `edited`, juntar copias), handler `editTrack.js`, diálogo en e2e.
 
 ## 8. Actualizaciones automáticas
 

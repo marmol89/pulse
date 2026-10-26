@@ -26,6 +26,7 @@ import { ToastView } from './colleagues/ToastView.js';
 import { ConnectionView } from './colleagues/ConnectionView.js';
 import { ListDialog } from './colleagues/ListDialog.js';
 import { TrashDialog } from './colleagues/TrashDialog.js';
+import { TrackEditDialog } from './colleagues/TrackEditDialog.js';
 import { EqualizerDialog } from './colleagues/EqualizerDialog.js';
 import { KeyboardShortcuts } from './colleagues/KeyboardShortcuts.js';
 
@@ -66,6 +67,7 @@ const mediator = new PlayerMediator({
   connection: new ConnectionView($('#connection')),
   listDialog: new ListDialog($('#list-dialog')),
   trashDialog: new TrashDialog($('#trash-dialog')),
+  trackEditDialog: new TrackEditDialog($('#track-edit-dialog')),
   equalizerDialog: new EqualizerDialog($('#equalizer-dialog')),
   keyboard: new KeyboardShortcuts(window),
 });

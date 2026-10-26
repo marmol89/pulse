@@ -59,9 +59,10 @@ export function formatTrackNumber(number, count) {
   return count ? `${number} de ${count}` : String(number);
 }
 
-/** De dónde salen los datos: "Del archivo y de iTunes · letra de LRCLIB". */
-export function formatDataSource(online) {
+/** De dónde salen los datos: "Del archivo y de iTunes · letra de LRCLIB" (con `edited`: "· editados a mano"). */
+export function formatDataSource(online, edited = false) {
   const parts = [online?.status === 'found' ? `Del archivo y de ${online.source}` : 'Del archivo'];
+  if (edited) parts.push('editados a mano');
   if (online?.lyricsSource) parts.push(`letra de ${online.lyricsSource}`);
   return parts.join(' · ');
 }
@@ -75,7 +76,7 @@ export function trackDetails(track) {
     ['Género', track.genre],
     ['Pista', formatTrackNumber(track.trackNo, track.trackCount)],
     ['Duración', track.duration ? formatTime(track.duration) : ''],
-    ['Datos', formatDataSource(track.online)],
+    ['Datos', formatDataSource(track.online, track.edited)],
   ];
   return rows.filter(([, value]) => value);
 }

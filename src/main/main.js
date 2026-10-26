@@ -130,7 +130,7 @@ async function start() {
     },
   });
   registerLibraryIpc({ store, source, librarySync, uploader, trash, lists, favorites, recents, plays });
-  registerMetadataIpc({ store, queue, artistPictures });
+  registerMetadataIpc({ store, queue, artistPictures, toTrack: mediaTrack });
   registerListsIpc({ lists });
   registerFavoritesIpc({ favorites });
   registerRecentsIpc({ recents });

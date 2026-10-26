@@ -82,6 +82,9 @@ export const EVENTS = Object.freeze({
 
   // Papelera del bucket ("Eliminar del bucket" en el "⋯" de cada fila y "Papelera" en Tu música)
   TRASH_TRACK: 'trash-track', // (path) — pide confirmación
+  EDIT_TRACK: 'edit-track', // (path) — "Editar datos": abre el formulario
+  SAVE_TRACK_EDITS: 'save-track-edits', // ({ path, changes }) — el formulario entero
+  RESTORE_TRACK_DATA: 'restore-track-data', // (path) — quitar lo editado y volver a los datos del archivo
   CONFIRM_TRASH: 'confirm-trash', // (path) — la mueve a la papelera
   OPEN_TRASH: 'open-trash', // ()
   RESTORE_FROM_TRASH: 'restore-from-trash', // (key) — clave del objeto en la papelera
