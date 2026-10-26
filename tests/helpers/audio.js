@@ -18,6 +18,11 @@ function lyricsFrame(text) {
   );
 }
 
+/** TXXX (texto con descripción), p. ej. REPLAYGAIN_TRACK_GAIN = "-6.50 dB". Codificación 0 = Latin-1. */
+function userTextFrame(description, value) {
+  return frame('TXXX', Buffer.concat([Buffer.from([0]), Buffer.from(`${description}\0${value}`, 'latin1')]));
+}
+
 function pictureFrame(png) {
   // Codificación 0, MIME, tipo 3 (portada), descripción vacía, datos.
   return frame('APIC', Buffer.concat([Buffer.from([0]), Buffer.from('image/png\0', 'latin1'), Buffer.from([3, 0]), png]));
@@ -34,7 +39,7 @@ function syncsafe(size) {
   return Buffer.from([(size >> 21) & 0x7f, (size >> 14) & 0x7f, (size >> 7) & 0x7f, size & 0x7f]);
 }
 
-function id3Tag({ title, artist, album, albumArtist, genre, track, year, lyrics, cover }) {
+function id3Tag({ title, artist, album, albumArtist, genre, track, year, lyrics, cover, trackGain, albumGain }) {
   const frames = [
     title && textFrame('TIT2', title),
     artist && textFrame('TPE1', artist),
@@ -44,6 +49,8 @@ function id3Tag({ title, artist, album, albumArtist, genre, track, year, lyrics,
     track && textFrame('TRCK', track),
     year && textFrame('TYER', year),
     lyrics && lyricsFrame(lyrics),
+    trackGain && userTextFrame('REPLAYGAIN_TRACK_GAIN', trackGain),
+    albumGain && userTextFrame('REPLAYGAIN_ALBUM_GAIN', albumGain),
     cover && pictureFrame(cover),
   ].filter(Boolean);
   const body = Buffer.concat(frames);

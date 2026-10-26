@@ -169,6 +169,25 @@ describe('library/sync', () => {
     assert.deepEqual(updated.map((tracks) => tracks.map((t) => [t.title, t.addedAt])), [[['Ola Azul', addedAt]]]);
   });
 
+  test('las leídas con una versión anterior de las etiquetas se releen una vez, sin perder sus datos de internet', async () => {
+    s3.put('musica', 'pop/a.wav', createWav({ seconds: 0.2, tags: { title: 'Luces de Neón', artist: 'Aurora Vega', trackGain: '-7.25 dB' } }));
+    await sync.sync();
+    const { tagsVersion, replayGain, ...older } = store.get('s3://musica/pop/a.wav'); // guardada antes de leer ReplayGain
+    assert.deepEqual(replayGain, { track: -7.25, album: null });
+    store.add([{ ...older, album: 'Neón', online: { checkedAt: 4, status: 'found' } }]);
+    const updated = [];
+    const again = createLibrarySync({ toTrack: mediaTrack, store, getStorage: () => storage, onChange: (change) => changes.push(change), onUpdated: (tracks) => updated.push(tracks) });
+
+    const change = await again.sync();
+
+    assert.deepEqual(change, { removed: [], added: [] }, 'no es una canción nueva');
+    assert.deepEqual(updated.map((tracks) => tracks.map((t) => [t.album, t.replayGain])), [[['Neón', { track: -7.25, album: null }]]]);
+    assert.equal(store.get('s3://musica/pop/a.wav').online.checkedAt, 4);
+    const listed = s3.requests.length;
+    await again.sync();
+    assert.equal(s3.requests.length, listed + 1, 'ya no se vuelve a releer');
+  });
+
   test('verify() confirma las que siguen y quita las borradas', async () => {
     await sync.sync();
     s3.remove('musica', 'pop/b.wav');

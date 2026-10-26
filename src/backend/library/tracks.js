@@ -4,6 +4,11 @@ import { selectCover } from 'music-metadata';
 export const AUDIO_EXTENSIONS = ['mp3', 'flac', 'ogg', 'oga', 'opus', 'wav', 'm4a', 'aac', 'webm'];
 const AUDIO_EXTENSION_SET = new Set(AUDIO_EXTENSIONS.map((extension) => `.${extension}`));
 export const UNKNOWN_ARTIST = 'Artista desconocido';
+/**
+ * Qué se lee de las etiquetas. Al subirla, la próxima sincronización relee una vez las pistas leídas con una
+ * versión anterior (sin perder sus datos de internet): 2 = ganancia ReplayGain.
+ */
+export const TAGS_VERSION = 2;
 
 const MIME_TYPES = {
   '.mp3': 'audio/mpeg',
@@ -67,7 +72,29 @@ export function recordFromMetadata(record, { common, format }) {
     duration: format.duration ?? 0,
     lyrics: lyricsText(common.lyrics),
     hasCover: Boolean(common.picture?.length),
+    replayGain: replayGainFrom(common),
   };
+}
+
+/** Ganancia ReplayGain en dB de la pista y del disco (null si no la trae la etiqueta). */
+function replayGainFrom(common) {
+  const dB = (gain) => (Number.isFinite(gain?.dB) ? Math.round(gain.dB * 100) / 100 : null);
+  const track = dB(common.replaygain_track_gain);
+  const album = dB(common.replaygain_album_gain);
+  return track === null && album === null ? null : { track, album };
+}
+
+/** ¿Se leyeron sus etiquetas con una versión anterior (hay que releerlas)? */
+export function needsReread(record) {
+  return (record?.tagsVersion ?? 1) < TAGS_VERSION;
+}
+
+/**
+ * Registro releído por una versión nueva de las etiquetas sobre uno que ya estaba: el archivo es el mismo, así
+ * que solo se toma lo nuevo y se conserva lo demás (datos de internet, carátula, fecha de subida…).
+ */
+export function withRereadTags(previous, reread) {
+  return { ...previous, replayGain: reread.replayGain ?? null, tagsVersion: reread.tagsVersion };
 }
 
 /** Carátula incrustada en unas etiquetas, o null. */
@@ -83,10 +110,11 @@ export function pictureFrom(common) {
  * @param {{ track: (record) => string, cover: (record) => string }} urls
  */
 export function toTrack(record, urls) {
-  const { hasCover, coverName, titleFromFile, key, etag, size, ...fields } = record;
+  const { hasCover, coverName, titleFromFile, key, etag, size, tagsVersion, ...fields } = record;
   return {
     ...fields,
     trackCount: fields.trackCount ?? 0,
+    replayGain: fields.replayGain ?? null,
     online: fields.online ?? null,
     url: urls.track(record),
     cover: hasCover || coverName ? urls.cover(record) : null,

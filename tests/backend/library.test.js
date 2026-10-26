@@ -1,6 +1,6 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { isAudioFile, baseRecord, readRecordCover, toTrack } from '../../src/backend/library/tracks.js';
+import { TAGS_VERSION, isAudioFile, baseRecord, readRecordCover, toTrack } from '../../src/backend/library/tracks.js';
 import { mediaTrack } from '../../src/main/protocol/urls.js';
 import { trackId, isTrackId, parseTrackId, id3Size, readRemoteRecord, readRemoteCover } from '../../src/backend/library/remote.js';
 import { createLibraryStore } from '../../src/backend/library/store.js';
@@ -121,6 +121,18 @@ describe('library/remote', () => {
     assert.equal(record.key, 'pop/neon.wav');
     assert.equal(record.etag, object.etag);
     assert.deepEqual(await readRemoteCover(storage, record), { format: 'image/png', data: new Uint8Array(cover) });
+  });
+
+  test('readRemoteRecord() lee la ganancia ReplayGain de pista y disco (null si no la hay)', async () => {
+    const [object] = (await storage.listAudio()).filter((o) => o.key === 'pop/neon.wav');
+    assert.equal((await readRemoteRecord(storage, object)).replayGain, null);
+    const gains = { key: 'pop/rg.wav', size: 0, etag: '"rg"' };
+    const bytes = createWav({ seconds: 0.2, tags: { title: 'Con ganancia', trackGain: '-6.50 dB', albumGain: '+1.234 dB' } });
+    const withGain = await readRemoteRecord({ bucket: 'musica', readStart: async () => new Uint8Array(bytes) }, { ...gains, size: bytes.length });
+    assert.deepEqual(withGain.replayGain, { track: -6.5, album: 1.23 });
+    assert.equal(withGain.tagsVersion, TAGS_VERSION);
+    assert.deepEqual(mediaTrack(withGain).replayGain, { track: -6.5, album: 1.23 });
+    assert.equal('tagsVersion' in mediaTrack(withGain), false);
   });
 
   test('readRemoteRecord() pasa a onPicture la carátula que ya ha leído', async () => {

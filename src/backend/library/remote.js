@@ -1,6 +1,6 @@
 import { basename } from '../paths.js';
 import { parseBuffer } from 'music-metadata';
-import { baseRecord, mimeFor, pictureFrom, recordFromMetadata } from './tracks.js';
+import { TAGS_VERSION, baseRecord, mimeFor, pictureFrom, recordFromMetadata } from './tracks.js';
 
 const HEAD_BYTES = 512 * 1024; // casi siempre basta para las etiquetas del principio
 const MAX_TAG_BYTES = 16 * 1024 * 1024; // una etiqueta ID3 con carátulas enormes
@@ -58,6 +58,7 @@ export async function readRemoteRecord(storage, object, { onPicture } = {}) {
     etag: object.etag,
     size: object.size,
     addedAt: object.lastModified ?? 0,
+    tagsVersion: TAGS_VERSION,
   });
   const bytes = await readHead(storage, object);
   let metadata;
