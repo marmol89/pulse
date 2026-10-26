@@ -60,6 +60,8 @@ const ICONS = {
   pencil: { viewBox: '-12 -12 24 24', stroke: 2, body: '<path d="M-8 8 L-7 3 L5 -9 L9 -5 L-3 7 Z"/><path d="M2 -6 L6 -2"/>' },
   trash: { viewBox: '-12 -12 24 24', stroke: 2, body: '<path d="M-9 -6 H9"/><path d="M-3 -6 V-9 H3 V-6"/><path d="M-6 -6 L-5 9 H5 L6 -6"/><path d="M-2 -2 V5"/><path d="M2 -2 V5"/>' },
   close: { viewBox: '-12 -12 24 24', stroke: 2.2, body: '<path d="M-7 -7 L7 7"/><path d="M7 -7 L-7 7"/>' },
+  miniplayer: { viewBox: '-12 -12 24 24', stroke: 2, body: '<rect x="-10" y="-8" width="20" height="16" rx="2"/><rect x="0" y="0" width="7" height="5" rx="1" fill="currentColor"/>' },
+  maximize: { viewBox: '-12 -12 24 24', stroke: 2, body: '<rect x="-10" y="-8" width="20" height="16" rx="2"/><path d="M-10 -3 H10"/>' },
   equalizer: {
     viewBox: '-12 -12 24 24',
     stroke: 2,
