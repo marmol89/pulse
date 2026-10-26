@@ -23,7 +23,9 @@ export function lookupStamp(record) {
  * La copia local (library.json y covers/) sigue siendo la caché para arrancar al momento y sin conexión.
  * Con las carpetas del equipo (storage `readOnly`) no hay copia: todo se queda en library.json y covers/.
  */
-export function createMetadataStore({ getStorage, getRecords, files, delay = PUSH_DELAY_MS, maxWait = MAX_PUSH_WAIT_MS, retry = RETRY_MS }) {
+export function createMetadataStore({
+  getStorage, getRecords, files, delay = PUSH_DELAY_MS, maxWait = MAX_PUSH_WAIT_MS, retry = RETRY_MS, now = Date.now, timers = globalThis,
+}) {
   const uploadedCovers = new Set(); // "bucket/clave" ya presentes en el bucket
   let timer = null;
   let firstPendingAt = 0;
@@ -57,7 +59,7 @@ export function createMetadataStore({ getStorage, getRecords, files, delay = PUS
   }
 
   async function push() {
-    clearTimeout(timer);
+    timers.clearTimeout(timer);
     timer = null;
     firstPendingAt = 0;
     const storage = getStorage();
@@ -79,8 +81,8 @@ export function createMetadataStore({ getStorage, getRecords, files, delay = PUS
   }
 
   function schedule(wait) {
-    clearTimeout(timer);
-    timer = setTimeout(flush, wait);
+    timers.clearTimeout(timer);
+    timer = timers.setTimeout(flush, wait);
   }
 
   /** Las subidas se encadenan: nunca van dos a la vez. */
@@ -110,8 +112,8 @@ export function createMetadataStore({ getStorage, getRecords, files, delay = PUS
 
     /** Programa una subida (tras cada guardado de la biblioteca). */
     schedulePush() {
-      firstPendingAt ||= Date.now();
-      schedule(Math.max(0, Math.min(delay, firstPendingAt + maxWait - Date.now())));
+      firstPendingAt ||= now();
+      schedule(Math.max(0, Math.min(delay, firstPendingAt + maxWait - now())));
     },
 
     /** ¿Hay una subida pendiente? (para no cerrar la app sin hacerla) */

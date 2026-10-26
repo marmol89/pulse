@@ -203,7 +203,7 @@ async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downlo
     release: (folder) => folders.release({ uri: folder.id }),
   });
   await source.load();
-  metadata = createMetadataStore({ getStorage: () => source.storage(), getRecords: () => store.all(), files });
+  metadata = createMetadataStore({ getStorage: () => source.storage(), getRecords: () => store.all(), files, timers });
   metadata.schedulePush(); // lo que ya hay en el móvil también llega al bucket
   // Listas, favoritos, recientes y escuchas: en el móvil y en metadatos/ del bucket.
   const userData = await loadUserData({ files, getStorage: () => source.storage(), onChange: emit, timers });
