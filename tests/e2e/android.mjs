@@ -126,7 +126,7 @@ try {
   await page.waitForSelector('.view--search .track-row');
   check((await page.locator('.view--search .track-row').count()) === 1, 'Buscar "selva" encuentra 1 pista');
 
-  // Listas: en el móvil se llega desde Inicio ("Tus listas") y "+" se ve siempre en las filas.
+  // Listas: en el móvil se llega desde Inicio ("Tus listas"); en las filas solo se ve el "⋯", con todas sus opciones.
   await page.click('.nav__item:has-text("Inicio")');
   await page.click('.media-card:has-text("Nueva lista")');
   await page.waitForSelector('.list-dialog[open]');
@@ -135,13 +135,15 @@ try {
   await page.waitForSelector('.view--collection:not([hidden]) .collection-header__title:has-text("Para correr")');
   check(true, 'Inicio › "Nueva lista" crea la lista y la abre');
   await page.click('.nav__item:has-text("Biblioteca")');
-  await page.locator('.view--collection .track-row:has-text("Selva") [data-action="add"]').click();
+  await page.locator('.view--collection .track-row:has-text("Selva") [data-action="more"]').click();
+  check((await page.locator('.view--collection .track-row:has-text("Selva") [data-action="add"]').isHidden()), 'en el móvil la fila solo muestra el "⋯"');
+  await page.click('.menu__item:has-text("Añadir a una lista")');
   await page.waitForSelector('.list-dialog[open] .list-picker__item');
   await page.waitForTimeout(300);
   await shot('05-anadir-a-lista');
   await page.click('.list-picker__item:has-text("Para correr")');
   await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'Añadida a «Para correr»');
-  check(true, '"+" en una fila añade la canción a la lista');
+  check(true, '"⋯" › "Añadir a una lista" añade la canción a la lista');
   const listsInBucket = async () => {
     for (let i = 0; i < 40; i += 1) {
       const body = s3.get('musica', 'metadatos/listas.json');
@@ -152,7 +154,8 @@ try {
     return [];
   };
   check((await listsInBucket()).length === 1, 'la lista se sube a metadatos/listas.json del bucket');
-  await page.locator('.view--collection .track-row:has-text("Selva") .favorite-button').click();
+  await page.locator('.view--collection .track-row:has-text("Selva") [data-action="more"]').click();
+  await page.click('.menu__item:has-text("Añadir a favoritos")');
   const favoritesInBucket = async () => {
     for (let i = 0; i < 40; i += 1) {
       const body = s3.get('musica', 'metadatos/favoritos.json');

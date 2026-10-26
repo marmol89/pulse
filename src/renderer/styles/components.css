@@ -1725,3 +1725,104 @@
 .track-row.is-drop-after {
   box-shadow: inset 0 -2px 0 var(--color-primary);
 }
+
+/* Móvil: en cada fila solo el "⋯" (con quitar, añadir, favorito y subir/bajar dentro), después de la duración. */
+@media (max-width: 720px) {
+  .track-row,
+  .track-list.is-reorderable .track-row {
+    grid-template-columns: 48px minmax(0, 1fr) auto auto;
+    gap: var(--space-2);
+    padding: 0 0 0 var(--space-2);
+  }
+
+  .track-row__grip,
+  .track-row__actions > :not([data-action='more']) {
+    display: none;
+  }
+
+  .track-row__actions {
+    order: 1;
+  }
+
+  .track-row .row-action {
+    opacity: 1;
+  }
+}
+
+/* "⋯" de la cabecera de una lista: solo en el móvil (en escritorio está "Editar lista") */
+.collection-actions__more {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  /* "⋯" y descargar a la izquierda; aleatorio y play, a la derecha */
+  .collection-actions {
+    justify-content: flex-start;
+  }
+
+  .collection-actions .mode-button {
+    margin-left: auto;
+  }
+
+  .collection-actions__edit {
+    display: none;
+  }
+
+  .collection-actions__more {
+    display: inline-grid;
+    width: 44px;
+    height: 44px;
+    background: var(--color-overlay-light);
+    color: var(--color-text);
+  }
+
+  /* Descargar: solo el icono, resaltado si ya está en el móvil */
+  .collection-actions__download {
+    justify-content: center;
+    width: 44px;
+    padding: 0;
+    border-radius: var(--radius-round);
+  }
+
+  .collection-actions__download .button__label {
+    display: none;
+  }
+
+  .collection-actions__download[data-state='all'] {
+    color: var(--color-primary);
+  }
+
+  /* Chips de Inicio en una sola fila que se desliza */
+  .chips {
+    flex-wrap: nowrap;
+    margin-right: calc(-1 * var(--narrow-gutter));
+    padding-right: var(--narrow-gutter);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  /* El WebView de Android no conoce scrollbar-width */
+  .chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chip {
+    flex: none;
+  }
+
+  /* El texto de "Mix diario" no pasa por debajo de su botón de play */
+  .feature-card__text {
+    padding-right: calc(var(--space-12) + var(--space-6));
+  }
+
+  /* Salidas de audio: el menú no pasa del ancho de la pantalla (nombres largos con "…") */
+  .device__menu {
+    max-width: calc(100vw - 2 * var(--narrow-gutter));
+  }
+
+  .device__option {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

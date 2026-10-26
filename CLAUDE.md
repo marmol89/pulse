@@ -65,7 +65,8 @@ src/renderer/
                  PlaylistView, SearchView, NowPlayingView, ControlsView, ToastView, ConnectionView,
                  ListDialog, KeyboardShortcuts)
   ui/            piezas de UI sin estado de negocio (dom, icons, cover, format, trackList, transport, menu: el «⋯»
-                 de las filas, reorder: arrastrar filas con el asa y Alt+↑/↓)
+                 de las filas, con todas sus opciones; en el móvil es su único botón, reorder: arrastrar filas con
+                 el asa y Alt+↑/↓)
   lib/           utilidades puras (storage, text, artists: separar colaboraciones)
   styles/        tokens.css (único sitio con valores), layout.css, components.css
 tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con ID3, FakeAudio) + e2e/
@@ -222,3 +223,6 @@ tests/           unitarios por carpeta + helpers/ (fakeContext, fakeS3, WAV con 
 - CSS: colores, radios y tamaños de fuente solo con tokens de `tokens.css` (lo comprueba `tests/ui/styles.test.js`).
 - Antes de dar algo por terminado: `npm test` y, si cambia la UI o el main, `npm run test:e2e` revisando las capturas frente al diseño.
   Si cambia la UI de móvil, el backend o `src/android/`: `npm run android:apk`, instalarlo y `npm run test:e2e:android`.
+- **Si se toca la interfaz, se comprueba que se ve bien** con la skill `revisar-interfaz`: capturas de escritorio y
+  de móvil (`node .claude/skills/revisar-interfaz/capturas-movil.mjs`, a 412×915 y sin emulador) revisadas una a una.
+  En el móvil, nada de varios botones en una fila: un solo «⋯» (`ui/menu.js`) con las opciones.

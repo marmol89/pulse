@@ -9,9 +9,11 @@ import { enableReorder } from './reorder.js';
  * Lista de pistas (filas de 60 px de la pantalla Playlist). Componente de UI,
  * no colega: avisa a su vista con callbacks y la vista notifica al mediator.
  * Doble clic, Enter o el botón sobre la portada reproducen. Con `onAddToList`, cada fila tiene
- * "Añadir a una lista"; con `onPlayNext` y `onEnqueue`, un menú "⋯" con "Reproducir a continuación" y
- * "Añadir a la cola" (y, con `onTrash`, "Eliminar del bucket"); con `onRemove` y `removable` al pintar (su texto: "Quitar de la lista"), el botón de quitar;
+ * "Añadir a una lista"; con `onRemove` y `removable` al pintar (su texto: "Quitar de la lista"), el botón de quitar;
  * con `onMove` y `reorderable` al pintar, un asa para arrastrar las filas (y Alt+↑/↓).
+ * El menú "⋯" reúne todo lo de la fila (en el móvil es el único botón que se ve): con `onPlayNext` y
+ * `onEnqueue`, "Reproducir a continuación" y "Añadir a la cola"; además favorito, añadir a una lista,
+ * subir/bajar, quitar y, con `onTrash`, "Eliminar del bucket".
  */
 export class TrackList {
   #element;
@@ -20,23 +22,32 @@ export class TrackList {
   #tracks = new Map();
   #currentPath = null;
   #canAdd;
-  #canQueue;
   #removable = '';
   #reorderable = false;
 
   constructor({ onPlay, onToggleFavorite, onAddToList = null, onPlayNext = null, onEnqueue = null, onTrash = null, onRemove = () => {}, onMove = null, label = 'Canciones' }) {
     this.#canAdd = Boolean(onAddToList);
-    this.#canQueue = Boolean(onPlayNext && onEnqueue);
-    const more = (path, button) =>
+    const canQueue = Boolean(onPlayNext && onEnqueue);
+    const more = (path, button) => {
+      const favorite = button.closest('.track-row').querySelector('[data-action="favorite"]')?.getAttribute('aria-pressed') === 'true';
+      const order = [...this.#tracks.keys()];
+      const at = order.indexOf(path);
+      const canMove = Boolean(onMove) && this.#reorderable;
       showMenu(
         button,
         [
-          { label: 'Reproducir a continuación', icon: 'next', onSelect: () => onPlayNext(path) },
-          { label: 'Añadir a la cola', icon: 'queue-add', onSelect: () => onEnqueue(path) },
-          ...(onTrash ? [{ label: 'Eliminar del bucket', icon: 'trash', onSelect: () => onTrash(path) }] : []),
-        ],
+          canQueue && { label: 'Reproducir a continuación', icon: 'next', onSelect: () => onPlayNext(path) },
+          canQueue && { label: 'Añadir a la cola', icon: 'queue-add', onSelect: () => onEnqueue(path) },
+          this.#canAdd && { label: 'Añadir a una lista', icon: 'plus', onSelect: () => onAddToList(path) },
+          { label: favorite ? 'Quitar de favoritos' : 'Añadir a favoritos', icon: favorite ? 'heart' : 'heart-outline', onSelect: () => onToggleFavorite(path) },
+          canMove && at > 0 && { label: 'Subir', icon: 'chevron-up', onSelect: () => onMove(path, at - 1) },
+          canMove && at < order.length - 1 && { label: 'Bajar', icon: 'chevron-down', onSelect: () => onMove(path, at + 1) },
+          this.#removable && { label: this.#removable, icon: 'close', onSelect: () => onRemove(path) },
+          onTrash && { label: 'Eliminar del bucket', icon: 'trash', onSelect: () => onTrash(path) },
+        ].filter(Boolean),
         { label: `Opciones de ${this.#tracks.get(path)?.title ?? 'la canción'}` },
       );
+    };
     const actions = { play: onPlay, favorite: onToggleFavorite, add: onAddToList, remove: onRemove, more };
     this.#element = h('ol', { class: 'track-list', 'aria-label': label });
     this.#element.addEventListener('click', (event) => {
@@ -154,7 +165,7 @@ export class TrackList {
         { class: 'track-row__actions' },
         this.#removable && iconButton('close', this.#removable, { className: 'row-action row-action--remove', 'data-action': 'remove', tabindex: '-1' }),
         this.#canAdd && iconButton('plus', 'Añadir a una lista', { className: 'row-action', 'data-action': 'add', tabindex: '-1' }),
-        this.#canQueue && iconButton('more', 'Más opciones', { className: 'row-action', 'data-action': 'more', 'aria-haspopup': 'menu', 'aria-expanded': 'false', tabindex: '-1' }),
+        iconButton('more', 'Más opciones', { className: 'row-action', 'data-action': 'more', 'aria-haspopup': 'menu', 'aria-expanded': 'false', tabindex: '-1' }),
         favoriteButton(isFavorite, { 'data-action': 'favorite', tabindex: '-1' }),
       ),
       h(
