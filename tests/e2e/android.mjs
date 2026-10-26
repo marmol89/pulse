@@ -187,6 +187,26 @@ try {
     return false;
   };
   check(await favoritesInBucket(), 'el corazón se sube a metadatos/favoritos.json del bucket');
+  // Editar datos: se guarda en el móvil, sube a metadatos/biblioteca.json y se puede restaurar.
+  await page.locator('.view--collection .track-row:has-text("Ola Azul") [data-action="more"]').click();
+  await page.click('.menu__item:has-text("Editar datos")');
+  await page.waitForSelector('#track-edit-dialog[open]');
+  await page.fill('#track-edit-title', 'Ola Azul (móvil)');
+  await shot('05b-editar-datos');
+  await page.click('#track-edit-dialog button[type="submit"]');
+  await page.waitForSelector('.view--collection .track-row:has-text("Ola Azul (móvil)")');
+  let editedInBucket = null;
+  for (let i = 0; i < 60 && !editedInBucket; i += 1) {
+    const body = s3.get('musica', 'metadatos/biblioteca.json');
+    editedInBucket = body ? JSON.parse(body.toString()).tracks.find((record) => record.edited?.title === 'Ola Azul (móvil)') : null;
+    if (!editedInBucket) await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  check(editedInBucket?.title === 'Ola Azul', '"Editar datos" cambia el título y lo sube aparte a metadatos/biblioteca.json');
+  await page.locator('.view--collection .track-row:has-text("Ola Azul (móvil)") [data-action="more"]').click();
+  await page.click('.menu__item:has-text("Editar datos")');
+  await page.click('.track-edit__restore');
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent === 'Datos del archivo restaurados');
+  check((await page.locator('.view--collection .track-row:has-text("Ola Azul (móvil)")').count()) === 0, '"Restaurar datos del archivo" vuelve al título de la etiqueta');
   // Lo que sonó entero en segundo plano ya cuenta como escuchado (y va al bucket con el id de este móvil).
   let plays = [];
   for (let i = 0; i < 40 && plays.length === 0; i += 1) {
