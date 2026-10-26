@@ -10,10 +10,7 @@ import { createUploader } from '../backend/library/upload.js';
 import { createTrash } from '../backend/library/trash.js';
 import { collectPaths } from './library/collect.js';
 import { createMetadataStore } from '../backend/library/metadata.js';
-import { createListStore } from '../backend/library/lists.js';
-import { createFavoriteStore } from '../backend/library/favorites.js';
-import { createRecentStore } from '../backend/library/recents.js';
-import { createPlayStore, deviceId } from '../backend/library/plays.js';
+import { loadUserData } from '../backend/library/userData.js';
 import { objectResponse } from './protocol/responses.js';
 import { mediaTrack } from './protocol/urls.js';
 import { createConnectionStore } from '../backend/s3/connection.js';
@@ -80,18 +77,8 @@ async function start() {
   await source.load();
   metadata = createMetadataStore({ getStorage: () => source.storage(), getRecords: () => store.all(), files });
   metadata.schedulePush(); // lo que ya hay en este equipo también llega al bucket
-  // Listas de canciones: lists.json aquí y metadatos/listas.json en el bucket, compartidas con los demás equipos.
-  const lists = createListStore({ files, getStorage: () => source.storage(), onChange: (all) => broadcast('lists:changed', all) });
-  await lists.load();
-  // Favoritos: favorites.json aquí y metadatos/favoritos.json en el bucket, igual que las listas.
-  const favorites = createFavoriteStore({ files, getStorage: () => source.storage(), onChange: (all) => broadcast('favorites:changed', all) });
-  await favorites.load();
-  // Recientes: recents.json aquí y metadatos/recientes.json en el bucket, igual que los favoritos.
-  const recents = createRecentStore({ files, getStorage: () => source.storage(), onChange: (all) => broadcast('recents:changed', all) });
-  await recents.load();
-  // Escuchas: plays.json aquí y metadatos/escuchas.json en el bucket, un registro por canción y por equipo.
-  const plays = createPlayStore({ device: await deviceId(files), files, getStorage: () => source.storage(), onChange: (all) => broadcast('plays:changed', all) });
-  await plays.load();
+  // Listas, favoritos, recientes y escuchas: aquí y en metadatos/ del bucket, compartidos con los demás equipos.
+  const userData = await loadUserData({ files, getStorage: () => source.storage(), onChange: (kind, all) => broadcast(`${kind}:changed`, all) });
   // Carátulas incrustadas en covers/ de userData: se descargan del bucket una sola vez.
   const embeddedCovers = createEmbeddedCovers({ files, getStorage: () => source.storage() });
   const librarySync = createLibrarySync({
@@ -130,12 +117,12 @@ async function start() {
       return storage && key ? objectResponse(storage, key, range) : new Response('Sin conexión con el almacenamiento', { status: 503 });
     },
   });
-  registerLibraryIpc({ store, source, librarySync, uploader, trash, lists, favorites, recents, plays });
+  registerLibraryIpc({ store, source, librarySync, uploader, trash, userData });
   registerMetadataIpc({ store, queue, artistPictures, toTrack: mediaTrack });
-  registerListsIpc({ lists });
-  registerFavoritesIpc({ favorites });
-  registerRecentsIpc({ recents });
-  registerPlaysIpc({ plays });
+  registerListsIpc(userData);
+  registerFavoritesIpc(userData);
+  registerRecentsIpc(userData);
+  registerPlaysIpc(userData);
   registerPlaylistsIpc({ downloads: () => app.getPath('downloads') });
   // Bandeja del sistema y botones de la barra de tareas (las órdenes van a la ventana por 'desktop:command').
   const desktop = createDesktop({
@@ -161,10 +148,7 @@ async function start() {
   // Cambios hechos en el bucket desde fuera (canciones, listas y favoritos): al arrancar y al volver a la ventana.
   const syncSoon = () => {
     librarySync.syncSoon();
-    lists.syncSoon();
-    favorites.syncSoon();
-    recents.syncSoon();
-    plays.syncSoon();
+    userData.syncSoon();
   };
   const win = createWindow();
   desktop.attach(win);
@@ -173,10 +157,9 @@ async function start() {
   updates.start();
   // No cerrar con metadatos, listas, favoritos, recientes o escuchas sin subir al bucket.
   app.on('before-quit', (event) => {
-    const shared = [lists, favorites, recents, plays];
-    if (!metadata.hasPending() && !shared.some((records) => records.hasPending())) return;
+    if (!metadata.hasPending() && !userData.hasPending()) return;
     event.preventDefault();
-    Promise.all([metadata.hasPending() && metadata.flush(), ...shared.map((records) => records.hasPending() && records.sync())]).finally(() => app.quit());
+    Promise.all([metadata.hasPending() && metadata.flush(), userData.flush()]).finally(() => app.quit());
   });
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) desktop.attach(createWindow());

@@ -8,11 +8,12 @@ import { createLibrarySync } from '../backend/library/sync.js';
 import { createUploader } from '../backend/library/upload.js';
 import { createTrash } from '../backend/library/trash.js';
 import { createMetadataStore } from '../backend/library/metadata.js';
-import { createListStore, listResult } from '../backend/library/lists.js';
+import { listResult } from '../backend/library/lists.js';
 import { editRecord } from '../backend/library/edits.js';
-import { createFavoriteStore, favoriteResult } from '../backend/library/favorites.js';
-import { createRecentStore, recentResult } from '../backend/library/recents.js';
-import { createPlayStore, deviceId, playResult } from '../backend/library/plays.js';
+import { favoriteResult } from '../backend/library/favorites.js';
+import { recentResult } from '../backend/library/recents.js';
+import { playResult } from '../backend/library/plays.js';
+import { loadUserData } from '../backend/library/userData.js';
 import { createConnectionStore } from '../backend/s3/connection.js';
 import { createS3Service } from '../backend/s3/service.js';
 import { createS3Storage } from '../backend/s3/storage.js';
@@ -81,8 +82,8 @@ export function createAndroidApi(deps) {
 
     // Biblioteca (en el bucket S3)
     loadLibrary: call(({ store, present, trackOf }) => present(store.all().map(trackOf))),
-    syncLibrary: call(async ({ librarySync, lists, favorites, recents, plays }) => {
-      const [{ added, removed }] = await Promise.all([librarySync.sync(), lists.sync(), favorites.sync(), recents.sync(), plays.sync()]);
+    syncLibrary: call(async ({ librarySync, userData }) => {
+      const [{ added, removed }] = await Promise.all([librarySync.sync(), userData.sync()]);
       return { added: added.length, removed: removed.length };
     }),
     verifyTrack: call(({ librarySync }, id) => (typeof id === 'string' ? librarySync.verify(id) : false)),
@@ -204,14 +205,8 @@ async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downlo
   await source.load();
   metadata = createMetadataStore({ getStorage: () => source.storage(), getRecords: () => store.all(), files });
   metadata.schedulePush(); // lo que ya hay en el móvil también llega al bucket
-  const lists = createListStore({ files, getStorage: () => source.storage(), onChange: (all) => emit('lists', all), timers });
-  await lists.load();
-  const favorites = createFavoriteStore({ files, getStorage: () => source.storage(), onChange: (all) => emit('favorites', all), timers });
-  await favorites.load();
-  const recents = createRecentStore({ files, getStorage: () => source.storage(), onChange: (all) => emit('recents', all), timers });
-  await recents.load();
-  const plays = createPlayStore({ device: await deviceId(files), files, getStorage: () => source.storage(), onChange: (all) => emit('plays', all), timers });
-  await plays.load();
+  // Listas, favoritos, recientes y escuchas: en el móvil y en metadatos/ del bucket.
+  const userData = await loadUserData({ files, getStorage: () => source.storage(), onChange: emit, timers });
 
   const covers = createCoverCache({
     files,
@@ -305,20 +300,14 @@ async function start({ files, crypto, http, coverUrl, fileUrl = () => '', downlo
   // Al salir, se sube lo pendiente.
   const syncSoon = () => {
     librarySync.syncSoon();
-    lists.syncSoon();
-    favorites.syncSoon();
-    recents.syncSoon();
-    plays.syncSoon();
+    userData.syncSoon();
   };
   syncSoon();
   App?.addListener('resume', syncSoon);
   App?.addListener('pause', () => {
     metadata.flush();
-    if (lists.hasPending()) lists.sync();
-    if (favorites.hasPending()) favorites.sync();
-    if (recents.hasPending()) recents.sync();
-    if (plays.hasPending()) plays.sync();
+    userData.flush();
   });
 
-  return { store, source, librarySync, uploader, trash, queue, covers, metadata, lists, favorites, recents, plays, downloads, present, trackOf, artistPictures, pictureUrls };
+  return { store, source, librarySync, uploader, trash, queue, covers, metadata, userData, ...userData, downloads, present, trackOf, artistPictures, pictureUrls };
 }
