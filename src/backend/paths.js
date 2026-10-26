@@ -20,3 +20,17 @@ export function extname(name) {
 export function coverFile(name) {
   return `covers/${basename(name)}`;
 }
+
+/** Una lista M3U es texto: un archivo más grande que esto no es una lista. */
+export const MAX_PLAYLIST_BYTES = 2 * 1024 * 1024;
+
+/** Archivo .m3u8 con un nombre válido en Windows, Linux y Android a partir del de la lista. */
+export function playlistFileName(name) {
+  const safe = String(name ?? '').replace(/[<>:"/\|?*\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/[. ]+$/, '');
+  return `${safe || 'Lista'}.m3u8`;
+}
+
+/** Nombre de la lista a partir del de su archivo ("Correr.m3u8" → "Correr"). */
+export function playlistName(file) {
+  return basename(file).replace(/\.m3u8?$/i, '');
+}

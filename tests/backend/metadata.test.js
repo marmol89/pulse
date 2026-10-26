@@ -63,6 +63,18 @@ describe('library/metadata', () => {
     assert.equal(puts() - before, 1, 'una sola subida; sin cambios no vuelve a subir');
   });
 
+  test('schedulePush() no espera más de maxWait aunque no paren los guardados', () => {
+    let clock = 1_000;
+    const waits = [];
+    const timers = { setTimeout: (_task, wait) => waits.push(wait), clearTimeout: () => {} };
+    const store = createMetadataStore({ getStorage: () => storage, getRecords: () => records, files, delay: 5_000, maxWait: 12_000, now: () => clock, timers });
+    for (let i = 0; i < 4; i += 1) {
+      store.schedulePush();
+      clock += 4_000;
+    }
+    assert.deepEqual(waits, [5_000, 5_000, 4_000, 0]);
+  });
+
   test('una carátula que falta en este equipo se descarga del bucket y queda en la caché', async () => {
     await metadata.flush();
     await files.remove('covers/abc.jpg');

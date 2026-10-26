@@ -1,11 +1,13 @@
 import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { isAudioFile } from '../library/tracks.js';
 
-// Los errores ya llegan a quien llama, y una subida fallida (un stream no se reintenta) se cuenta en
-// el resultado: el SDK no necesita avisar por consola de ninguna de las dos cosas.
 /** Carpeta (bajo la de la conexión) donde van las canciones eliminadas: no forman parte de la biblioteca. */
 export const TRASH_FOLDER = 'papelera/';
+/** Un servidor que no contesta no deja colgada la petición (ni el cierre de la app, que espera a subir lo pendiente). */
+export const CONNECTION_TIMEOUT_MS = 10_000;
 
+// Los errores ya llegan a quien llama, y una subida fallida (un stream no se reintenta) se cuenta en
+// el resultado: el SDK no necesita avisar por consola de ninguna de las dos cosas.
 const SDK_LOGGER = {
   debug() {},
   info() {},
@@ -20,7 +22,8 @@ const SDK_LOGGER = {
  * canción a la papelera (`copy` + `remove`, en library/trash.js) y al vaciarla.
  * Estilo path ("https://servidor/bucket/clave"), que es lo que esperan MinIO y similares.
  *
- * `requestHandler` cambia cómo salen las peticiones (en Android, por la red nativa: sin CORS).
+ * `requestHandler` cambia cómo salen las peticiones (en Android, por la red nativa: sin CORS). Sin él, las del SDK
+ * tienen un límite para conectar (no para leer: el audio en pausa deja su respuesta parada y no es un fallo).
  *
  * @typedef {{ endpoint: string, accessKeyId: string, secretAccessKey: string, bucket: string, prefix?: string, region?: string }} S3Config
  */
@@ -35,7 +38,7 @@ export function createS3Storage({ endpoint, accessKeyId, secretAccessKey, bucket
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
     logger: SDK_LOGGER,
-    ...(requestHandler ? { requestHandler } : {}),
+    requestHandler: requestHandler ?? { connectionTimeout: CONNECTION_TIMEOUT_MS },
   });
 
   return {

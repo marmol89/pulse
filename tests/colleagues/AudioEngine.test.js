@@ -47,6 +47,28 @@ describe('AudioEngine', () => {
     await engine.fadeOut(100, { timers }); // sin sonar: no hace nada
   });
 
+  test('fadeOut() respeta el volumen que se cambie mientras baja y el de igualar volumen', async () => {
+    const { audio, engine } = setup();
+    engine.setVolume(0.5);
+    engine.load('media://track/a', true);
+    engine.setReplayGain({ track: -6.0206, album: null }); // la mitad
+    const volumes = [];
+    let step = 0;
+    const timers = {
+      setTimeout: (task) =>
+        setImmediate(() => {
+          step += 1;
+          if (step === 2) engine.setVolume(1); // a mitad del fundido
+          volumes.push(Math.round(audio.volume * 1000) / 1000);
+          task();
+        }),
+    };
+    await engine.fadeOut(100, { steps: 4, timers });
+    assert.deepEqual(volumes, [0.25, 0.375, 0.25, 0.125]);
+    assert.equal(Math.round(audio.volume * 1000) / 1000, 0.5, 'queda con el volumen nuevo, a la mitad por igualar');
+    assert.equal(engine.volume(), 1);
+  });
+
   test('load() con startAt empieza en ese segundo cuando el audio conoce su duración', () => {
     const { audio, engine } = setup();
     engine.load('media://track/a', false, 42);
