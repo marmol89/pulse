@@ -14,6 +14,7 @@ export const SHORTCUTS = [
   { key: 'ArrowUp', ctrl: true, event: EVENTS.VOLUME_STEP, payload: 0.05, repeat: true },
   { key: 'ArrowDown', ctrl: true, event: EVENTS.VOLUME_STEP, payload: -0.05, repeat: true },
   { key: 'm', event: EVENTS.TOGGLE_MUTE },
+  { key: 'm', ctrl: true, event: EVENTS.TOGGLE_MINI_PLAYER },
   { key: 's', event: EVENTS.TOGGLE_SHUFFLE },
   { key: 'r', event: EVENTS.CYCLE_REPEAT },
   { key: 'l', event: EVENTS.TOGGLE_FAVORITE },

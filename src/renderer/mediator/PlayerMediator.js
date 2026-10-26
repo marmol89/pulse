@@ -27,6 +27,7 @@ import loudness from './handlers/loudness.js';
 import equalizer from './handlers/equalizer.js';
 import plays from './handlers/plays.js';
 import desktop from './handlers/desktop.js';
+import miniPlayer from './handlers/miniPlayer.js';
 
 /**
  * Solo compone: conecta colegas y registra módulos de handlers.
@@ -73,7 +74,8 @@ export class PlayerMediator extends Mediator {
       .use(loudness)
       .use(equalizer)
       .use(plays)
-      .use(desktop);
+      .use(desktop)
+      .use(miniPlayer);
   }
 
   get context() {

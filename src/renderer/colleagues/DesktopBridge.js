@@ -36,4 +36,9 @@ export class DesktopBridge extends Colleague {
   setCloseToTray(enabled) {
     this.#desktop?.setCloseToTray(Boolean(enabled));
   }
+
+  /** Mini-reproductor: el main cambia el tamaño de la ventana (la interfaz la cambia el Router). */
+  setMini(enabled) {
+    this.#desktop?.setMini?.(Boolean(enabled));
+  }
 }
