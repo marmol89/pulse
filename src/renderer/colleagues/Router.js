@@ -230,13 +230,13 @@ export class Router extends Colleague {
     this.#loudness = h(
       'select',
       { class: 'setting-row__select', id: 'loudness-select' },
-      ...Object.entries({ off: 'No', track: 'Canción', album: 'Disco' }).map(([mode, label]) => h('option', { value: mode }, label)),
+      ...Object.entries({ off: 'No', track: 'Pista', album: 'Disco' }).map(([mode, label]) => h('option', { value: mode }, label)),
     );
     this.#loudness.addEventListener('change', () => this.notify(EVENTS.SET_LOUDNESS, this.#loudness.value));
     const loudnessRow = h(
       'label',
-      { class: 'switch-row', for: 'loudness-select', title: 'Iguala el volumen de las canciones que traen la etiqueta ReplayGain (por canción o por disco)' },
-      h('span', { class: 'switch-row__text' }, h('span', { class: 'switch-row__title' }, 'Volumen uniforme'), h('span', { class: 'switch-row__hint' }, 'Con ReplayGain')),
+      { class: 'switch-row', for: 'loudness-select', title: 'Iguala el volumen de las canciones que traen la etiqueta ReplayGain, por pista o por disco' },
+      h('span', { class: 'switch-row__text' }, h('span', { class: 'switch-row__title' }, 'Igualar volumen'), h('span', { class: 'switch-row__hint' }, 'ReplayGain')),
       this.#loudness,
     );
     const newList = h('button', { type: 'button', class: 'nav__item' }, icon('plus'), 'Nueva lista');

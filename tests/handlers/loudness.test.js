@@ -13,7 +13,7 @@ describe('handlers/loudness', () => {
     loudness[EVENTS.SET_LOUDNESS](ctx, 'album');
     loudness[EVENTS.SET_LOUDNESS](ctx, 'off');
     assert.deepEqual(callsOf(ctx.router.setLoudness), [['track'], ['album'], ['off']]);
-    assert.deepEqual(callsOf(ctx.toast.show), [['Volumen uniforme por disco'], ['Volumen uniforme desactivado']]);
+    assert.deepEqual(callsOf(ctx.toast.show), [['Volumen igualado por disco'], ['Sin igualar el volumen']]);
   });
 
   test('cada pista que se carga lleva su ganancia al AudioEngine', () => {

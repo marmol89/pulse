@@ -1,9 +1,9 @@
 import { EVENTS } from '../events.js';
 
 const LABELS = {
-  off: 'Volumen uniforme desactivado',
-  track: 'Volumen uniforme por canción',
-  album: 'Volumen uniforme por disco',
+  off: 'Sin igualar el volumen',
+  track: 'Volumen igualado por pista',
+  album: 'Volumen igualado por disco',
 };
 
 /** Volumen uniforme: la ganancia ReplayGain de cada pista la aplica AudioEngine al cargarla (actions.loadTrack). */
