@@ -24,6 +24,7 @@ import crossfade from './handlers/crossfade.js';
 import downloads from './handlers/downloads.js';
 import trash from './handlers/trash.js';
 import loudness from './handlers/loudness.js';
+import equalizer from './handlers/equalizer.js';
 
 /**
  * Solo compone: conecta colegas y registra módulos de handlers.
@@ -34,8 +35,8 @@ export class PlayerMediator extends Mediator {
 
   /**
    * @param {{
-   *   audio, playlist, catalog, favorites, recents, lists, settings, session, library, mediaSession, sleepTimer,
-   *   router, home, search, playlistView, nowPlaying, controls, toast, connection, listDialog, trashDialog, keyboard?
+   *   audio, equalizer, playlist, catalog, favorites, recents, lists, settings, session, library, mediaSession, sleepTimer,
+   *   router, home, search, playlistView, nowPlaying, controls, toast, connection, listDialog, trashDialog, equalizerDialog, keyboard?
    * }} colleagues
    */
   constructor(colleagues) {
@@ -67,7 +68,8 @@ export class PlayerMediator extends Mediator {
       .use(crossfade)
       .use(downloads)
       .use(trash)
-      .use(loudness);
+      .use(loudness)
+      .use(equalizer);
   }
 
   get context() {
