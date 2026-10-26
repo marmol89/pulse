@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/marmol89/pulse/compare/v0.6.0...v0.6.1) (2026-10-26)
+
+
+### Correcciones
+
+* Pulse se cierra sin conexión y otras mejoras de código ([#47](https://github.com/marmol89/pulse/issues/47)) ([e40b194](https://github.com/marmol89/pulse/commit/e40b19485d84fdfc6be1283e3e7a5eebcf7fa78c))
+
 ## [0.6.0](https://github.com/marmol89/pulse/compare/v0.5.0...v0.6.0) (2026-10-26)
 
 
