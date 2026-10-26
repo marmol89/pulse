@@ -52,6 +52,9 @@ contextBridge.exposeInMainWorld('api', {
   moveInList: (id, path, to) => ipcRenderer.invoke('lists:move-track', id, path, to),
   removeFromList: (id, path) => ipcRenderer.invoke('lists:remove-track', id, path),
   deleteList: (id) => ipcRenderer.invoke('lists:delete', id),
+  // Listas M3U: guardar el texto en un archivo / leer uno (diálogos del sistema). { saved, error? } y { name, text } | { error } | null.
+  exportPlaylist: (name, text) => ipcRenderer.invoke('playlists:export', name, text),
+  importPlaylist: () => ipcRenderer.invoke('playlists:import'),
   /** Listas cambiadas desde otro equipo. Devuelve la función para dejar de escuchar. */
   onListsChanged: (callback) => {
     const listener = (_event, lists) => callback(lists);
