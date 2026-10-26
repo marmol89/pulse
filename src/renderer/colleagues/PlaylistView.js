@@ -5,6 +5,7 @@ import { icon } from '../ui/icons.js';
 import { createCover } from '../ui/cover.js';
 import { collectionStats } from '../ui/format.js';
 import { TrackList } from '../ui/trackList.js';
+import { showMenu } from '../ui/menu.js';
 
 const KIND_LABELS = {
   library: 'Biblioteca',
@@ -23,7 +24,7 @@ const EMPTY_MESSAGES = {
   favorites: 'Aún no tienes favoritos. Pulsa el corazón de cualquier canción para guardarla aquí.',
   recents: 'Todavía no has escuchado nada.',
   queue: 'La cola está vacía.',
-  list: 'Esta lista está vacía. Pulsa «+» en cualquier canción (o «Añadir a una lista» en Reproduciendo) para añadirla.',
+  list: 'Esta lista está vacía. Usa «Añadir a una lista» en el menú «⋯» de cualquier canción (o en Reproduciendo) para añadirla.',
 };
 /** Órdenes de "Tu biblioteca" (los aplica Catalog); el primero es el de siempre. */
 const LIBRARY_SORTS = [
@@ -57,6 +58,7 @@ export class PlaylistView extends Colleague {
   #shuffle;
   #play;
   #edit;
+  #more;
   #download;
   #tools;
   #filter;
@@ -81,6 +83,11 @@ export class PlaylistView extends Colleague {
     });
     this.#edit = h('button', { type: 'button', class: 'button button--secondary collection-actions__edit', hidden: true }, icon('pencil'), 'Editar lista');
     this.#edit.addEventListener('click', () => this.notify(EVENTS.EDIT_LIST, this.#source.id));
+    // En el móvil "Editar lista" no cabe junto a los demás: va dentro de este "⋯".
+    this.#more = iconButton('more', 'Más opciones de la lista', { className: 'collection-actions__more', hidden: true, 'aria-haspopup': 'menu', 'aria-expanded': 'false' });
+    this.#more.addEventListener('click', () =>
+      showMenu(this.#more, [{ label: 'Editar lista', icon: 'pencil', onSelect: () => this.notify(EVENTS.EDIT_LIST, this.#source.id) }], { label: 'Opciones de la lista' }),
+    );
     this.#download = h('button', { type: 'button', class: 'button button--secondary collection-actions__download', hidden: true });
     this.#download.addEventListener('click', () =>
       this.notify(this.#download.dataset.state === 'all' ? EVENTS.REMOVE_DOWNLOADS : EVENTS.DOWNLOAD_COLLECTION, this.#source),
@@ -124,7 +131,7 @@ export class PlaylistView extends Colleague {
           this.#stats,
         ),
       ),
-      h('div', { class: 'collection-actions' }, this.#edit, this.#tools, this.#download, this.#shuffle, this.#play),
+      h('div', { class: 'collection-actions' }, this.#more, this.#edit,this.#tools, this.#download, this.#shuffle, this.#play),
       this.#list.element,
       this.#empty,
     );
@@ -144,6 +151,7 @@ export class PlaylistView extends Colleague {
     this.#stats.textContent = collectionStats(tracks);
     const isList = source.kind === 'list';
     this.#edit.hidden = !isList;
+    this.#more.hidden = !isList;
     this.#renderDownload(state.download ?? null, tracks.length);
     this.#renderTools(source);
     this.#list.render(tracks, { ...state, removable: REMOVE_LABELS[source.kind] ?? false, reorderable: source.kind in REMOVE_LABELS });
@@ -164,7 +172,9 @@ export class PlaylistView extends Colleague {
     this.#download.disabled = download === 'downloading';
     this.#download.setAttribute('aria-pressed', String(download === 'all'));
     this.#download.title = download === 'all' ? 'Quitar la descarga del móvil' : 'Guardar en el móvil para escucharla sin conexión';
-    this.#download.replaceChildren(icon(name), label);
+    // En el móvil solo se ve el icono: el texto sigue siendo su nombre accesible.
+    this.#download.setAttribute('aria-label', label);
+    this.#download.replaceChildren(icon(name), h('span', { class: 'button__label' }, label));
   }
 
   /** Filtro y orden solo en "Tu biblioteca"; al entrar de nuevo, el filtro empieza vacío. */
