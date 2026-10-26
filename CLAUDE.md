@@ -47,7 +47,9 @@ src/main/        adaptador de Electron (NO forma parte del mediator)
   desktop.js     bandeja del sistema (canción y controles), botones de la miniatura de Windows (src/assets/controles/,
                  los genera `npm run icons`) y "Seguir en la bandeja" (cerrar oculta; "Salir" cierra). Habla con la
                  ventana por desktop:update / desktop:close-to-tray / desktop:command; en el renderer, `DesktopBridge`
-                 (handler `desktop.js`). En Android no existe `window.api.desktop`
+                 (handler `desktop.js`). En Android no existe `window.api.desktop`. También el mini-reproductor
+                 (desktop:mini): la misma ventana a 380×92 y siempre encima; la interfaz es `.app.is-mini` (Router, al
+                 final de layout.css: a ese ancho también cuentan las reglas del móvil). Handler `miniPlayer.js`, Ctrl+M
   files.js       `files` sobre fs en userData; library/collect.js recorre archivos y carpetas para subir;
                  library/folderStorage.js: las carpetas del ordenador con la forma del storage de S3 (solo lectura)
   protocol/      media://track|cover/<id>: audio desde S3 con rangos, solo pistas de la biblioteca (403 si no)

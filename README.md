@@ -47,6 +47,7 @@ Por dentro está organizado con el patrón **Mediator**.
 - 🎛️ **Ecualizador** de cinco bandas con preajustes (en el ordenador).
 - 📈 **Más escuchadas, Sin escuchar y Añadidas recientemente**: listas que se hacen solas con lo que escuchas en todos tus equipos.
 - 🖥️ **Bandeja del sistema** con la canción y los controles, botones en la miniatura de la barra de tareas (Windows) y, si quieres, **seguir sonando al cerrar la ventana**.
+- 🪟 **Mini-reproductor** (Ctrl+M): una ventana pequeña y siempre encima con la canción y los controles.
 - 🔉 **Igualar volumen** con las etiquetas ReplayGain de tus canciones, por pista o por disco.
 - ❤️ Favoritos, listas de canciones y escuchado recientemente, **compartidos por el bucket entre todos tus equipos**.
   Mix diario, álbumes y artistas (con su foto), y tu biblioteca ordenada y filtrada como quieras.
@@ -147,6 +148,7 @@ grande). Si una canción deja de sonar porque la has borrado del bucket, desapar
 | <kbd>Ctrl</kbd> + <kbd>←</kbd> / <kbd>→</kbd> | Canción anterior / siguiente |
 | <kbd>Ctrl</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd> | Subir / bajar volumen |
 | <kbd>M</kbd> | Silenciar |
+| <kbd>Ctrl</kbd> + <kbd>M</kbd> | Mini-reproductor (en el ordenador) |
 | <kbd>S</kbd> | Aleatorio |
 | <kbd>R</kbd> | Repetir (no / todo / una) |
 | <kbd>L</kbd> | Me gusta |
