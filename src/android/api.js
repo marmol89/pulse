@@ -31,7 +31,7 @@ const AUDIO_ACCEPT = ['audio/*', ...AUDIO_EXTENSIONS.map((extension) => `.${exte
 /** toTrack sin URLs: present() pone las de Android (firmada para el audio, archivo local para la carátula). */
 const NO_URLS = { track: () => '', cover: () => '' };
 /** Sin el plugin PulseFolders (tests): no se puede elegir ninguna carpeta. */
-const NO_FOLDERS = { pick: async () => null, list: async () => ({ files: [] }), release: async () => {} };
+const NO_FOLDERS = { pick: async () => null, list: async () => ({ files: [] }), release: async () => {}, save: async () => ({ saved: false }) };
 
 /** URL firmada para que el <audio> pida el objeto (y sus rangos) directamente a S3. */
 export function presignUrl(storage, key, seconds = SIGNED_URL_SECONDS) {
@@ -53,7 +53,7 @@ export function collectFiles(files) {
  *
  * @param {{ files, crypto, http, coverUrl: (name: string) => string, fileUrl: (path: string) => string,
  *   downloadFile: (url: string, path: string) => Promise<void>, document, userAgent: string,
- *   folders?: { pick, list, release }, localFetch?: typeof fetch,
+ *   folders?: { pick, list, release, save }, localFetch?: typeof fetch,
  *   App?: { addListener }, prepare?: () => Promise<void>, presign?: typeof presignUrl, timers?: object }} deps
  *   `http`: plugin CapacitorHttp · `crypto`: createKeystoreCrypto() · `files`: createCapacitorFiles() ·
  *   `folders`: plugin PulseFolders (carpetas del móvil) · `localFetch`: fetch del WebView (lee su audio) ·
@@ -123,6 +123,21 @@ export function createAndroidApi(deps) {
     moveInList: call(({ lists }, id, path, to) => listResult(() => lists.moveTrack(String(id), String(path), Number(to)))),
     removeFromList: call(({ lists }, id, path) => listResult(() => lists.removeTrack(String(id), String(path)))),
     deleteList: call(({ lists }, id) => listResult(() => lists.remove(String(id)))),
+    // Listas M3U: se guardan donde elija el usuario (selector de documentos) y se leen con el de archivos.
+    exportPlaylist: async (name, text) => {
+      try {
+        const file = String(name ?? '').replace(/[<>:"/\\|?*]/g, ' ').replace(/\s+/g, ' ').trim() || 'Lista';
+        return await (deps.folders ?? NO_FOLDERS).save({ name: `${file}.m3u8`, type: 'audio/x-mpegurl', text: String(text ?? '') });
+      } catch {
+        return { saved: false, error: 'No se pudo guardar la lista' };
+      }
+    },
+    importPlaylist: async () => {
+      const [file] = (await pickFiles(deps.document, { accept: '.m3u,.m3u8,audio/x-mpegurl,audio/mpegurl' })) ?? [];
+      if (!file) return null;
+      if (file.size > 2 * 1024 * 1024) return { error: 'Ese archivo es demasiado grande para ser una lista' };
+      return { name: file.name.replace(/.m3u8?$/i, ''), text: await file.text() };
+    },
     onListsChanged: subscribe('lists'),
 
     // Favoritos (compartidos como las listas)
