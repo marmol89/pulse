@@ -50,6 +50,7 @@ Por dentro está organizado con el patrón **Mediator**.
 - 🪟 **Mini-reproductor** (Ctrl+M): una ventana pequeña y siempre encima con la canción y los controles.
 - 🔉 **Igualar volumen** con las etiquetas ReplayGain de tus canciones, por pista o por disco.
 - ❤️ Favoritos, listas de canciones y escuchado recientemente, **compartidos por el bucket entre todos tus equipos**.
+- ✏️ **Editar los datos de una canción** (título, artista, álbum, año…) sin tocar el archivo; se ve en todos tus Pulse.
 - 📄 **Exportar e importar listas M3U** (`.m3u8`): lleva una lista, un álbum o tus favoritos a otro reproductor, o trae una suya.
   Mix diario, álbumes y artistas (con su foto), y tu biblioteca ordenada y filtrada como quieras.
 - 📋 **Cola editable**: reproducir a continuación, añadir a la cola, ver la cola y reordenar arrastrando (también las
